@@ -4,12 +4,25 @@ import axios from "axios";
 const MarketplaceParticipations = () => {
 
     const [accessToken, setAccessToken] = useState("");
-    const [awsAccessKey, setAwsAccessKey] = useState("");
-    const [awsSecretKey, setAwsSecretKey] = useState("");
+ const [awsAccessKey, setAwsAccessKey] = useState(
+  process.env.REACT_APP_AWS_ACCESS_KEY_ID || ""
+);
 
-    const [region, setRegion] = useState("");
-    const [serviceName, setServiceName] = useState("");
-    const [environment, setEnvironment] = useState("");
+const [awsSecretKey, setAwsSecretKey] = useState(
+  process.env.REACT_APP_AWS_SECRET_ACCESS_KEY || ""
+);
+
+const [region, setRegion] = useState(
+  process.env.REACT_APP_AWS_REGION || "us-east-1"
+);
+
+const [serviceName, setServiceName] = useState(
+  process.env.REACT_APP_AWS_SERVICE_NAME || "execute-api"
+);
+
+const [environment, setEnvironment] = useState(
+  process.env.REACT_APP_AMAZON_ENVIRONMENT || "sandbox"
+);
 
     const [response, setResponse] = useState("");
     const [error, setError] = useState("");
