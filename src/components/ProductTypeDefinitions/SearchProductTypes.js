@@ -1,102 +1,165 @@
 import React, { useState } from "react";
 import axios from "axios";
-import ApiCredentials from "../Common/ApiCredentials";
-import ErrorDisplay from "../Common/ErrorDisplay";
 
-const SearchProductTypes = ({ 
-  accessToken, setAccessToken, 
-  awsAccessKey, setAwsAccessKey, 
-  awsSecretKey, setAwsSecretKey, 
-  region, setRegion, 
-  environment, setEnvironment,
-  marketplaceIds, setMarketplaceIds,
-  onSelectProductType // callback to parent
-}) => {
-  const [keywords, setKeywords] = useState("");
-  const [productTypes, setProductTypes] = useState([]);
+const ProductTypeSearch = () => {
+  const [accessToken, setAccessToken] = useState("");
+  const [awsAccessKey, setAwsAccessKey] = useState("");
+  const [awsSecretKey, setAwsSecretKey] = useState("");
+  const [region, setRegion] = useState("us-east-1");
+  const [environment, setEnvironment] = useState("sandbox");
+  const [marketplaceIds, setMarketplaceIds] = useState("ATVPDKIKX0DER");
+
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [productTypes, setProductTypes] = useState([]);
+  const [error, setError] = useState("");
 
-  const searchTypes = async () => {
-    if (!keywords.trim()) return;
-    setError(null);
+  const SearchProductTypes= async () => {
     setLoading(true);
+    setError("");
+    setProductTypes([]);
+
     try {
-      const res = await axios.post("http://localhost:5000/api/product-types/search", {
-        accessToken, awsAccessKey, awsSecretKey, region, environment, 
-        marketplaceIds, keywords
-      });
-      setProductTypes(res.data.payload.productTypes || []);
+      const response = await axios.post(
+        "http://localhost:5000/api/product-types/search",
+        {
+          accessToken,
+          awsAccessKey,
+          awsSecretKey,
+          region,
+          environment,
+          marketplaceIds,
+        }
+      );
+
+      setProductTypes(response.data.productTypes || []);
     } catch (err) {
-      setError(err);
+      console.error(err);
+
+      setError(
+        err.response?.data?.error ||
+          err.response?.data?.message ||
+          "Failed to fetch Product Types."
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSelect = (typeName) => {
-    if (onSelectProductType) onSelectProductType(typeName);
-  };
-
   return (
     <div style={styles.container}>
-      <h3>1. Search Product Types</h3>
-      <p>Enter keywords to find Amazon product type like LUGGAGE, BOOKS</p>
-      
-      <ApiCredentials 
-        accessToken={accessToken} setAccessToken={setAccessToken}
-        awsAccessKey={awsAccessKey} setAwsAccessKey={setAwsAccessKey}
-        awsSecretKey={awsSecretKey} setAwsSecretKey={setAwsSecretKey}
-        region={region} setRegion={setRegion}
-        environment={environment} setEnvironment={setEnvironment}
+      <h2>Search Product Types</h2>
+
+      <input
+        style={styles.input}
+        placeholder="Access Token"
+        value={accessToken}
+        onChange={(e) => setAccessToken(e.target.value)}
       />
-      
-      <input 
-        type="text" 
-        placeholder="Marketplace IDs (A21TJRUUN4KGV)" 
-        value={marketplaceIds} 
-        onChange={e => setMarketplaceIds(e.target.value)} 
-        style={styles.input} 
+
+      <input
+        style={styles.input}
+        placeholder="AWS Access Key"
+        value={awsAccessKey}
+        onChange={(e) => setAwsAccessKey(e.target.value)}
       />
-      
-      <input 
-        type="text" 
-        placeholder="Keywords e.g. luggage, backpack, shoes" 
-        value={keywords} 
-        onChange={e => setKeywords(e.target.value)} 
-        style={styles.input} 
+
+      <input
+        style={styles.input}
+        placeholder="AWS Secret Key"
+        value={awsSecretKey}
+        onChange={(e) => setAwsSecretKey(e.target.value)}
       />
-      
-      <button onClick={searchTypes} disabled={loading} style={styles.button}>
-        {loading? "Searching..." : "Search Product Types"}
+
+      <input
+        style={styles.input}
+        value={region}
+        onChange={(e) => setRegion(e.target.value)}
+      />
+
+      <select
+        style={styles.input}
+        value={environment}
+        onChange={(e) => setEnvironment(e.target.value)}
+      >
+        <option value="sandbox">Sandbox</option>
+        <option value="production">Production</option>
+      </select>
+
+      <input
+        style={styles.input}
+        value={marketplaceIds}
+        onChange={(e) => setMarketplaceIds(e.target.value)}
+      />
+
+      <button
+        style={styles.button}
+        onClick={searchProductTypes}
+        disabled={loading}
+      >
+        {loading ? "Loading..." : "Search Product Types"}
       </button>
 
-      <ErrorDisplay error={error} onClose={() => setError(null)} />
+      {error && (
+        <div style={styles.error}>
+          {error}
+        </div>
+      )}
 
       {productTypes.length > 0 && (
-        <div style={styles.results}>
-          <h4>Found {productTypes.length} product types:</h4>
-          {productTypes.map(pt => (
-            <div key={pt.name} style={styles.card} onClick={() => handleSelect(pt.name)}>
-              <strong>{pt.displayName}</strong>
-              <div style={styles.code}>{pt.name}</div>
-              <button style={styles.selectBtn}>Select</button>
-            </div>
-          ))}
-        </div>
+        <table style={styles.table}>
+          <thead>
+            <tr>
+              <th>Product Type</th>
+              <th>Display Name</th>
+              <th>Marketplace</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {productTypes.map((item) => (
+              <tr key={item.name}>
+                <td>{item.name}</td>
+                <td>{item.displayName}</td>
+                <td>{marketplaceIds}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   );
 };
 
 const styles = {
-  container: { width: '100%', marginBottom: 30 },
-  input: { width: "100%", marginBottom: 15, padding: 10, fontSize: 15, border: '1px solid #cbd5e1', borderRadius: 6 },
-  button: { background: "#146eb4", color: "#fff", border: "none", padding: "12px 25px", cursor: "pointer", fontSize: 16, borderRadius: 5, marginBottom: 15 },
-  results: { marginTop: 20 },
-  card: { border: '1px solid #e2e8f0', padding: 15, borderRadius: 8, marginBottom: 10, cursor: 'pointer' },
-  code: { fontSize: 12, color: '#64748b', marginTop: 5 },
-  selectBtn: { marginTop: 10, padding: '6px 12px', background: '#22c55e', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }
+  container: {
+    maxWidth: "800px",
+    margin: "30px auto",
+    padding: "20px",
+    border: "1px solid #ddd",
+    borderRadius: "8px",
+  },
+
+  input: {
+    width: "100%",
+    padding: "10px",
+    marginBottom: "12px",
+  },
+
+  button: {
+    padding: "10px 20px",
+    cursor: "pointer",
+  },
+
+  error: {
+    color: "red",
+    marginTop: "15px",
+  },
+
+  table: {
+    width: "100%",
+    borderCollapse: "collapse",
+    marginTop: "20px",
+  },
 };
 
 export default SearchProductTypes;
