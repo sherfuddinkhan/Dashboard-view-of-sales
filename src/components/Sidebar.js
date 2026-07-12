@@ -1,46 +1,200 @@
-import React from "react";
+import React, { useState } from "react";
 import { NavLink } from "react-router-dom";
-import { FiKey, FiGlobe, FiBook, FiShoppingCart, FiFileText, FiDollarSign, 
-         FiUpload, FiList, FiSettings, FiGrid } from "react-icons/fi";
+import {
+  FiKey,
+  FiGlobe,
+  FiBook,
+  FiShoppingCart,
+  FiFileText,
+  FiDollarSign,
+  FiUpload,
+  FiList,
+  FiSettings,
+  FiGrid,
+  FiChevronDown,
+  FiChevronRight,
+  FiMessageSquare,
+  FiTruck,
+} from "react-icons/fi";
 
 const Sidebar = () => {
+  const [open, setOpen] = useState({
+    auth: true,
+    seller: true,
+    catalog: true,
+    listings: true,
+    orders: false,
+    reports: false,
+    feeds: false,
+    fulfillment: false,
+    notifications: false,
+    settings: false,
+  });
+
+  const toggle = (key) => {
+    setOpen((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
   return (
     <div className="sidebar">
-      <h2>Amazon SP-API</h2>
+      <h2 className="sidebar-title">Amazon SP-API</h2>
 
-      <NavLink to="/dashboard" end><FiGrid /> Dashboard</NavLink>
+      <NavLink to="/dashboard" end className="sidebar-link">
+        <FiGrid />
+        <span>Dashboard Overview</span>
+      </NavLink>
 
-      <div className="sidebar-section">Authentication</div>
-      <NavLink to="/generate-token"><FiKey /> Token Generator</NavLink>
+      {/* Authentication */}
+      <div className="sidebar-section" onClick={() => toggle("auth")}>
+        <span>Authentication</span>
+        {open.auth ? <FiChevronDown /> : <FiChevronRight />}
+      </div>
+      {open.auth && (
+        <div className="submenu">
+          <NavLink to="/generate-token" className="sidebar-link">
+            <FiKey />
+            <span>Token Generator</span>
+          </NavLink>
+        </div>
+      )}
 
-      <div className="sidebar-section">Seller APIs</div>
-      <NavLink to="/marketplace"><FiGlobe /> Marketplace</NavLink>
+      {/* Seller & Catalog */}
+      <div className="sidebar-section" onClick={() => toggle("catalog")}>
+        <span>Seller & Catalog</span>
+        {open.catalog ? <FiChevronDown /> : <FiChevronRight />}
+      </div>
+      {open.catalog && (
+        <div className="submenu">
+          <NavLink to="/marketplace" className="sidebar-link">
+            <FiGlobe />
+            <span>Marketplace Participations</span>
+          </NavLink>
+          <NavLink to="/catalog" className="sidebar-link">
+            <FiBook />
+            <span>Catalog Item</span>
+          </NavLink>
+          <NavLink to="/pricing" className="sidebar-link">
+            <FiDollarSign />
+            <span>Pricing</span>
+          </NavLink>
+        </div>
+      )}
 
-      <div className="sidebar-section">Catalog & Pricing</div>
-      <NavLink to="/catalog"><FiBook /> Catalog Item</NavLink>
-      <NavLink to="/pricing"><FiDollarSign /> Pricing</NavLink>
+      {/* Listings */}
+      <div className="sidebar-section" onClick={() => toggle("listings")}>
+        <span>Listings</span>
+        {open.listings ? <FiChevronDown /> : <FiChevronRight />}
+      </div>
+      {open.listings && (
+        <div className="submenu">
+          <NavLink to="/listings/create" className="sidebar-link">
+            <FiList />
+            <span>Create Listing</span>
+          </NavLink>
+          <NavLink to="/listings/get" className="sidebar-link">
+            <FiList />
+            <span>Get Listing</span>
+          </NavLink>
+          <NavLink to="/listings/update" className="sidebar-link">
+            <FiList />
+            <span>Update Listing</span>
+          </NavLink>
+          <NavLink to="/listings/delete" className="sidebar-link">
+            <FiList />
+            <span>Delete Listing</span>
+          </NavLink>
+          <NavLink to="/listings/submission" className="sidebar-link">
+            <FiList />
+            <span>Listing Submission</span>
+          </NavLink>
+        </div>
+      )}
 
-      <div className="sidebar-section">Listings</div>
-      <NavLink to="/listings/create"><FiList /> Create Listing</NavLink>
-      <NavLink to="/listings/get"><FiList /> Get Listing</NavLink>
-      <NavLink to="/listings/update"><FiList /> Update Listing</NavLink>
-      <NavLink to="/listings/delete"><FiList /> Delete Listing</NavLink>
-      <NavLink to="/listings/submission"><FiList /> Listing Submission</NavLink>
+      {/* Orders */}
+      <div className="sidebar-section" onClick={() => toggle("orders")}>
+        <span>Orders</span>
+        {open.orders ? <FiChevronDown /> : <FiChevronRight />}
+      </div>
+      {open.orders && (
+        <div className="submenu">
+          <NavLink to="/orders" className="sidebar-link">
+            <FiShoppingCart />
+            <span>Get Orders</span>
+          </NavLink>
+        </div>
+      )}
 
-      <div className="sidebar-section">Orders</div>
-      <NavLink to="/orders"><FiShoppingCart /> Get Orders</NavLink>
+      {/* Fulfillment */}
+      <div className="sidebar-section" onClick={() => toggle("fulfillment")}>
+        <span>Fulfillment</span>
+        {open.fulfillment ? <FiChevronDown /> : <FiChevronRight />}
+      </div>
+      {open.fulfillment && (
+        <div className="submenu">
+          <NavLink to="/shipping" className="sidebar-link">
+            <FiTruck />
+            <span>Shipping Rates</span>
+          </NavLink>
+          <NavLink to="/messaging" className="sidebar-link">
+            <FiMessageSquare />
+            <span>Message Buyer</span>
+          </NavLink>
+        </div>
+      )}
 
-      <div className="sidebar-section">Reports</div>
-      <NavLink to="/reports/create"><FiFileText /> Create Report</NavLink>
-      <NavLink to="/reports/get"><FiFileText /> Get Report</NavLink>
+      {/* Reports */}
+      <div className="sidebar-section" onClick={() => toggle("reports")}>
+        <span>Reports</span>
+        {open.reports ? <FiChevronDown /> : <FiChevronRight />}
+      </div>
+      {open.reports && (
+        <div className="submenu">
+          <NavLink to="/reports/create" className="sidebar-link">
+            <FiFileText />
+            <span>Create Report</span>
+          </NavLink>
+          <NavLink to="/reports/get" className="sidebar-link">
+            <FiFileText />
+            <span>Get Report</span>
+          </NavLink>
+        </div>
+      )}
 
-      <div className="sidebar-section">Feeds</div>
-      <NavLink to="/feeds/create-document"><FiUpload /> Create Feed Document</NavLink>
-      <NavLink to="/feeds/create"><FiUpload /> Create Feed</NavLink>
-      <NavLink to="/feeds/get"><FiUpload /> Get Feed</NavLink>
+      {/* Feeds & Uploads */}
+      <div className="sidebar-section" onClick={() => toggle("feeds")}>
+        <span>Feeds & Uploads</span>
+        {open.feeds ? <FiChevronDown /> : <FiChevronRight />}
+      </div>
+      {open.feeds && (
+        <div className="submenu">
+          <NavLink to="/feeds/create-document" className="sidebar-link">
+            <FiUpload />
+            <span>Create Feed Document</span>
+          </NavLink>
+          <NavLink to="/feeds/create" className="sidebar-link">
+            <FiUpload />
+            <span>Create Feed</span>
+          </NavLink>
+          <NavLink to="/feeds/get" className="sidebar-link">
+            <FiUpload />
+            <span>Get Feed</span>
+          </NavLink>
+        </div>
+      )}
 
-      <div className="sidebar-section">Settings</div>
-      <NavLink to="/settings"><FiSettings /> Settings</NavLink>
+      {/* Settings */}
+      <div className="sidebar-section" onClick={() => toggle("settings")}>
+        <span>Settings</span>
+        {open.settings ? <FiChevronDown /> : <FiChevronRight />}
+      </div>
+      {open.settings && (
+        <div className="submenu">
+          <NavLink to="/settings" className="sidebar-link">
+            <FiSettings />
+            <span>Global Settings</span>
+          </NavLink>
+        </div>
+      )}
     </div>
   );
 };

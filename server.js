@@ -430,6 +430,180 @@ app.post("/api/uploads/destination", async (req, res) => {
   }
 });
 
+//////////////////////////////
+
+
+// ===== FINANCES =====
+app.post("/api/finances/events", async (req, res) => {
+  const { accessToken, awsAccessKey, awsSecretKey, region, environment, postedAfter } = req.body;
+  const host = environment === "production" ? "sellingpartnerapi-na.amazon.com" : "sandbox.sellingpartnerapi-na.amazon.com";
+  const path = `/finances/v0/financialEvents${postedAfter ? `?PostedAfter=${postedAfter}` : ''}`;
+  const opts = { host, path, service: "execute-api", region, method: "GET", headers: { "x-amz-access-token": accessToken } };
+  aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
+  try {
+    const response = await axios({ method: "GET", url: `https://${host}${path}`, headers: opts.headers });
+    res.json(response.data);
+  } catch (error) {
+    res.status(error.response?.status || 500).json(error.response?.data || { error: error.message });
+  }
+});
+
+// ===== NOTIFICATIONS =====
+app.post("/api/notifications/destination", async (req, res) => {
+  const { accessToken, awsAccessKey, awsSecretKey, region, environment, webhookUrl } = req.body;
+  const host = environment === "production" ? "sellingpartnerapi-na.amazon.com" : "sandbox.sellingpartnerapi-na.amazon.com";
+  const path = "/notifications/v1/destinations";
+  const opts = { host, path, service: "execute-api", region, method: "POST", headers: { "x-amz-access-token": accessToken, "Content-Type": "application/json" } };
+  aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
+  try {
+    const response = await axios({ method: "POST", url: `https://${host}${path}`, headers: opts.headers, data: { name: "MyAppWebhook", resource: { sqs: { arn: webhookUrl } } } });
+    res.json(response.data);
+  } catch (error) {
+    res.status(error.response?.status || 500).json(error.response?.data || { error: error.message });
+  }
+});
+
+app.post("/api/notifications/subscription", async (req, res) => {
+  const { accessToken, awsAccessKey, awsSecretKey, region, environment, destinationId, notificationType } = req.body;
+  const host = environment === "production" ? "sellingpartnerapi-na.amazon.com" : "sandbox.sellingpartnerapi-na.amazon.com";
+  const path = "/notifications/v1/subscriptions/" + notificationType;
+  const opts = { host, path, service: "execute-api", region, method: "POST", headers: { "x-amz-access-token": accessToken, "Content-Type": "application/json" } };
+  aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
+  try {
+    const response = await axios({ method: "POST", url: `https://${host}${path}`, headers: opts.headers, data: { destinationId } });
+    res.json(response.data);
+  } catch (error) {
+    res.status(error.response?.status || 500).json(error.response?.data || { error: error.message });
+  }
+});
+
+// ===== SHIPPING =====
+app.post("/api/shipping/rates", async (req, res) => {
+  const { accessToken, awsAccessKey, awsSecretKey, region, environment, orderId, weight, dimensions } = req.body;
+  const host = environment === "production" ? "sellingpartnerapi-na.amazon.com" : "sandbox.sellingpartnerapi-na.amazon.com";
+  const path = "/shipping/v1/shipments/rates";
+  const opts = { host, path, service: "execute-api", region, method: "POST", headers: { "x-amz-access-token": accessToken, "Content-Type": "application/json" } };
+  aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
+  try {
+    const response = await axios({ method: "POST", url: `https://${host}${path}`, headers: opts.headers, data: { shipTo: {}, packages: [{ weight: { value: weight, unit: "pound" }, dimensions }] } });
+    res.json(response.data);
+  } catch (error) {
+    res.status(error.response?.status || 500).json(error.response?.data || { error: error.message });
+  }
+});
+
+// ===== MESSAGING =====
+app.post("/api/messaging/send", async (req, res) => {
+  const { accessToken, awsAccessKey, awsSecretKey, region, environment, orderId, messageText } = req.body;
+  const host = environment === "production" ? "sellingpartnerapi-na.amazon.com" : "sandbox.sellingpartnerapi-na.amazon.com";
+  const path = `/messaging/v1/orders/${orderId}/messages`;
+  const opts = { host, path, service: "execute-api", region, method: "POST", headers: { "x-amz-access-token": accessToken, "Content-Type": "application/json" } };
+  aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
+  try {
+    const response = await axios({ method: "POST", url: `https://${host}${path}`, headers: opts.headers, data: { messageType: "OrderConfirmation", text: messageText } });
+    res.json(response.data);
+  } catch (error) {
+    res.status(error.response?.status || 500).json(error.response?.data || { error: error.message });
+  }
+});
+
+// ===== PRODUCT TYPES =====
+app.post("/api/product-types/search", async (req, res) => {
+  const { accessToken, awsAccessKey, awsSecretKey, region, environment, marketplaceIds } = req.body;
+  const host = environment === "production" ? "sellingpartnerapi-na.amazon.com" : "sandbox.sellingpartnerapi-na.amazon.com";
+  const path = `/definitions/2020-09-01/productTypes?marketplaceIds=${marketplaceIds}`;
+  const opts = { host, path, service: "execute-api", region, method: "GET", headers: { "x-amz-access-token": accessToken } };
+  aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
+  try {
+    const response = await axios({ method: "GET", url: `https://${host}${path}`, headers: opts.headers });
+    res.json(response.data);
+  } catch (error) {
+    res.status(error.response?.status || 500).json(error.response?.data || { error: error.message });
+  }
+});
+
+app.post("/api/product-types/definition", async (req, res) => {
+  const { accessToken, awsAccessKey, awsSecretKey, region, environment, marketplaceIds, productType } = req.body;
+  const host = environment === "production" ? "sellingpartnerapi-na.amazon.com" : "sandbox.sellingpartnerapi-na.amazon.com";
+  const path = `/definitions/2020-09-01/productTypes/${productType}?marketplaceIds=${marketplaceIds}`;
+  const opts = { host, path, service: "execute-api", region, method: "GET", headers: { "x-amz-access-token": accessToken } };
+  aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
+  try {
+    const response = await axios({ method: "GET", url: `https://${host}${path}`, headers: opts.headers });
+    res.json(response.data);
+  } catch (error) {
+    res.status(error.response?.status || 500).json(error.response?.data || { error: error.message });
+  }
+});
+// product Type Definition
+  // Helper: Sign request with AWS SigV4
+const signRequest = (method, path, region, awsAccessKey, awsSecretKey, accessToken) => {
+  const opts = {
+    host: 'sellingpartnerapi-na.amazon.com',
+    path: path,
+    method: method,
+    service: 'execute-api',
+    region: region,
+    headers: {
+      'host': 'sellingpartnerapi-na.amazon.com',
+      'x-amz-access-token': accessToken,
+      'content-type': 'application/json'
+    }
+  };
+  return aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
+};
+
+// POST /api/product-types/search
+router.post('/search', async (req, res) => {
+  const { accessToken, awsAccessKey, awsSecretKey, region, environment, marketplaceIds, keywords } = req.body;
+  
+  try {
+    const baseUrl = environment === 'sandbox' 
+     ? 'https://sandbox.sellingpartnerapi-na.amazon.com' 
+      : 'https://sellingpartnerapi-na.amazon.com';
+    
+    const path = `/definitions/2020-09-01/productTypes/search?keywords=${encodeURIComponent(keywords)}&marketplaceIds=${marketplaceIds}`;
+    const signed = signRequest('GET', path, region, awsAccessKey, awsSecretKey, accessToken);
+    
+    const response = await axios.get(`${baseUrl}${path}`, {
+      headers: signed.headers
+    });
+    
+    res.json(response.data);
+  } catch (error) {
+    res.status(error.response?.status || 500).json({
+      error: error.response?.data || error.message
+    });
+  }
+});
+
+// POST /api/product-types/definition
+router.post('/definition', async (req, res) => {
+  const { accessToken, awsAccessKey, awsSecretKey, region, environment, marketplaceIds, productType } = req.body;
+  
+  try {
+    const baseUrl = environment === 'sandbox' 
+     ? 'https://sandbox.sellingpartnerapi-na.amazon.com' 
+      : 'https://sellingpartnerapi-na.amazon.com';
+    
+    const path = `/definitions/2020-09-01/productTypes/${productType}?marketplaceIds=${marketplaceIds}&requirements=LISTING&locale=en_IN`;
+    const signed = signRequest('GET', path, region, awsAccessKey, awsSecretKey, accessToken);
+    
+    const response = await axios.get(`${baseUrl}${path}`, {
+      headers: signed.headers
+    });
+    
+    res.json(response.data);
+  } catch (error) {
+    res.status(error.response?.status || 500).json({
+      error: error.response?.data || error.message
+    });
+  }
+});
+
+module.exports = router;
+
+
 // Start Server
 const PORT = 5000;
 app.listen(PORT, () => {
