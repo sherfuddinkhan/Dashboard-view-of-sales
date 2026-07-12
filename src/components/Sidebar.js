@@ -1,21 +1,6 @@
 import React, { useState } from "react";
 import { NavLink } from "react-router-dom";
-import {
-  FiKey,
-  FiGlobe,
-  FiBook,
-  FiShoppingCart,
-  FiFileText,
-  FiDollarSign,
-  FiUpload,
-  FiList,
-  FiSettings,
-  FiGrid,
-  FiChevronDown,
-  FiChevronRight,
-  FiMessageSquare,
-  FiTruck,
-} from "react-icons/fi";
+import {FiKey,FiGlobe,FiBook,FiShoppingCart,FiFileText,FiDollarSign,FiUpload,FiList,FiSettings,FiGrid,FiChevronDown,FiChevronRight,FiMessageSquare,FiTruck} from "react-icons/fi";
 
 const Sidebar = () => {
   const [open, setOpen] = useState({
@@ -125,23 +110,59 @@ const Sidebar = () => {
       )}
 
       {/* Fulfillment */}
-      <div className="sidebar-section" onClick={() => toggle("fulfillment")}>
-        <span>Fulfillment</span>
-        {open.fulfillment ? <FiChevronDown /> : <FiChevronRight />}
-      </div>
-      {open.fulfillment && (
-        <div className="submenu">
-          <NavLink to="/shipping" className="sidebar-link">
-            <FiTruck />
-            <span>Shipping Rates</span>
-          </NavLink>
-          <NavLink to="/messaging" className="sidebar-link">
-            <FiMessageSquare />
-            <span>Message Buyer</span>
-          </NavLink>
-        </div>
-      )}
+    {/* Shipping */}
+<div className="sidebar-section" onClick={() => toggle("shipping")}>
+  <span>Shipping</span>
+  {open.shipping ? <FiChevronDown /> : <FiChevronRight />}
+</div>
 
+{open.shipping && (
+  <div className="submenu">
+    <NavLink to="/shipping" className="sidebar-link">
+      <FiTruck />
+      <span>Overview</span>
+    </NavLink>
+
+    <NavLink to="/shipping/get-rates" className="sidebar-link">
+      <FiTruck />
+      <span>Get Rates</span>
+    </NavLink>
+
+    <NavLink to="/shipping/purchase-label" className="sidebar-link">
+      <FiTruck />
+      <span>Purchase Label</span>
+    </NavLink>
+
+    <NavLink to="/shipping/tracking" className="sidebar-link">
+      <FiTruck />
+      <span>Tracking Details</span>
+    </NavLink>
+  </div>
+)}
+{/* Messaging */}
+<div className="sidebar-section" onClick={() => toggle("messaging")}>
+  <span>Messaging</span>
+  {open.messaging ? <FiChevronDown /> : <FiChevronRight />}
+</div>
+
+{open.messaging && (
+  <div className="submenu">
+    <NavLink to="/messaging" className="sidebar-link">
+      <FiMessageSquare />
+      <span>Overview</span>
+    </NavLink>
+
+    <NavLink to="/messaging/templates" className="sidebar-link">
+      <FiMessageSquare />
+      <span>Message Templates</span>
+    </NavLink>
+
+    <NavLink to="/messaging/send" className="sidebar-link">
+      <FiMessageSquare />
+      <span>Send Message</span>
+    </NavLink>
+  </div>
+)}
       {/* Reports */}
       <div className="sidebar-section" onClick={() => toggle("reports")}>
         <span>Reports</span>

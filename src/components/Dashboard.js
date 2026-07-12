@@ -36,8 +36,16 @@ import Uploads from "./Uploads APIs/Uploads";
 // Finances
 import Finances from "./Finances/Finances";
 
+// Shipping
+import Shipping from "./Shipping/Shipping";
+import GetRates from "./Shipping/GetRates";
+import PurchaseLabel from "./Shipping/PurchaseLabel";
+import TrackingDetails from "./Shipping/TrackingDetails";
+
 // Messaging
 import Messaging from "./Messaging/Messaging";
+import MessageTemplates from "./Messaging/MessageTemplates";
+import SendMessage from "./Messaging/SendMessage";
 
 // Notifications
 import Notifications from "./Notifications/Notifications";
@@ -50,24 +58,24 @@ import ProductTypeDefinitions from "./ProductTypeDefinitions/ProductTypeDefiniti
 import SearchProductTypes from "./ProductTypeDefinitions/SearchProductTypes";
 import ProductTypeSchema from "./ProductTypeDefinitions/ProductTypeSchema";
 
-// Shipping
-import Shipping from "./Shipping/Shipping";
+
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("token");
 
-  const [expanded, setExpanded] = useState({
-    auth: true,
-    seller: true,
-    product: true,
-    listings: true,
-    orders: false,
-    finances: false,
-    notifications: false,
-    fulfillment: false,
-    reports: false,
-    feeds: false,
-  });
+ const [expanded, setExpanded] = useState({
+  auth: true,
+  seller: true,
+  product: true,
+  listings: true,
+  orders: false,
+  finances: false,
+  notifications: false,
+  shipping: false,
+  messaging: false,
+  reports: false,
+  feeds: false,
+});
 
   // Global state
   const [accessToken, setAccessToken] = useState("");
@@ -153,17 +161,28 @@ const Dashboard = () => {
         { id: "notification-result", label: "Notification Result", Component: NotificationResult },
       ],
     },
-    {
-      key: "fulfillment",
-      title: "8. Fulfillment",
+    { 
+      key: "shipping",
+      title: "8. Shipping",
       items: [
-        { id: "shipping", label: "Shipping Rates", Component: Shipping },
-        { id: "messaging", label: "Message Buyer", Component: Messaging },
+       { id: "shipping-home", label: "Overview", Component: Shipping },
+       { id: "get-rates", label: "Get Rates", Component: GetRates },
+       { id: "purchase-label", label: "Purchase Label", Component: PurchaseLabel },
+       { id: "tracking-details", label: "Tracking Details", Component: TrackingDetails },
       ],
-    },
+},
+{
+  key: "messaging",
+  title: "9. Messaging",
+  items: [
+    { id: "messaging-home", label: "Messaging", Component: Messaging },
+    { id: "message-templates", label: "Message Templates", Component: MessageTemplates },
+    { id: "send-message", label: "Send Message", Component: SendMessage },
+  ],
+},
     {
       key: "reports",
-      title: "9. Reports",
+      title: "10. Reports",
       items: [
         { id: "create-report", label: "Create Report", Component: CreateReport },
         { id: "get-report", label: "Get Report", Component: GetReport },
@@ -172,7 +191,7 @@ const Dashboard = () => {
     },
     {
       key: "feeds",
-      title: "10. Feeds & Uploads",
+      title: "11. Feeds & Uploads",
       items: [
         { id: "create-feed-doc", label: "Create Feed Document", Component: CreateFeedDocument },
         { id: "create-feed", label: "Create Feed", Component: CreateFeed },
