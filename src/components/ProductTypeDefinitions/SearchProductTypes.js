@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
 
-const ProductTypeSearch = () => {
+const SearchProductTypes = () => {
   const [accessToken, setAccessToken] = useState("");
   const [awsAccessKey, setAwsAccessKey] = useState("");
   const [awsSecretKey, setAwsSecretKey] = useState("");
@@ -13,7 +13,7 @@ const ProductTypeSearch = () => {
   const [productTypes, setProductTypes] = useState([]);
   const [error, setError] = useState("");
 
-  const SearchProductTypes= async () => {
+  const searchProductTypes= async () => {
     setLoading(true);
     setError("");
     setProductTypes([]);
