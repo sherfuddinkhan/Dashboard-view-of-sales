@@ -1,61 +1,185 @@
 import React, { useState } from "react";
 import axios from "axios";
-import ApiCredentials from "../Common/ApiCredentials";
-import ErrorDisplay from "../Common/ErrorDisplay";
 
-const Messaging = ({ 
-  accessToken, setAccessToken, 
-  awsAccessKey, setAwsAccessKey, 
-  awsSecretKey, setAwsSecretKey, 
-  region, setRegion, 
-  environment, setEnvironment 
+const Messaging = ({
+  accessToken,
+  setAccessToken,
+  awsAccessKey,
+  setAwsAccessKey,
+  awsSecretKey,
+  setAwsSecretKey,
+  region,
+  setRegion,
+  environment,
+  setEnvironment,
 }) => {
-  const [orderId, setOrderId] = useState("");
-  const [messageText, setMessageText] = useState("Thanks for your order! It will ship soon.");
+  const [amazonOrderId, setAmazonOrderId] = useState("");
+  const [loading, setLoading] = useState(false);
   const [result, setResult] = useState("");
-  const [error, setError] = useState(null);
+  const [error, setError] = useState("");
 
-  const sendMessage = async () => {
-    setError(null); setResult("");
+  const handleSubmit = async () => {
+    setLoading(true);
+    setResult("");
+    setError("");
+
     try {
-      const res = await axios.post("http://localhost:5000/api/messaging/send", {
-        accessToken, awsAccessKey, awsSecretKey, region, environment, orderId, messageText
-      });
-      setResult(JSON.stringify(res.data, null, 2));
+      const response = await axios.post(
+        "http://localhost:5000/messaging/actions",
+        {
+          accessToken,
+          awsAccessKey,
+          awsSecretKey,
+          region,
+          environment,
+          amazonOrderId,
+        }
+      );
+
+      setResult(JSON.stringify(response.data, null, 2));
     } catch (err) {
-      setError(err);
+      setError(
+        JSON.stringify(err.response?.data || err.message, null, 2)
+      );
     }
+
+    setLoading(false);
   };
 
   return (
     <div style={styles.container}>
-      <h2>Messaging API</h2>
-      <p>Send buyer-seller messages. Only for order-related communication.</p>
-      
-      <ApiCredentials 
-        accessToken={accessToken} setAccessToken={setAccessToken}
-        awsAccessKey={awsAccessKey} setAwsAccessKey={setAwsAccessKey}
-        awsSecretKey={awsSecretKey} setAwsSecretKey={setAwsSecretKey}
-        region={region} setRegion={setRegion}
-        environment={environment} setEnvironment={setEnvironment}
-      />
-      
-      <input type="text" placeholder="Amazon Order ID" value={orderId} onChange={e => setOrderId(e.target.value)} style={styles.input} />
-      <textarea placeholder="Message Text" value={messageText} onChange={e => setMessageText(e.target.value)} style={styles.textarea} rows={4} />
-      <button onClick={sendMessage} style={styles.button}>Send Message</button>
+      <h2 style={styles.title}>Messaging API</h2>
 
-      <ErrorDisplay error={error} onClose={() => setError(null)} />
-      {result && <><h3>Result</h3><pre style={styles.pre}>{result}</pre></>}
+      <label>Access Token</label>
+      <textarea
+        rows={4}
+        value={accessToken}
+        onChange={(e) => setAccessToken(e.target.value)}
+        style={styles.textarea}
+      />
+
+      <label>AWS Access Key</label>
+      <input
+        style={styles.input}
+        value={awsAccessKey}
+        onChange={(e) => setAwsAccessKey(e.target.value)}
+      />
+
+      <label>AWS Secret Key</label>
+      <input
+        type="password"
+        style={styles.input}
+        value={awsSecretKey}
+        onChange={(e) => setAwsSecretKey(e.target.value)}
+      />
+
+      <label>Region</label>
+      <input
+        style={styles.input}
+        value={region}
+        onChange={(e) => setRegion(e.target.value)}
+      />
+
+      <label>Environment</label>
+      <select
+        style={styles.input}
+        value={environment}
+        onChange={(e) => setEnvironment(e.target.value)}
+      >
+        <option value="sandbox">Sandbox</option>
+        <option value="production">Production</option>
+      </select>
+
+      <label>Amazon Order ID</label>
+      <input
+        style={styles.input}
+        placeholder="902-3159896-1390916"
+        value={amazonOrderId}
+        onChange={(e) => setAmazonOrderId(e.target.value)}
+      />
+
+      <button
+        style={styles.button}
+        onClick={handleSubmit}
+        disabled={loading}
+      >
+        {loading ? "Loading..." : "Get Messaging Actions"}
+      </button>
+
+      {error && (
+        <div style={styles.error}>
+          <pre>{error}</pre>
+        </div>
+      )}
+
+      {result && (
+        <div style={styles.response}>
+          <h3>Response</h3>
+          <pre>{result}</pre>
+        </div>
+      )}
     </div>
   );
 };
 
 const styles = {
-  container: { width: '100%' },
-  input: { width: "100%", marginBottom: 15, padding: 10, fontSize: 15, border: '1px solid #cbd5e1', borderRadius: 6 },
-  textarea: { width: "100%", marginBottom: 15, padding: 10, fontSize: 15, fontFamily: "Arial", border: '1px solid #cbd5e1', borderRadius: 6 },
-  button: { background: "#146eb4", color: "#fff", border: "none", padding: "12px 25px", cursor: "pointer", fontSize: 16, borderRadius: 5 },
-  pre: { background: '#f1f5f9', padding: 15, borderRadius: 6, overflow: 'auto', fontSize: 12 }
+  container: {
+    maxWidth: "850px",
+    margin: "20px auto",
+    padding: "25px",
+    background: "#fff",
+    borderRadius: "8px",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+  },
+
+  title: {
+    textAlign: "center",
+    marginBottom: "20px",
+  },
+
+  input: {
+    width: "100%",
+    padding: "10px",
+    marginBottom: "15px",
+    border: "1px solid #ccc",
+    borderRadius: "4px",
+    boxSizing: "border-box",
+  },
+
+  textarea: {
+    width: "100%",
+    minHeight: "120px",
+    padding: "10px",
+    marginBottom: "15px",
+    border: "1px solid #ccc",
+    borderRadius: "4px",
+    resize: "vertical",
+    boxSizing: "border-box",
+  },
+
+  button: {
+    padding: "12px 25px",
+    background: "#1976d2",
+    color: "#fff",
+    border: "none",
+    borderRadius: "4px",
+    cursor: "pointer",
+  },
+
+  response: {
+    marginTop: "20px",
+    padding: "15px",
+    background: "#f5f5f5",
+    borderRadius: "5px",
+  },
+
+  error: {
+    marginTop: "20px",
+    padding: "15px",
+    background: "#ffebee",
+    color: "#b71c1c",
+    borderRadius: "5px",
+  },
 };
 
 export default Messaging;

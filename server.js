@@ -602,7 +602,164 @@ app.post('/definition', async (req, res) => {
 });
 
 //module.exports = router;
+//     Messaging 
 
+app.post("/messaging/actions", async (req, res) => {
+  try {
+    const {
+      accessToken,
+      awsAccessKey,
+      awsSecretKey,
+      region,
+      amazonOrderId,
+      environment
+    } = req.body;
+
+    const host =
+      environment === "production"
+        ? "sellingpartnerapi-na.amazon.com"
+        : "sandbox.sellingpartnerapi-na.amazon.com";
+
+    const path = `/messaging/v1/orders/${amazonOrderId}`;
+
+    const opts = {
+      host,
+      path,
+      service: "execute-api",
+      region,
+      method: "GET",
+      headers: {
+        "x-amz-access-token": accessToken
+      }
+    };
+
+    aws4.sign(opts, {
+      accessKeyId: awsAccessKey,
+      secretAccessKey: awsSecretKey
+    });
+
+    const response = await axios({
+      method: "GET",
+      url: `https://${host}${path}`,
+      headers: opts.headers
+    });
+
+    res.json(response.data);
+  } catch (err) {
+    res.status(500).json(err.response?.data || err.message);
+  }
+});
+
+
+app.post("/api/messaging/templates", async (req, res) => {
+  try {
+    const {
+      accessToken,
+      awsAccessKey,
+      awsSecretKey,
+      region,
+      amazonOrderId,
+      environment,
+    } = req.body;
+
+    const host =
+      environment === "production"
+        ? "sellingpartnerapi-na.amazon.com"
+        : "sandbox.sellingpartnerapi-na.amazon.com";
+
+    const path = `/messaging/v1/orders/${amazonOrderId}/attributes`;
+
+    const opts = {
+      host,
+      path,
+      service: "execute-api",
+      region,
+      method: "GET",
+      headers: {
+        "x-amz-access-token": accessToken,
+      },
+    };
+
+    aws4.sign(opts, {
+      accessKeyId: awsAccessKey,
+      secretAccessKey: awsSecretKey,
+    });
+
+    const response = await axios({
+      method: "GET",
+      url: `https://${host}${path}`,
+      headers: opts.headers,
+    });
+
+    res.json(response.data);
+  } catch (err) {
+    console.error(err.response?.data || err.message);
+
+    res.status(500).json({
+      success: false,
+      error: err.response?.data || err.message,
+    });
+  }
+});
+
+app.post("/messaging/send", async (req, res) => {
+  try {
+    const {
+      accessToken,
+      awsAccessKey,
+      awsSecretKey,
+      region,
+      amazonOrderId,
+      environment,
+      text,
+    } = req.body;
+
+    const host =
+      environment === "production"
+        ? "sellingpartnerapi-na.amazon.com"
+        : "sandbox.sellingpartnerapi-na.amazon.com";
+
+    const path = `/messaging/v1/orders/${amazonOrderId}/messages/confirmCustomizationDetails`;
+
+    const payload = {
+      text,
+    };
+
+    const opts = {
+      host,
+      path,
+      service: "execute-api",
+      region,
+      method: "POST",
+      headers: {
+        "x-amz-access-token": accessToken,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    };
+
+    aws4.sign(opts, {
+      accessKeyId: awsAccessKey,
+      secretAccessKey: awsSecretKey,
+    });
+
+    const response = await axios({
+      method: "POST",
+      url: `https://${host}${path}`,
+      headers: opts.headers,
+      data: payload,
+    });
+
+    res.json(response.data);
+  } catch (err) {
+    console.error(err.response?.data || err.message);
+
+    res.status(500).json({
+      success: false,
+      error: err.response?.data || err.message,
+    });
+  }
+});
 
 // Start Server
 const PORT = 5000;
