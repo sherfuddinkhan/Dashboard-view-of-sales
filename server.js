@@ -554,7 +554,7 @@ const signRequest = (method, path, region, awsAccessKey, awsSecretKey, accessTok
 };
 
 // POST /api/product-types/search
-router.post('/search', async (req, res) => {
+app.post('/search', async (req, res) => {
   const { accessToken, awsAccessKey, awsSecretKey, region, environment, marketplaceIds, keywords } = req.body;
   
   try {
@@ -578,7 +578,7 @@ router.post('/search', async (req, res) => {
 });
 
 // POST /api/product-types/definition
-router.post('/definition', async (req, res) => {
+app.post('/definition', async (req, res) => {
   const { accessToken, awsAccessKey, awsSecretKey, region, environment, marketplaceIds, productType } = req.body;
   
   try {
@@ -601,7 +601,7 @@ router.post('/definition', async (req, res) => {
   }
 });
 
-module.exports = router;
+//module.exports = router;
 
 
 // Start Server

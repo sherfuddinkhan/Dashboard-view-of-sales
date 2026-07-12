@@ -39,7 +39,7 @@ const CatalogItem = () => {
       <h2>Catalog Item Lookup</h2>
 
       <label>Access Token</label>
-      <textarea rows={5} value={accessToken} onChange={(e) => setAccessToken(e.target.value)} style={styles.textarea} />
+      <textarea rows={5} value={accessToken} onChange={(e) => setAccessToken(e.target.value)} style={styles.textArea} />
 
       <label>ASIN</label>
       <input type="text" value={asin} onChange={(e) => setAsin(e.target.value)} style={styles.input} placeholder="B0ABC12345" />
@@ -71,6 +71,19 @@ const styles = {
     border: "1px solid #ccc",
     borderRadius: "4px",
     fontSize: "14px",
+  },
+
+  textArea: {
+    width: "100%",
+    minHeight: "120px",
+    padding: "10px",
+    marginBottom: "12px",
+    border: "1px solid #ccc",
+    borderRadius: "4px",
+    fontSize: "14px",
+    resize: "vertical",
+    fontFamily: "inherit",
+    boxSizing: "border-box",
   },
 
   button: {

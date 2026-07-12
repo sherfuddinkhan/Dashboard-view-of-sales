@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
-import ApiCredentials from "../Common/ApiCredentials";
+import  AmazonTokenGenerator from "../Authentication/AmazonTokenGenerator";
 import ErrorDisplay from "../Common/ErrorDisplay";
 
 const Shipping = ({ 
@@ -36,7 +36,7 @@ const Shipping = ({
       <h2>Shipping API</h2>
       <p>Get Amazon-partnered carrier rates for FBM orders</p>
       
-      <ApiCredentials 
+      <AmazonTokenGenerator
         accessToken={accessToken} setAccessToken={setAccessToken}
         awsAccessKey={awsAccessKey} setAwsAccessKey={setAwsAccessKey}
         awsSecretKey={awsSecretKey} setAwsSecretKey={setAwsSecretKey}

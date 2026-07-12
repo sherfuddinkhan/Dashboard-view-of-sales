@@ -23,7 +23,7 @@ const GetOrders = () => {
     <div style={containerStyle}>
       <h2>Get Orders</h2>
       <label>Access Token</label>
-      <textarea rows={5} value={accessToken} onChange={(e) => setAccessToken(e.target.value)} style={styles.textarea} />
+      <textarea rows={5} value={accessToken} onChange={(e) => setAccessToken(e.target.value)} style={styles.textArea} />
       <label>Created After (ISO Date)</label>
       <input type="text" value={createdAfter} onChange={(e) => setCreatedAfter(e.target.value)} style={styles.input} placeholder="2025-01-01T00:00:00Z" />
       <button onClick={getOrders} disabled={loading} style={styles.button}>
@@ -50,6 +50,19 @@ const styles = {
     border: "1px solid #ccc",
     borderRadius: "4px",
     fontSize: "14px",
+  },
+
+  textArea: {
+    width: "100%",
+    minHeight: "120px",
+    padding: "10px",
+    marginBottom: "12px",
+    border: "1px solid #ccc",
+    borderRadius: "4px",
+    fontSize: "14px",
+    resize: "vertical",
+    fontFamily: "inherit",
+    boxSizing: "border-box",
   },
 
   button: {

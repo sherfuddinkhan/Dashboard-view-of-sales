@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
-import ApiCredentials from "../Common/ApiCredentials";
+import  AmazonTokenGenerator from "../Authentication/AmazonTokenGenerator";
 import ErrorDisplay from "../Common/ErrorDisplay";
 
 const GetRates = (props) => {
@@ -32,7 +32,7 @@ const GetRates = (props) => {
   return (
     <div>
       <h2>Get Shipping Rates</h2>
-      <ApiCredentials {...props} />
+      <AmazonTokenGenerator {...props} />
       <input type="text" placeholder="Amazon Order ID" value={orderId} onChange={e => setOrderId(e.target.value)} style={{ width: "100%", marginBottom: 15, padding: 10 }} />
       <div style={{ display: 'flex', gap: '10px', marginBottom: 15 }}>
         <input type="number" placeholder="Weight (lb)" value={weight} onChange={e => setWeight(e.target.value)} style={{ flex: 1, padding: 10 }} />

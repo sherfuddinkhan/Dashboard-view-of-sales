@@ -37,7 +37,7 @@ const CreateListing = () => {
       <h2>Create Listing (Listings Items API)</h2>
 
       <label>Access Token</label>
-      <textarea rows={5} value={accessToken} onChange={(e) => setAccessToken(e.target.value)} style={styles.textarea} />
+      <textarea rows={5} value={accessToken} onChange={(e) => setAccessToken(e.target.value)} style={styles.textArea} />
 
       <label>SKU</label>
       <input type="text" value={sku} onChange={(e) => setSku(e.target.value)} style={styles.input} />
@@ -49,7 +49,7 @@ const CreateListing = () => {
       <input type="text" value={productType} onChange={(e) => setProductType(e.target.value)} style={styles.input} />
 
       <label>Listing Payload (JSON)</label>
-      <textarea rows={10} value={jsonPayload} onChange={(e) => setJsonPayload(e.target.value)} style={styles.textarea} />
+      <textarea rows={10} value={jsonPayload} onChange={(e) => setJsonPayload(e.target.value)} style={styles.textArea} />
 
       <button onClick={createListing} disabled={loading} style={styles.button}>
         {loading ? "Creating..." : "Create Listing"}
@@ -75,6 +75,19 @@ const styles = {
     border: "1px solid #ccc",
     borderRadius: "4px",
     fontSize: "14px",
+  },
+
+  textArea: {
+    width: "100%",
+    minHeight: "120px",
+    padding: "10px",
+    marginBottom: "12px",
+    border: "1px solid #ccc",
+    borderRadius: "4px",
+    fontSize: "14px",
+    resize: "vertical",
+    fontFamily: "inherit",
+    boxSizing: "border-box",
   },
 
   button: {

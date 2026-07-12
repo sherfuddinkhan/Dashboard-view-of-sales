@@ -26,13 +26,13 @@ const UpdateListing = () => {
     <div style={containerStyle}>
       <h2>Update Listing</h2>
       <label>Access Token</label>
-      <textarea rows={5} value={accessToken} onChange={(e) => setAccessToken(e.target.value)} style={styles.textarea} />
+      <textarea rows={5} value={accessToken} onChange={(e) => setAccessToken(e.target.value)} style={styles.textArea} />
       <label>SKU</label>
       <input type="text" value={sku} onChange={(e) => setSku(e.target.value)} style={styles.input} />
       <label>Marketplace ID</label>
       <input type="text" value={marketplaceId} onChange={(e) => setMarketplaceId(e.target.value)} style={styles.input} />
       <label>Update Payload (JSON)</label>
-      <textarea rows={10} value={payload} onChange={(e) => setPayload(e.target.value)} style={styles.textarea} />
+      <textarea rows={10} value={payload} onChange={(e) => setPayload(e.target.value)} style={styles.textArea} />
       <button onClick={updateListing} disabled={loading} style={styles.button}>
         {loading ? "Updating..." : "Update Listing"}
       </button>
@@ -57,6 +57,19 @@ const styles = {
     border: "1px solid #ccc",
     borderRadius: "4px",
     fontSize: "14px",
+  },
+
+  textArea: {
+    width: "100%",
+    minHeight: "120px",
+    padding: "10px",
+    marginBottom: "12px",
+    border: "1px solid #ccc",
+    borderRadius: "4px",
+    fontSize: "14px",
+    resize: "vertical",
+    fontFamily: "inherit",
+    boxSizing: "border-box",
   },
 
   button: {
