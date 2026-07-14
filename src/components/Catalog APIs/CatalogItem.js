@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState,useEffect} from "react";
 import axios from "axios";
 
 const CatalogItem = () => {
@@ -8,19 +8,32 @@ const CatalogItem = () => {
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [awsAccessKey, setAwsAccessKey] = useState("");
-const [awsSecretKey, setAwsSecretKey] = useState("");
+  const [awsAccessKey, setAwsAccessKey] = useState(process.env.REACT_APP_AWS_ACCESS_KEY_ID || "");
+  const [awsSecretKey, setAwsSecretKey] = useState(process.env.REACT_APP_AWS_SECRET_ACCESS_KEY || "");
+  const [region, setRegion] = useState(process.env.REACT_APP_AWS_REGION || "us-east-1");
+  const [environment, setEnvironment] = useState(process.env.REACT_APP_AMAZON_ENVIRONMENT || "sandbox");
+  useEffect(() => {
+         const token = localStorage.getItem("amazonAccessToken");
+         if (token) {
+             setAccessToken(token);
+         }
+         const marketplace = JSON.parse(
+             localStorage.getItem("amazonMarketplaceResponse") || "{}"
+         );
+         if (marketplace.payload?.length) {
+             setMarketplaceId(marketplace.payload[0].marketplace.id);
+         }
+     }, []);
+ 
 
   const getCatalogItem = async () => {
     if (!accessToken || !asin || !marketplaceId) {
       setError("Access Token, ASIN, and Marketplace ID are required");
       return;
     }
-
     setLoading(true);
     setError("");
     setResult("");
-
     try {
     const response = await axios.post(
   "http://localhost:5000/api/catalog-item",
