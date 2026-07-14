@@ -19,21 +19,15 @@ const FINANCE_TABS = [
   { id: "raw", label: "Raw Developer JSON", icon: "🧾" },
 ];
 
-const EVENT_MAPPING = {
-  shipment: "ShipmentEventList",
-  refund: "RefundEventList",
-  servicefee: "ServiceFeeEventList",
-  chargeback: "ChargebackEventList",
-  adjustment: "AdjustmentEventList",
-  coupon: "CouponPaymentEventList",
-  safet: "SAFETReimbursementEventList",
-};
-
 /* ===========================================================
    Component Definition
 =========================================================== */
 const Finances = () => {
+  // Use lazy initialization for localStorage
   const [accessToken, setAccessToken] = useState(() => localStorage.getItem("amazonAccessToken") || "");
+  
+  // Best practice: These configuration variables should be sent or held by backend, 
+  // but kept here to match your current API schema.
   const [awsAccessKey] = useState(process.env.REACT_APP_AWS_ACCESS_KEY_ID || "");
   const [awsSecretKey] = useState(process.env.REACT_APP_AWS_SECRET_ACCESS_KEY || "");
   const [region] = useState(process.env.REACT_APP_AWS_REGION || "us-east-1");
@@ -45,6 +39,15 @@ const Finances = () => {
 
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+
+  // Automatically persist the access token if generated/changed
+  useEffect(() => {
+    if (accessToken) {
+      localStorage.setItem("amazonAccessToken", accessToken);
+    } else {
+      localStorage.removeItem("amazonAccessToken");
+    }
+  }, [accessToken]);
 
   /* ===========================================================
       Calculation Logic (Aggregations)
@@ -88,6 +91,7 @@ const Finances = () => {
       refunds,
       coupons,
       adjustments,
+      // Payout Calculation
       netPayout: grossSales + amazonFees + refunds + coupons + adjustments,
     };
   }, []);
@@ -96,61 +100,57 @@ const Finances = () => {
       API Client Request
      =========================================================== */
   const fetchFinancialEvents = useCallback(async () => {
-  // 1. Guard clause: Check for the token first before running any calculations
-  if (!accessToken) {
-    return setError({ message: "Amazon Access Token is required. Please authenticate above." });
-  }
+    if (!accessToken) {
+      return setError({ message: "Amazon Access Token is required. Please authenticate above." });
+    }
 
-  setLoading(true);
-  setError(null);
-  setResult(null);
+    setLoading(true);
+    setError(null);
+    setResult(null);
 
-  // 2. Format dates: Calculate fallbacks and parse only once
-  let formattedPostedAfter;
-  if (postedAfter) {
-    formattedPostedAfter = new Date(postedAfter).toISOString();
-  } else {
-    // Fallback to 7 days ago if empty
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    formattedPostedAfter = sevenDaysAgo.toISOString();
-  }
+    let formattedPostedAfter;
+    if (postedAfter) {
+      formattedPostedAfter = new Date(postedAfter).toISOString();
+    } else {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      formattedPostedAfter = sevenDaysAgo.toISOString();
+    }
 
-  try {
-    const response = await axios.post("http://localhost:5000/api/finances/events", {
-      accessToken,
-      awsAccessKey,
-      awsSecretKey,
-      region,
-      environment,
-      postedAfter: formattedPostedAfter, // Using the cleanly formatted date variable
-    });
+    try {
+      const response = await axios.post("http://localhost:5000/api/finances/events", {
+        accessToken,
+        awsAccessKey,
+        awsSecretKey,
+        region,
+        environment,
+        postedAfter: formattedPostedAfter,
+      });
 
-    const financialEvents = response.data.payload?.FinancialEvents || {};
+      const financialEvents = response.data.payload?.FinancialEvents || {};
 
-    setResult({
-      raw: response.data,
-      events: financialEvents,
-      summary: calculateSummary(financialEvents),
-    });
-  } catch (err) {
-    // Extract the most readable message possible from the server response
-    const errorMessage = 
-      err.response?.data?.message || 
-      err.response?.data?.error || 
-      err.message || 
-      "An unexpected network error occurred.";
+      setResult({
+        raw: response.data,
+        events: financialEvents,
+        summary: calculateSummary(financialEvents),
+      });
+    } catch (err) {
+      const errorMessage = 
+        err.response?.data?.message || 
+        err.response?.data?.error || 
+        err.message || 
+        "An unexpected network error occurred.";
 
-    setError({ message: errorMessage });
-  } finally {
-    setLoading(false);
-  }
-}, [accessToken, awsAccessKey, awsSecretKey, region, environment, postedAfter, calculateSummary]);
+      setError({ message: errorMessage });
+    } finally {
+      setLoading(false);
+    }
+  }, [accessToken, awsAccessKey, awsSecretKey, region, environment, postedAfter, calculateSummary]);
+
   /* ===========================================================
       Sub-Views (Granular UI Tables & Lists)
      =========================================================== */
 
-  // 1. Shipments View
   const renderShipments = (shipments) => {
     if (!shipments || shipments.length === 0) return <EmptyState label="Shipments" />;
     return (
@@ -197,7 +197,6 @@ const Finances = () => {
     );
   };
 
-  // 2. Refunds View
   const renderRefunds = (refunds) => {
     if (!refunds || refunds.length === 0) return <EmptyState label="Refunds" />;
     return (
@@ -236,7 +235,6 @@ const Finances = () => {
     );
   };
 
-  // 3. Service Fees View
   const renderServiceFees = (fees) => {
     if (!fees || fees.length === 0) return <EmptyState label="Service Fees" />;
     return (
@@ -263,9 +261,8 @@ const Finances = () => {
     );
   };
 
-  // 4. Chargebacks View
   const renderChargebacks = (chargebacks) => {
-    if (!chargebacks || chargebacks.length === 0) return <EmptyState label="Chargebacks" icon="🛡️" />;
+    if (!chargebacks || chargebacks.length === 0) return <EmptyState label="Chargebacks" icon="⚠️" />;
     return (
       <div className="space-y-4">
         {chargebacks.map((cb, idx) => (
@@ -287,7 +284,6 @@ const Finances = () => {
     );
   };
 
-  // 5. Adjustments View
   const renderAdjustments = (adjustments) => {
     if (!adjustments || adjustments.length === 0) return <EmptyState label="Adjustments" />;
     return (
@@ -320,7 +316,6 @@ const Finances = () => {
     );
   };
 
-  // 6. Coupons View
   const renderCoupons = (coupons) => {
     if (!coupons || coupons.length === 0) return <EmptyState label="Coupons" />;
     return (
@@ -342,7 +337,6 @@ const Finances = () => {
     );
   };
 
-  // 7. SAFE-T Claims View
   const renderSafetClaims = (claims) => {
     if (!claims || claims.length === 0) return <EmptyState label="SAFE-T Claims" />;
     return (
@@ -424,24 +418,26 @@ const Finances = () => {
         return null;
     }
   };
+// 1. State holds the token
 
+
+// 2. useEffect watches for changes to accessToken and executes side-effects
+useEffect(() => {
+  if (!accessToken) return;
+
+  console.log("Token updated successfully:", accessToken);
+  localStorage.setItem("amazonAccessToken", accessToken);
+
+  // Optional: Auto-fetch financial events immediately after obtaining a token
+  // fetchFinancialEvents(); 
+
+}, [accessToken]); // Runs every time accessToken changes
   return (
     <div className="min-h-screen bg-slate-50 py-10 px-6 font-sans">
       <div className="max-w-7xl mx-auto space-y-8">
         
-        {/* Authentication Widget Hook */}
-        <AmazonTokenGenerator onTokenSet={(token) => setAccessToken(token)} />
-
-        {/* Global Page Header */}
-        <div className="bg-gradient-to-br from-indigo-700 via-blue-600 to-cyan-500 text-white rounded-3xl p-8 md:p-12 shadow-xl shadow-blue-500/10">
-          <h1 className="text-4xl md:text-5xl font-black tracking-tight flex items-center gap-3">
-            📊 Amazon Seller Finances
-          </h1>
-          <p className="mt-4 text-blue-100 text-base md:text-lg max-w-2xl font-light">
-            Real-time interactive dashboard tracking shipments, refunds, fees, coupons, 
-            and adjustments processed from your Amazon Seller Central Account.
-          </p>
-        </div>
+      <label>Access Token</label>
+      <textarea rows={5} value={accessToken} onChange={(e) => setAccessToken(e.target.value)} style={styles.textArea} />
 
         {/* Search Filter Controls Panel */}
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
@@ -521,5 +517,55 @@ const EmptyState = ({ label, icon = "📦" }) => (
     <p className="text-gray-400 text-sm mt-1">There are no financial records found under {label} matching the filtered timeframe.</p>
   </div>
 );
+const styles = {
+  title: {
+    textAlign: "center",
+    marginBottom: "20px",
+    color: "#333",
+  },
 
+  input: {
+    width: "100%",
+    padding: "10px",
+    marginBottom: "12px",
+    border: "1px solid #ccc",
+    borderRadius: "4px",
+    fontSize: "14px",
+  },
+
+  textArea: {
+    width: "100%",
+    minHeight: "120px",
+    padding: "10px",
+    marginBottom: "12px",
+    border: "1px solid #ccc",
+    borderRadius: "4px",
+    fontSize: "14px",
+    resize: "vertical",
+    fontFamily: "inherit",
+    boxSizing: "border-box",
+  },
+
+  button: {
+    padding: "10px 20px",
+    backgroundColor: "#1976d2",
+    color: "#fff",
+    border: "none",
+    borderRadius: "4px",
+    cursor: "pointer",
+  },
+
+  response: {
+    marginTop: "20px",
+    padding: "15px",
+    background: "#f5f5f5",
+    borderRadius: "5px",
+    whiteSpace: "pre-wrap",
+  },
+};
+const containerStyle = {
+  maxWidth: "800px",
+  margin: "20px auto",
+  padding: "20px",
+};
 export default Finances;
