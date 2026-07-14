@@ -1,37 +1,26 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 
 const MarketplaceParticipations = () => {
 
-    const [accessToken, setAccessToken] = useState("");
- const [awsAccessKey, setAwsAccessKey] = useState(
-  process.env.REACT_APP_AWS_ACCESS_KEY_ID || ""
-);
+const [accessToken, setAccessToken] = useState("");
+const [awsAccessKey, setAwsAccessKey] = useState(process.env.REACT_APP_AWS_ACCESS_KEY_ID || "");
+const [awsSecretKey, setAwsSecretKey] = useState(process.env.REACT_APP_AWS_SECRET_ACCESS_KEY || "");
+const [region, setRegion] = useState(process.env.REACT_APP_AWS_REGION || "us-east-1");
+const [serviceName, setServiceName] = useState(process.env.REACT_APP_AWS_SERVICE_NAME || "execute-api");
+const [environment, setEnvironment] = useState(process.env.REACT_APP_AMAZON_ENVIRONMENT || "sandbox");
+const [response, setResponse] = useState("");
+const [error, setError] = useState("");
+const [loading, setLoading] = useState(false);
 
-const [awsSecretKey, setAwsSecretKey] = useState(
-  process.env.REACT_APP_AWS_SECRET_ACCESS_KEY || ""
-);
+useEffect(() => {
+    const token = localStorage.getItem("amazonAccessToken");
 
-const [region, setRegion] = useState(
-  process.env.REACT_APP_AWS_REGION || "us-east-1"
-);
-
-const [serviceName, setServiceName] = useState(
-  process.env.REACT_APP_AWS_SERVICE_NAME || "execute-api"
-);
-
-const [environment, setEnvironment] = useState(
-  process.env.REACT_APP_AMAZON_ENVIRONMENT || "sandbox"
-);
-
-    const [response, setResponse] = useState("");
-    const [error, setError] = useState("");
-
-    const [loading, setLoading] = useState(false);
-
-
-    const getMarketplace = async () => {
-
+    if (token) {
+        setAccessToken(token);
+    }
+}, []);
+const getMarketplace = async () => {
         setLoading(true);
         setResponse("");
         setError("");
@@ -49,27 +38,19 @@ const [environment, setEnvironment] = useState(
                     environment
                 }
             );
-
-
-            setResponse(
-                JSON.stringify(result.data, null, 2)
-            );
-
-
+            
+            setResponse(JSON.stringify(result.data, null, 2));
+            // Store complete response
+localStorage.setItem("amazonMarketplaceResponse", JSON.stringify(result.data));
         } catch (err) {
 
             if (err.response) {
-                setError(
-                    JSON.stringify(
-                        err.response.data,
-                        null,
-                        2
-                    )
+                setError(JSON.stringify(err.response.data,null,2)
                 );
             }
             else {
                 setError(err.message);
-            }
+                }
 
         }
         finally {
@@ -77,7 +58,6 @@ const [environment, setEnvironment] = useState(
         }
 
     };
-
 
     return (
 

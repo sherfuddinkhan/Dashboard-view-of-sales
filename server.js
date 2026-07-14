@@ -686,7 +686,62 @@ const signRequest = (method, path, region, awsAccessKey, awsSecretKey, accessTok
   return aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
 };
 
+app.post("/api/product-types/schema", async (req, res) => {
+  try {
+    const {
+      accessToken,
+      awsAccessKey,
+      awsSecretKey,
+      region,
+      serviceName,
+      schemaUrl
+    } = req.body;
 
+    if (!schemaUrl) {
+      return res.status(400).json({
+        error: "schemaUrl is required."
+      });
+    }
+
+    const url = new URL(schemaUrl);
+
+    const opts = {
+      host: url.host,
+      path: url.pathname + url.search,
+      method: "GET",
+      service: serviceName,
+      region,
+      headers: {
+        "x-amz-access-token": accessToken,
+        host: url.host
+      }
+    };
+
+    aws4.sign(opts, {
+      accessKeyId: awsAccessKey,
+      secretAccessKey: awsSecretKey
+    });
+
+    const response = await axios({
+      method: "GET",
+      url: url.href,
+      headers: opts.headers
+    });
+
+    res.json(response.data);
+
+  } catch (err) {
+
+    if (err.response) {
+      res.status(err.response.status).json(err.response.data);
+    } else {
+      res.status(500).json({
+        error: err.message
+      });
+    }
+
+  }
+});
 //     Messaging 
 
 app.post("/messaging/actions", async (req, res) => {

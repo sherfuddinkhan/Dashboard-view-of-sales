@@ -8,10 +8,9 @@ const [refreshToken, setRefreshToken] = useState(process.env.REACT_APP_AMAZON_RE
 
   const [accessToken, setAccessToken] = useState("");
   const [expiresIn, setExpiresIn] = useState("");
-
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const [error, setError] = useState("");
 
   const generateToken = async () => {
   setLoading(true);
@@ -27,9 +26,16 @@ const [refreshToken, setRefreshToken] = useState(process.env.REACT_APP_AMAZON_RE
         refreshToken,
       }
     );
+      const token = response.data.access_token;
+      const expiry = response.data.expires_in;
 
-    setAccessToken(response.data.access_token);
-    setExpiresIn(response.data.expires_in);
+      setAccessToken(token);
+      setExpiresIn(expiry);
+
+      // Save to localStorage
+      localStorage.setItem("amazonAccessToken", token);
+      localStorage.setItem("amazonTokenExpiry", expiry.toString());
+      localStorage.setItem("amazonTokenGeneratedAt",Date.now().toString())
   } catch (err) {
     if (err.response) {
       setError(JSON.stringify(err.response.data, null, 2));

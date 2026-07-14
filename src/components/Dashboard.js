@@ -121,7 +121,7 @@ const Dashboard = () => {
       key: "product",
       title: "3. Product Types",
       items: [
-        { id: "product-types-home", label: "Overview", Component: ProductTypeDefinitions },
+        { id: "product-types-home", label: "producttypeDefinition", Component: ProductTypeDefinitions },
         { id: "search-product-types", label: "Search Product Types", Component: SearchProductTypes },
         { id: "product-type-schema", label: "Product Type Schema", Component: ProductTypeSchema },
       ],

@@ -1,18 +1,42 @@
-import React, { useState } from "react";
+import React, { useState ,useEffect} from "react";
 import axios from "axios";
 
 const SearchProductTypes = () => {
   const [accessToken, setAccessToken] = useState("");
-  const [awsAccessKey, setAwsAccessKey] = useState("");
-  const [awsSecretKey, setAwsSecretKey] = useState("");
+ const [awsAccessKey, setAwsAccessKey] = useState(process.env.REACT_APP_AWS_ACCESS_KEY_ID || "");
+ const [awsSecretKey, setAwsSecretKey] = useState(process.env.REACT_APP_AWS_SECRET_ACCESS_KEY || "");
   const [region, setRegion] = useState("us-east-1");
   const [environment, setEnvironment] = useState("sandbox");
-  const [marketplaceIds, setMarketplaceIds] = useState("ATVPDKIKX0DER");
+  const [marketplaceIds, setMarketplaceIds] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [productTypes, setProductTypes] = useState([]);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+  // Access Token
+  const token = localStorage.getItem("amazonAccessToken");
+  if (token) {
+    setAccessToken(token);
+  }
+
+  // Marketplace Response
+  const marketplaceData = JSON.parse(
+    localStorage.getItem("amazonMarketplaceResponse") || "{}"
+  );
+
+  const marketplace = marketplaceData.payload?.[0];
+
+  if (marketplace) {
+    console.log("Marketplace ID:", marketplace.marketplace.id);
+    console.log("Marketplace Name:", marketplace.marketplace.name);
+    console.log("Country Code:", marketplace.marketplace.countryCode);
+    console.log("Store Name:", marketplace.storeName);
+    console.log("Is Participating:", marketplace.participation.isParticipating);
+    setMarketplaceIds(marketplace.marketplace.id)
+    
+  }
+}, []);
   const searchProductTypes= async () => {
     setLoading(true);
     setError("");
