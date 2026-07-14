@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState ,useEffect} from "react";
 import axios from "axios";
 
 const UpdateListing = () => {
@@ -9,7 +9,20 @@ const UpdateListing = () => {
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
+    useEffect(() => {
+           const token = localStorage.getItem("amazonAccessToken");
+           if (token) {
+               setAccessToken(token);
+           }
+           const marketplace = JSON.parse(
+               localStorage.getItem("amazonMarketplaceResponse") || "{}"
+           );
+           if (marketplace.payload?.length) {
+               setMarketplaceId(marketplace.payload[0].marketplace.id);
+           }
+       }, []);
+   
+    
   const updateListing = async () => {
     setLoading(true); setError(""); setResult("");
     try {

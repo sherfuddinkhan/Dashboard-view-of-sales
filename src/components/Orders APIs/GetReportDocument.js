@@ -76,6 +76,15 @@ const styles = {
     borderRadius: "4px",
     cursor: "pointer",
   },
+   textarea: {
+    width: "100%",
+    padding: 12,
+    margin: "6px 0 16px 0",
+    fontSize: 14,
+    borderRadius: 6,
+    border: "1px solid #ccc",
+    fontFamily: "monospace",
+  },
 
   response: {
     marginTop: "20px",

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import axios from "axios";
 
 const DeleteListing = () => {
@@ -8,6 +8,19 @@ const DeleteListing = () => {
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+     useEffect(() => {
+            const token = localStorage.getItem("amazonAccessToken");
+            if (token) {
+                setAccessToken(token);
+            }
+            const marketplace = JSON.parse(
+                localStorage.getItem("amazonMarketplaceResponse") || "{}"
+            );
+            if (marketplace.payload?.length) {
+                setMarketplaceId(marketplace.payload[0].marketplace.id);
+            }
+        }, []);
+    
 
   const deleteListing = async () => {
     setLoading(true); setError(""); setResult("");
@@ -23,7 +36,7 @@ const DeleteListing = () => {
     <div style={containerStyle}>
       <h2>Delete Listing</h2>
       <label>Access Token</label>
-      <textarea rows={5} value={accessToken} onChange={(e) => setAccessToken(e.target.value)} style={styles.textarea} />
+      <textarea rows={5} value={accessToken} onChange={(e) => setAccessToken(e.target.value)} style={styles.textArea} />
       <label>SKU</label>
       <input type="text" value={sku} onChange={(e) => setSku(e.target.value)} style={styles.input} />
       <label>Marketplace ID</label>
@@ -52,7 +65,18 @@ const styles = {
     borderRadius: "4px",
     fontSize: "14px",
   },
-
+ textArea: {
+    width: "100%",
+    minHeight: "120px",
+    padding: "10px",
+    marginBottom: "12px",
+    border: "1px solid #ccc",
+    borderRadius: "4px",
+    fontSize: "14px",
+    resize: "vertical",
+    fontFamily: "inherit",
+    boxSizing: "border-box",
+  },
   button: {
     padding: "10px 20px",
     backgroundColor: "#1976d2",

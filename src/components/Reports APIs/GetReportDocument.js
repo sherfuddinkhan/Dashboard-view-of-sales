@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState,useEffect} from "react";
 import axios from "axios";
 
 const GetReportDocument = () => {
@@ -7,6 +7,12 @@ const GetReportDocument = () => {
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+    useEffect(() => {
+               const token = localStorage.getItem("amazonAccessToken");
+               if (token) {
+                   setAccessToken(token);
+               }
+           }, []);
 
   const getReportDocument = async () => {
     if (!accessToken || !reportDocumentId) return setError("Access Token and Report Document ID are required");
@@ -33,7 +39,7 @@ const GetReportDocument = () => {
       <h2>Get Report Document</h2>
 
       <label>Access Token</label>
-      <textarea rows={5} value={accessToken} onChange={(e) => setAccessToken(e.target.value)} style={styles.textarea} />
+      <textarea rows={5} value={accessToken} onChange={(e) => setAccessToken(e.target.value)} style={styles.textArea} />
 
       <label>Report Document ID</label>
       <input type="text" value={reportDocumentId} onChange={(e) => setReportDocumentId(e.target.value)} style={styles.input} />
@@ -71,6 +77,18 @@ const styles = {
     border: "none",
     borderRadius: "4px",
     cursor: "pointer",
+  },
+  textArea: {
+    width: "100%",
+    minHeight: "120px",
+    padding: "10px",
+    marginBottom: "12px",
+    border: "1px solid #ccc",
+    borderRadius: "4px",
+    fontSize: "14px",
+    resize: "vertical",
+    fontFamily: "inherit",
+    boxSizing: "border-box",
   },
 
   response: {

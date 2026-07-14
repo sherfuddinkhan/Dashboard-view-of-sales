@@ -1,12 +1,28 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import axios from "axios";
 
 const GetOrder = () => {
+    console.log("GetOrder component rendered");
   const [accessToken, setAccessToken] = useState("");
   const [orderId, setOrderId] = useState("");
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [marketplaceId, setMarketplaceId] = useState("");
+  const token = localStorage.getItem("amazonAccessToken");
+  console.log("Acesstoken",token);
+   useEffect(() => {
+             const token = localStorage.getItem("amazonAccessToken");
+             if (token) {
+                 setAccessToken(token);
+             }
+             const marketplace = JSON.parse(
+                 localStorage.getItem("amazonMarketplaceResponse") || "{}"
+             );
+             if (marketplace.payload?.length) {
+                 setMarketplaceId(marketplace.payload[0].marketplace.id);
+             }
+         }, []);
 
   const getOrder = async () => {
     if (!accessToken || !orderId) {

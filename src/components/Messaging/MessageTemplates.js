@@ -1,22 +1,22 @@
-import React, { useState } from "react";
+import React, { useState,useEffect} from "react";
 import axios from "axios";
 
-const MessageTemplates = ({
-  accessToken,
-  setAccessToken,
-  awsAccessKey,
-  setAwsAccessKey,
-  awsSecretKey,
-  setAwsSecretKey,
-  region,
-  setRegion,
-  environment,
-  setEnvironment,
-}) => {
+const MessageTemplates = () => {
+   const [accessToken, setAccessToken] = useState("");
   const [amazonOrderId, setAmazonOrderId] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState("");
   const [error, setError] = useState("");
+  const [awsAccessKey, setAwsAccessKey] = useState(process.env.REACT_APP_AWS_ACCESS_KEY_ID || "");
+  const [awsSecretKey, setAwsSecretKey] = useState(process.env.REACT_APP_AWS_SECRET_ACCESS_KEY || "");
+  const [region, setRegion] = useState(process.env.REACT_APP_AWS_REGION || "us-east-1");
+  const [environment, setEnvironment] = useState(process.env.REACT_APP_AMAZON_ENVIRONMENT || "sandbox");
+   useEffect(() => {
+             const token = localStorage.getItem("amazonAccessToken");
+             if (token) {
+                 setAccessToken(token);
+             }
+         }, []);
 
   const handleSubmit = async () => {
     setLoading(true);

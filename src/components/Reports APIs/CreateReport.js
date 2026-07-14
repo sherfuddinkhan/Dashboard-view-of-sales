@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState,useEffect} from "react";
 import axios from "axios";
 
 const CreateReport = () => {
@@ -8,6 +8,12 @@ const CreateReport = () => {
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  useEffect(() => {
+             const token = localStorage.getItem("amazonAccessToken");
+             if (token) {
+                 setAccessToken(token);
+             }
+         }, []);
 
   const createReport = async () => {
     setLoading(true); setError(""); setResult("");
@@ -27,7 +33,7 @@ const CreateReport = () => {
     <div style={containerStyle}>
       <h2>Create Report</h2>
       <label>Access Token</label>
-      <textarea rows={5} value={accessToken} onChange={(e) => setAccessToken(e.target.value)} style={styles.textarea} />
+      <textarea rows={5} value={accessToken} onChange={(e) => setAccessToken(e.target.value)} style={styles.textArea} />
       <label>Report Type</label>
       <input type="text" value={reportType} onChange={(e) => setReportType(e.target.value)} style={styles.input} />
       <label>Marketplace IDs (comma separated)</label>
@@ -65,7 +71,18 @@ const styles = {
     borderRadius: "4px",
     cursor: "pointer",
   },
-
+textArea: {
+    width: "100%",
+    minHeight: "120px",
+    padding: "10px",
+    marginBottom: "12px",
+    border: "1px solid #ccc",
+    borderRadius: "4px",
+    fontSize: "14px",
+    resize: "vertical",
+    fontFamily: "inherit",
+    boxSizing: "border-box",
+  },
   response: {
     marginTop: "20px",
     padding: "15px",
