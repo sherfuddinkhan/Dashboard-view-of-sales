@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import axios from "axios";
 import  AmazonTokenGenerator from "../Authentication/AmazonTokenGenerator";
 import ErrorDisplay from "../Common/ErrorDisplay";
@@ -9,7 +9,12 @@ const PurchaseLabel = (props) => {
   const [label, setLabel] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
-
+  useEffect(() => {
+           const token = localStorage.getItem("amazonAccessToken");
+           if (token) {
+               setAccessToken(token);
+           }
+       }, []);
   const purchaseLabel = async () => {
     setLoading(true);
     setError(null);
@@ -28,7 +33,8 @@ const PurchaseLabel = (props) => {
   return (
     <div>
       <h2>Purchase Shipping Label</h2>
-      <AmazonTokenGenerator {...props} />
+    <label>Access Token</label>
+      <textarea rows={4} value={accessToken} onChange={(e) => setAccessToken(e.target.value)} style={styles. textarea}/>
       <input type="text" placeholder="Shipment ID" value={shipmentId} onChange={e => setShipmentId(e.target.value)} style={{ width: "100%", marginBottom: 15, padding: 10 }} />
       <input type="text" placeholder="Rate ID from GetRates" value={rateId} onChange={e => setRateId(e.target.value)} style={{ width: "100%", marginBottom: 15, padding: 10 }} />
       <button onClick={purchaseLabel} disabled={loading || !shipmentId || !rateId}>

@@ -1,15 +1,10 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import axios from "axios";
 import  AmazonTokenGenerator from "../Authentication/AmazonTokenGenerator";
 import ErrorDisplay from "../Common/ErrorDisplay";
 
-const Shipping = ({ 
-  accessToken, setAccessToken, 
-  awsAccessKey, setAwsAccessKey, 
-  awsSecretKey, setAwsSecretKey, 
-  region, setRegion, 
-  environment, setEnvironment 
-}) => {
+const Shipping = () => {
+  const [accessToken, setAccessToken] = useState("");
   const [orderId, setOrderId] = useState("");
   const [weight, setWeight] = useState("1.0");
   const [length, setLength] = useState("10");
@@ -17,7 +12,16 @@ const Shipping = ({
   const [height, setHeight] = useState("6");
   const [rates, setRates] = useState(null);
   const [error, setError] = useState(null);
-
+  const [awsAccessKey, setAwsAccessKey] = useState(process.env.REACT_APP_AWS_ACCESS_KEY_ID || "");
+  const [awsSecretKey, setAwsSecretKey] = useState(process.env.REACT_APP_AWS_SECRET_ACCESS_KEY || "");
+  const [region, setRegion] = useState(process.env.REACT_APP_AWS_REGION || "us-east-1");
+  const [environment, setEnvironment] = useState(process.env.REACT_APP_AMAZON_ENVIRONMENT || "sandbox");
+  useEffect(() => {
+             const token = localStorage.getItem("amazonAccessToken");
+             if (token) {
+                 setAccessToken(token);
+             }
+         }, []);
   const getRates = async () => {
     setError(null); setRates(null);
     try {
@@ -35,14 +39,9 @@ const Shipping = ({
     <div style={styles.container}>
       <h2>Shipping API</h2>
       <p>Get Amazon-partnered carrier rates for FBM orders</p>
-      
-      <AmazonTokenGenerator
-        accessToken={accessToken} setAccessToken={setAccessToken}
-        awsAccessKey={awsAccessKey} setAwsAccessKey={setAwsAccessKey}
-        awsSecretKey={awsSecretKey} setAwsSecretKey={setAwsSecretKey}
-        region={region} setRegion={setRegion}
-        environment={environment} setEnvironment={setEnvironment}
-      />
+      <h2>Notifications API</h2>
+      <label>Access Token</label>
+      <textarea rows={4} value={accessToken} onChange={(e) => setAccessToken(e.target.value)} style={styles. textarea}/>
       
       <input type="text" placeholder="Amazon Order ID" value={orderId} onChange={e => setOrderId(e.target.value)} style={styles.input} />
       
@@ -62,12 +61,63 @@ const Shipping = ({
 };
 
 const styles = {
-  container: { width: '100%' },
-  input: { width: "100%", marginBottom: 15, padding: 10, fontSize: 15, border: '1px solid #cbd5e1', borderRadius: 6 },
-  inputSmall: { flex: 1, padding: 10, fontSize: 15, border: '1px solid #cbd5e1', borderRadius: 6 },
-  row: { display: 'flex', gap: '10px', marginBottom: 15 },
-  button: { background: "#146eb4", color: "#fff", border: "none", padding: "12px 25px", cursor: "pointer", fontSize: 16, borderRadius: 5 },
-  pre: { background: '#f1f5f9', padding: 15, borderRadius: 6, overflow: 'auto', fontSize: 12 }
+  container: {
+    maxWidth: "850px",
+    margin: "20px auto",
+    padding: "25px",
+    background: "#fff",
+    borderRadius: "8px",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+  },
+
+  title: {
+    textAlign: "center",
+    marginBottom: "20px",
+  },
+
+  input: {
+    width: "100%",
+    padding: "10px",
+    marginBottom: "15px",
+    border: "1px solid #ccc",
+    borderRadius: "4px",
+    boxSizing: "border-box",
+  },
+
+  textarea: {
+    width: "100%",
+    minHeight: "120px",
+    padding: "10px",
+    marginBottom: "15px",
+    border: "1px solid #ccc",
+    borderRadius: "4px",
+    resize: "vertical",
+    boxSizing: "border-box",
+  },
+
+  button: {
+    padding: "12px 25px",
+    background: "#1976d2",
+    color: "#fff",
+    border: "none",
+    borderRadius: "4px",
+    cursor: "pointer",
+  },
+
+  response: {
+    marginTop: "20px",
+    padding: "15px",
+    background: "#f5f5f5",
+    borderRadius: "5px",
+  },
+
+  error: {
+    marginTop: "20px",
+    padding: "15px",
+    background: "#ffebee",
+    color: "#b71c1c",
+    borderRadius: "5px",
+  },
 };
 
 export default Shipping;
