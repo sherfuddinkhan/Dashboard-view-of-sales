@@ -115,7 +115,7 @@ const Dashboard = () => {
   items: [
     { id: "marketplace",label: "Marketplace Participations",Component: MarketplaceParticipations},
     { id: "catalogSearch",label: "Catalog Item Search",Component: CatalogSearch},
-    { id: "catalog",label: "Catalog Item",Component: CatalogItem},
+    { id: "catalog",label: "CatalogItemDetails",Component: CatalogItem},
     { id: "pricing", label: "Pricing",Component: Pricing},
     ],
 },

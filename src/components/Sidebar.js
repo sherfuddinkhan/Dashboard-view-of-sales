@@ -63,7 +63,7 @@ const Sidebar = () => {
 
     <NavLink to="/catalog/item" className="sidebar-link">
       <FiBook />
-      <span>Catalog Item</span>
+      <span>CatalogItemDetails</span>
     </NavLink>
 
     <NavLink to="/pricing" className="sidebar-link">
