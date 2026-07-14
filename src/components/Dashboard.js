@@ -7,6 +7,7 @@ import AmazonTokenGenerator from "./Authentication/AmazonTokenGenerator";
 import MarketplaceParticipations from "./Seller APIs/MarketplaceParticipations";
 import CatalogItem from "./Catalog APIs/CatalogItem";
 import Pricing from "./Pricing APIs/Pricing";
+import CatalogSearch from "./Catalog APIs/CatalogSearch";
 
 // Listings
 import CreateListing from "./Listings APIs/CreateListing";
@@ -109,14 +110,15 @@ const Dashboard = () => {
       ],
     },
     {
-      key: "seller",
-      title: "2. Seller & Catalog",
-      items: [
-        { id: "marketplace", label: "Marketplace Participations", Component: MarketplaceParticipations },
-        { id: "catalog", label: "Catalog Item", Component: CatalogItem },
-        { id: "pricing", label: "Pricing", Component: Pricing },
-      ],
-    },
+  key: "seller",
+  title: "2. Seller & Catalog",
+  items: [
+    { id: "marketplace",label: "Marketplace Participations",Component: MarketplaceParticipations},
+    { id: "catalogSearch",label: "Catalog Item Search",Component: CatalogSearch},
+    { id: "catalog",label: "Catalog Item",Component: CatalogItem},
+    { id: "pricing", label: "Pricing",Component: Pricing},
+    ],
+},
     {
       key: "product",
       title: "3. Product Types",

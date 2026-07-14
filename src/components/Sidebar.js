@@ -48,22 +48,31 @@ const Sidebar = () => {
         <span>Seller & Catalog</span>
         {open.catalog ? <FiChevronDown /> : <FiChevronRight />}
       </div>
-      {open.catalog && (
-        <div className="submenu">
-          <NavLink to="/marketplace" className="sidebar-link">
-            <FiGlobe />
-            <span>Marketplace Participations</span>
-          </NavLink>
-          <NavLink to="/catalog" className="sidebar-link">
-            <FiBook />
-            <span>Catalog Item</span>
-          </NavLink>
-          <NavLink to="/pricing" className="sidebar-link">
-            <FiDollarSign />
-            <span>Pricing</span>
-          </NavLink>
-        </div>
-      )}
+    {open.catalog && (
+  <div className="submenu">
+
+    <NavLink to="/marketplace" className="sidebar-link">
+      <FiGlobe />
+      <span>Marketplace Participations</span>
+    </NavLink>
+
+    <NavLink to="/catalog/search" className="sidebar-link">
+      <FiBook />
+      <span>Catalog Item Search</span>
+    </NavLink>
+
+    <NavLink to="/catalog/item" className="sidebar-link">
+      <FiBook />
+      <span>Catalog Item</span>
+    </NavLink>
+
+    <NavLink to="/pricing" className="sidebar-link">
+      <FiDollarSign />
+      <span>Pricing</span>
+    </NavLink>
+
+  </div>
+)}
 
       {/* Listings */}
       <div className="sidebar-section" onClick={() => toggle("listings")}>
