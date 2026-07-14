@@ -3,6 +3,7 @@ const cors = require("cors");
 const axios = require("axios");
 const aws4 = require("aws4");
 
+
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
@@ -617,30 +618,6 @@ app.post("/api/feeds/get", async (req, res) => {
   }
 });
 
-// ==================== 9. UPLOADS APIs ====================
-// Create Upload Destination
-app.post("/api/uploads/destination", async (req, res) => {
-  try {
-    const { accessToken, awsAccessKey, awsSecretKey, region, serviceName, environment, resource, contentMD5, contentType } = req.body;
-    const host = environment === "production" ? "sellingpartnerapi-na.amazon.com" : "sandbox.sellingpartnerapi-na.amazon.com";
-    const path = `/uploads/2020-11-01/uploadDestinations/${resource}`;
-
-    const opts = {
-      host, path, service: serviceName || "execute-api", region: region || "us-east-1", method: "POST",
-      headers: { "x-amz-access-token": accessToken, "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ contentMD5, contentType })
-    };
-
-    aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
-    const response = await axios({ method: "POST", url: `https://${host}${path}`, headers: opts.headers, data: { contentMD5, contentType } });
-    res.json(response.data);
-  } catch (err) {
-    res.status(err.response?.status || 500).json(err.response?.data || { error: err.message });
-  }
-});
-
-//////////////////////////////
-
 
 // ===== FINANCES =====
 app.post("/api/finances/events", async (req, res) => {
@@ -1008,8 +985,6 @@ app.post("/api/product-types/schema", async (req, res) => {
   }
 });
 
-;
-
 //     Messaging 
 
 app.post("/messaging/actions", async (req, res) => {
@@ -1169,6 +1144,71 @@ app.post("/messaging/send", async (req, res) => {
   }
 });
 
+// ==================== 9. UPLOADS APIs ====================
+app.post("/api/create-upload-destination", async (req, res) => {
+  try {
+    const {
+      accessToken,
+      awsAccessKey,
+      awsSecretKey,
+      region,
+      environment,
+    } = req.body;
+
+    if (!accessToken) {
+      return res.status(400).json({
+        success: false,
+        message: "Access Token is required.",
+      });
+    }
+
+    const host =
+      environment === "production"
+        ? "sellingpartnerapi-na.amazon.com"
+        : "sandbox.sellingpartnerapi-na.amazon.com";
+
+    const path = "/uploads/2020-11-01/uploadDestinations";
+
+    const body = JSON.stringify({
+      contentType: "text/xml; charset=UTF-8",
+    });
+
+    const options = {
+      host,
+      path,
+      service: "execute-api",
+      region,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-amz-access-token": accessToken,
+      },
+      body,
+    };
+
+    aws4.sign(options, {
+      accessKeyId: awsAccessKey,
+      secretAccessKey: awsSecretKey,
+    });
+
+    const response = await axios({
+      method: "POST",
+      url: `https://${host}${path}`,
+      headers: options.headers,
+      data: JSON.parse(body),
+    });
+
+    res.json({
+      success: true,
+      payload: response.data,
+    });
+  } catch (error) {
+    res.status(error.response?.status || 500).json({
+      success: false,
+      error: error.response?.data || error.message,
+    });
+  }
+});
 // Start Server
 const PORT = 5000;
 app.listen(PORT, () => {

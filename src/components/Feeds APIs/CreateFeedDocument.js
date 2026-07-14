@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import axios from "axios";
 
 const CreateFeedDocument = () => {
@@ -6,6 +6,16 @@ const CreateFeedDocument = () => {
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [awsAccessKey, setAwsAccessKey] = useState(process.env.REACT_APP_AWS_ACCESS_KEY_ID || "");
+  const [awsSecretKey, setAwsSecretKey] = useState(process.env.REACT_APP_AWS_SECRET_ACCESS_KEY || "");
+  const [region, setRegion] = useState(process.env.REACT_APP_AWS_REGION || "us-east-1");
+  const [environment, setEnvironment] = useState(process.env.REACT_APP_AMAZON_ENVIRONMENT || "sandbox");
+    useEffect(() => {
+           const token = localStorage.getItem("amazonAccessToken");
+           if (token) {
+               setAccessToken(token);
+           }
+       }, []);
 
   const createFeedDocument = async () => {
     if (!accessToken) return setError("Access Token is required");
@@ -30,9 +40,8 @@ const CreateFeedDocument = () => {
     <div style={containerStyle}>
       <h2>Create Feed Document</h2>
 
-      <label>Access Token</label>
-      <textarea rows={5} value={accessToken} onChange={(e) => setAccessToken(e.target.value)} style={styles.textarea} />
-
+     <label>Access Token</label>
+      <textarea rows={5} value={accessToken} onChange={(e) => setAccessToken(e.target.value)} style={styles.textArea} />
       <button onClick={createFeedDocument} disabled={loading} style={styles.button}>
         {loading ? "Creating..." : "Create Feed Document"}
       </button>
@@ -67,6 +76,19 @@ const styles = {
     fontSize: "14px",
   },
 
+  textArea: {
+    width: "100%",
+    minHeight: "120px",
+    padding: "10px",
+    marginBottom: "12px",
+    border: "1px solid #ccc",
+    borderRadius: "4px",
+    fontSize: "14px",
+    resize: "vertical",
+    fontFamily: "inherit",
+    boxSizing: "border-box",
+  },
+
   button: {
     padding: "10px 20px",
     backgroundColor: "#1976d2",
@@ -84,14 +106,10 @@ const styles = {
     whiteSpace: "pre-wrap",
   },
 };
-
 const containerStyle = {
   maxWidth: "800px",
   margin: "20px auto",
   padding: "20px",
-  border: "1px solid #ddd",
-  borderRadius: "8px",
-  backgroundColor: "#fff",
 };
 
 export default CreateFeedDocument;

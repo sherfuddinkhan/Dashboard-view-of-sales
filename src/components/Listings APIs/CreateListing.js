@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import axios from "axios";
 
 const CreateListing = () => {
@@ -10,6 +10,12 @@ const CreateListing = () => {
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+   useEffect(() => {
+             const token = localStorage.getItem("amazonAccessToken");
+             if (token) {
+                 setAccessToken(token);
+             }
+         }, []);
 
   const createListing = async () => {
     setLoading(true);
