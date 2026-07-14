@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import axios from "axios";
 
 const AmazonTokenGenerator = () => {
-  const [clientId, setClientId] = useState(process.env.REACT_APP_AMAZON_CLIENT_ID || "");
+const [clientId, setClientId] = useState(process.env.REACT_APP_AMAZON_CLIENT_ID || "");
 const [clientSecret, setClientSecret] = useState(process.env.REACT_APP_AMAZON_CLIENT_SECRET || "");
 const [refreshToken, setRefreshToken] = useState(process.env.REACT_APP_AMAZON_REFRESH_TOKEN || "");
 

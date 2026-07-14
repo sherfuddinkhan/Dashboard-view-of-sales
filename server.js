@@ -645,15 +645,71 @@ app.post("/api/uploads/destination", async (req, res) => {
 // ===== FINANCES =====
 app.post("/api/finances/events", async (req, res) => {
   const { accessToken, awsAccessKey, awsSecretKey, region, environment, postedAfter } = req.body;
-  const host = environment === "production" ? "sellingpartnerapi-na.amazon.com" : "sandbox.sellingpartnerapi-na.amazon.com";
-  const path = `/finances/v0/financialEvents${postedAfter ? `?PostedAfter=${postedAfter}` : ''}`;
-  const opts = { host, path, service: "execute-api", region, method: "GET", headers: { "x-amz-access-token": accessToken } };
+
+  const isSandbox = environment !== "production";
+  const host = isSandbox 
+    ? "sandbox.sellingpartnerapi-na.amazon.com" 
+    : "sellingpartnerapi-na.amazon.com";
+
+  // Base path without query parameters
+  let basePath = "/finances/v0/financialEvents";
+  let queryParams = {};
+
+  // Amazon Sandbox pattern-matcher breaks on dynamic parameters.
+  // Only append PostedAfter if we are in Production OR using a supported sandbox mock date.
+  if (postedAfter && !isSandbox) {
+    queryParams["PostedAfter"] = postedAfter;
+  } else if (isSandbox) {
+    // Optional: Standard Static Sandbox mock date if you absolutely want to pass a date parameter
+    // queryParams["PostedAfter"] = "2020-03-01T00:00:00Z"; 
+  }
+
+  // Construct the query string properly
+  const queryString = Object.keys(queryParams).length > 0
+    ? '?' + Object.entries(queryParams)
+        .map(([key, val]) => `${key}=${encodeURIComponent(val)}`)
+        .join('&')
+    : '';
+
+  const fullPath = `${basePath}${queryString}`;
+
+  const opts = { 
+    host, 
+    path: fullPath, // Must match the exact path + query sent via axios
+    service: "execute-api", 
+    region, 
+    method: "GET", 
+    headers: { 
+      "x-amz-access-token": accessToken,
+      "accept": "application/json"
+    } 
+  };
+
+  // Sign the request structure using aws4
   aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
+
+  // Deep clone headers and clean up any payload headers that trigger API Gateway 400s on GET requests
+  const cleanHeaders = { ...opts.headers };
+  const headersToDestroy = ['content-type', 'content-length', 'accept-encoding', 'connection'];
+  
+  Object.keys(cleanHeaders).forEach(key => {
+    if (headersToDestroy.includes(key.toLowerCase())) {
+      delete cleanHeaders[key];
+    }
+  });
+
   try {
-    const response = await axios({ method: "GET", url: `https://${host}${path}`, headers: opts.headers });
+    const response = await axios({ 
+      method: "GET", 
+      url: `https://${host}${fullPath}`, 
+      headers: cleanHeaders 
+    });
+    
     res.json(response.data);
   } catch (error) {
-    res.status(error.response?.status || 500).json(error.response?.data || { error: error.message });
+    // Send back Amazon's detailed error payload instead of a generic axios status
+    const errorData = error.response?.data || { error: error.message };
+    res.status(error.response?.status || 500).json(errorData);
   }
 });
 
