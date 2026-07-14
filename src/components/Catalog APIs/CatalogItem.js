@@ -8,6 +8,8 @@ const CatalogItem = () => {
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [awsAccessKey, setAwsAccessKey] = useState("");
+const [awsSecretKey, setAwsSecretKey] = useState("");
 
   const getCatalogItem = async () => {
     if (!accessToken || !asin || !marketplaceId) {
@@ -20,11 +22,17 @@ const CatalogItem = () => {
     setResult("");
 
     try {
-      const response = await axios.post("http://localhost:5000/api/catalog-item", {
-        accessToken,
-        asin,
-        marketplaceId,
-      });
+    const response = await axios.post(
+  "http://localhost:5000/api/catalog-item",
+  {
+    accessToken,
+    awsAccessKey,
+    awsSecretKey,
+    asin,
+    marketplaceId,
+    region: "us-east-1"
+  }
+);
 
       setResult(JSON.stringify(response.data, null, 2));
     } catch (err) {
@@ -40,7 +48,24 @@ const CatalogItem = () => {
 
       <label>Access Token</label>
       <textarea rows={5} value={accessToken} onChange={(e) => setAccessToken(e.target.value)} style={styles.textArea} />
+<label>AWS Access Key</label>
+<input
+  type="text"
+  value={awsAccessKey}
+  onChange={(e)=>setAwsAccessKey(e.target.value)}
+  style={styles.input}
+  placeholder="AKIAXXXXXXXX"
+/>
 
+
+<label>AWS Secret Key</label>
+<input
+  type="password"
+  value={awsSecretKey}
+  onChange={(e)=>setAwsSecretKey(e.target.value)}
+  style={styles.input}
+  placeholder="AWS Secret Key"
+/>
       <label>ASIN</label>
       <input type="text" value={asin} onChange={(e) => setAsin(e.target.value)} style={styles.input} placeholder="B0ABC12345" />
 

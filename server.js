@@ -76,6 +76,110 @@ app.post("/api/marketplace", async (req, res) => {
 
 // ==================== 3. CATALOG APIs ====================
 // Get Catalog Item
+
+app.post("/api/catalog/search", async (req, res) => {
+
+try {
+
+const {
+    accessToken,
+    awsAccessKey,
+    awsSecretKey,
+    region,
+    environment,
+    marketplaceId,
+    keywords,
+    identifiers,
+    identifiersType
+} = req.body;
+
+
+const host =
+environment === "production"
+? "sellingpartnerapi-na.amazon.com"
+: "sandbox.sellingpartnerapi-na.amazon.com";
+
+
+let path =
+`/catalog/2022-04-01/items?marketplaceIds=${marketplaceId}`;
+
+
+if(keywords){
+    path += `&keywords=${encodeURIComponent(keywords)}`;
+}
+
+
+if(identifiers){
+
+    path += `&identifiers=${encodeURIComponent(identifiers)}`;
+    path += `&identifiersType=${identifiersType}`;
+
+}
+
+
+// Start with only summaries
+path += "&includedData=summaries";
+
+
+const opts = {
+
+host,
+path,
+service:"execute-api",
+region:region || "us-east-1",
+method:"GET",
+
+headers:{
+    "x-amz-access-token":accessToken,
+    "accept":"application/json"
+}
+
+};
+
+
+aws4.sign(opts,{
+accessKeyId:awsAccessKey,
+secretAccessKey:awsSecretKey
+});
+
+
+console.log(
+`https://${host}${path}`
+);
+
+
+const response = await axios.get(
+`https://${host}${path}`,
+{
+headers:opts.headers
+}
+);
+
+
+res.json(response.data);
+
+
+}
+catch(err){
+
+console.log(
+err.response?.data || err.message
+);
+
+
+res.status(
+err.response?.status || 500
+)
+.json(
+err.response?.data || {
+error:err.message
+}
+);
+
+}
+
+});
+
 app.post("/api/catalog-item", async (req, res) => {
   try {
 
@@ -128,7 +232,7 @@ app.post("/api/catalog-item", async (req, res) => {
     const path =
       `/catalog/2022-04-01/items/${asin}` +
       `?marketplaceIds=${marketplaceId}` +
-      `&includedData=summaries,images,attributes`;
+      `&includedData=summaries"`;
 
 
     // AWS Signature Request
@@ -140,8 +244,9 @@ app.post("/api/catalog-item", async (req, res) => {
       method: "GET",
 
       headers: {
-        "x-amz-access-token": accessToken,
-        "accept": "application/json"
+     "x-amz-access-token": accessToken,
+    "accept": "application/json",
+    "content-type": "application/json"
       }
     };
 
@@ -197,84 +302,6 @@ app.post("/api/catalog-item", async (req, res) => {
 
   }
 });
-
-app.post("/api/catalog/search", async (req, res) => {
-
-    const {
-        accessToken,
-        awsAccessKey,
-        awsSecretKey,
-        region,
-        environment,
-        marketplaceId,
-        keywords,
-        identifiers,
-        identifiersType
-    } = req.body;
-
-    const host =
-        environment === "production"
-            ? "sellingpartnerapi-na.amazon.com"
-            : "sandbox.sellingpartnerapi-na.amazon.com";
-
-    let path = `/catalog/2022-04-01/items?marketplaceIds=${marketplaceId}`;
-
-    if (keywords) {
-
-        path += `&keywords=${encodeURIComponent(keywords)}`;
-
-    }
-
-    if (identifiers) {
-
-        path += `&identifiers=${encodeURIComponent(identifiers)}`;
-        path += `&identifiersType=${identifiersType}`;
-
-    }
-
-    path += "&includedData=summaries,images,attributes";
-
-    const opts = {
-        host,
-        path,
-        service: "execute-api",
-        region,
-        method: "GET",
-        headers: {
-            "x-amz-access-token": accessToken,
-            "content-type": "application/json"
-        }
-    };
-
-    aws4.sign(opts, {
-        accessKeyId: awsAccessKey,
-        secretAccessKey: awsSecretKey
-    });
-
-    try {
-
-        const response = await axios.get(
-            `https://${host}${path}`,
-            {
-                headers: opts.headers
-            }
-        );
-
-        res.json(response.data);
-
-    } catch (err) {
-
-        res.status(
-            err.response?.status || 500
-        ).json(
-            err.response?.data || {
-                error: err.message
-            }
-        );
-
-    }
-
-})
 
 
 // ==================== 4. LISTINGS APIs ====================
