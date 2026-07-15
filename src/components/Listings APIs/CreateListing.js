@@ -4,10 +4,10 @@ import axios from "axios";
 const CreateListing = () => {
 const [accessToken, setAccessToken] = useState("");
 
-const [awsAccessKey, setAwsAccessKey] = useState("");
-const [awsSecretKey, setAwsSecretKey] = useState("");
-
-const [region, setRegion] = useState("us-east-1");
+  const [awsAccessKey, setAwsAccessKey] = useState(process.env.REACT_APP_AWS_ACCESS_KEY_ID || "");
+  const [awsSecretKey, setAwsSecretKey] = useState(process.env.REACT_APP_AWS_SECRET_ACCESS_KEY || "");
+  const [region, setRegion] = useState(process.env.REACT_APP_AWS_REGION || "us-east-1");
+  const [environment, setEnvironment] = useState(process.env.REACT_APP_AMAZON_ENVIRONMENT || "sandbox");
 const [serviceName, setServiceName] = useState("execute-api");
 const [environment, setEnvironment] = useState("sandbox");
 

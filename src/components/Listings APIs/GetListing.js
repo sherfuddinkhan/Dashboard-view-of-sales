@@ -4,6 +4,11 @@ import axios from "axios";
 const GetListing = () => {
   const [accessToken, setAccessToken] = useState("");
   const [sku, setSku] = useState("");
+  const [awsAccessKey, setAwsAccessKey] = useState(process.env.REACT_APP_AWS_ACCESS_KEY_ID || "");
+  const [awsSecretKey, setAwsSecretKey] = useState(process.env.REACT_APP_AWS_SECRET_ACCESS_KEY || "");
+  const [region, setRegion] = useState(process.env.REACT_APP_AWS_REGION || "us-east-1");
+  const [environment, setEnvironment] = useState(process.env.REACT_APP_AMAZON_ENVIRONMENT || "sandbox");
+  const [serviceName, setServiceName] = useState("execute-api");
   const [marketplaceId, setMarketplaceId] = useState("ATVPDKIKX0DER");
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
@@ -22,30 +27,43 @@ const GetListing = () => {
        }, []);
    
 
-  const getListing = async () => {
-    if (!accessToken || !sku) {
-      setError("Access Token and SKU are required");
-      return;
-    }
+ const getListing = async () => {
+  if (!accessToken || !sellerId || !sku) {
+    setError("Access Token, Seller ID and SKU are required.");
+    return;
+  }
 
-    setLoading(true);
-    setError("");
-    setResult("");
+  setLoading(true);
+  setError("");
+  setResult("");
 
-    try {
-      const response = await axios.post("http://localhost:5000/api/get-listing", {
+  try {
+    const response = await axios.post(
+      "http://localhost:5000/api/listings/get",
+      {
         accessToken,
+        awsAccessKey,
+        awsSecretKey,
+        region,
+        serviceName,
+        environment,
+        sellerId,
         sku,
-        marketplaceId,
-      });
+        marketplaceIds: [marketplaceId],
+      }
+    );
 
-      setResult(JSON.stringify(response.data, null, 2));
-    } catch (err) {
-      setError(err.response ? JSON.stringify(err.response.data, null, 2) : err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+    setResult(JSON.stringify(response.data, null, 2));
+  } catch (err) {
+    setError(
+      err.response
+        ? JSON.stringify(err.response.data, null, 2)
+        : err.message
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div style={containerStyle}>
