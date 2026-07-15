@@ -19,12 +19,10 @@ import ListingSubmission from "./Listings APIs/ListingSubmission";
 // Orders
 import Orders from "./Orders APIs/Orders";
 import GetOrder from "./Orders APIs/GetOrder";
-import GetOrderItems from "./Orders APIs/GetOrderItems";
-
-// Reports
-import CreateReport from "./Reports APIs/CreateReport";
-import GetReport from "./Reports APIs/GetReport";
-import GetReportDocument from "./Reports APIs/GetReportDocument";
+import GetOrderItems from "./Orders APIs/GetOrderItems"
+import CreateReport from "./Orders APIs/CreateReport";
+import GetReport from "./Orders APIs/GetReport"
+import GetReportDocument from "./Orders APIs/GetReportDocument"
 
 // Feeds
 import CreateFeedDocument from "./Feeds APIs/CreateFeedDocument";
@@ -141,13 +139,16 @@ const Dashboard = () => {
     },
     {
       key: "orders",
-      title: "5. Orders",
+      title: "5. Orders and Reports",
       items: [
         { id: "get-orders", label: "Get Orders", Component: Orders },
         { id: "get-order", label: "Get Order", Component: GetOrder },
         { id: "get-order-items", label: "Get Order Items", Component: GetOrderItems },
+        { id: "create-report", label: "Create Report", Component: CreateReport },
+        { id: "get-report-doc", label: "Get Report Document", Component: GetReportDocument },
       ],
     },
+    
     {
       key: "finances",
       title: "6. Finances",
@@ -183,17 +184,8 @@ const Dashboard = () => {
   ],
 },
     {
-      key: "reports",
-      title: "10. Reports",
-      items: [
-        { id: "create-report", label: "Create Report", Component: CreateReport },
-        { id: "get-report", label: "Get Report", Component: GetReport },
-        { id: "get-report-doc", label: "Get Report Document", Component: GetReportDocument },
-      ],
-    },
-    {
       key: "feeds",
-      title: "11. Feeds & Uploads",
+      title: "10. Feeds & Uploads",
       items: [
         { id: "create-feed-doc", label: "Create Feed Document", Component: CreateFeedDocument },
         { id: "create-feed", label: "Create Feed", Component: CreateFeed },

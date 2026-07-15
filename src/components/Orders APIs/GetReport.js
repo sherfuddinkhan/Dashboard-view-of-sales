@@ -7,7 +7,12 @@ const GetReport = () => {
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
+  const [marketplaceId, setMarketplaceId] = useState("");
+  const [awsAccessKey, setAwsAccessKey] = useState(process.env.REACT_APP_AWS_ACCESS_KEY_ID || "");
+  const [awsSecretKey, setAwsSecretKey] = useState(process.env.REACT_APP_AWS_SECRET_ACCESS_KEY || "");
+  const [region, setRegion] = useState(process.env.REACT_APP_AWS_REGION || "us-east-1");
+  const [environment, setEnvironment] = useState(process.env.REACT_APP_AMAZON_ENVIRONMENT || "sandbox");
+  const [serviceName, setServiceName] = useState("execute-api");
   const getReport = async () => {
   if (!accessToken || !reportId) {
     setError("Access Token and Report ID are required");

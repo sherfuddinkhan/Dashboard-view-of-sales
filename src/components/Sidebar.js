@@ -104,19 +104,48 @@ const Sidebar = () => {
         </div>
       )}
 
-      {/* Orders */}
-      <div className="sidebar-section" onClick={() => toggle("orders")}>
-        <span>Orders</span>
-        {open.orders ? <FiChevronDown /> : <FiChevronRight />}
-      </div>
-      {open.orders && (
-        <div className="submenu">
-          <NavLink to="/orders" className="sidebar-link">
-            <FiShoppingCart />
-            <span>Get Orders</span>
-          </NavLink>
-        </div>
-      )}
+   {/* Orders */}
+<div
+  className="sidebar-section"
+  onClick={() => toggle("orders")}
+>
+  <span>Orders</span>
+  {open.orders ? <FiChevronDown /> : <FiChevronRight />}
+</div>
+
+{open.orders && (
+  <div className="submenu">
+    <NavLink to="/orders" className="sidebar-link">
+      <FiShoppingCart />
+      <span>Get Orders</span>
+    </NavLink>
+
+    <NavLink to="/order" className="sidebar-link">
+      <FiShoppingCart />
+      <span>Get Order</span>
+    </NavLink>
+
+    <NavLink to="/order-items" className="sidebar-link">
+      <FiShoppingCart />
+      <span>Get Order Items</span>
+    </NavLink>
+
+    <NavLink to="/reports/create" className="sidebar-link">
+      <FiFileText />
+      <span>Create Report</span>
+    </NavLink>
+
+    <NavLink to="/reports/get" className="sidebar-link">
+      <FiFileText />
+      <span>Get Report</span>
+    </NavLink>
+
+    <NavLink to="/reports/document" className="sidebar-link">
+      <FiFileText />
+      <span>Get Report Document</span>
+    </NavLink>
+  </div>
+)}
 
       {/* Fulfillment */}
     {/* Shipping */}
@@ -172,24 +201,7 @@ const Sidebar = () => {
     </NavLink>
   </div>
 )}
-      {/* Reports */}
-      <div className="sidebar-section" onClick={() => toggle("reports")}>
-        <span>Reports</span>
-        {open.reports ? <FiChevronDown /> : <FiChevronRight />}
-      </div>
-      {open.reports && (
-        <div className="submenu">
-          <NavLink to="/reports/create" className="sidebar-link">
-            <FiFileText />
-            <span>Create Report</span>
-          </NavLink>
-          <NavLink to="/reports/get" className="sidebar-link">
-            <FiFileText />
-            <span>Get Report</span>
-          </NavLink>
-        </div>
-      )}
-
+     
       {/* Feeds & Uploads */}
       <div className="sidebar-section" onClick={() => toggle("feeds")}>
         <span>Feeds & Uploads</span>

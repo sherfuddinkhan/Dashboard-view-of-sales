@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import axios from "axios";
 
 const GetReportDocument = () => {
@@ -7,7 +7,7 @@ const GetReportDocument = () => {
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
+  const [marketplaceId, setMarketplaceId] = useState("");
   const [awsAccessKey, setAwsAccessKey] = useState(process.env.REACT_APP_AWS_ACCESS_KEY_ID || "");
     const [awsSecretKey, setAwsSecretKey] = useState(process.env.REACT_APP_AWS_SECRET_ACCESS_KEY || "");
     const [region, setRegion] = useState(process.env.REACT_APP_AWS_REGION || "us-east-1");
