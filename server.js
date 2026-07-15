@@ -414,20 +414,50 @@ app.post("/api/listings/get", async (req, res) => {
 app.post("/api/listings/update", async (req, res) => {
   try {
     const { accessToken, awsAccessKey, awsSecretKey, region, serviceName, environment, sellerId, sku, patches } = req.body;
-    const host = environment === "production" ? "sellingpartnerapi-na.amazon.com" : "sandbox.sellingpartnerapi-na.amazon.com";
+
+    if (!accessToken || !awsAccessKey || !awsSecretKey || !sellerId || !sku || !patches) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const host = environment === "production" 
+      ? "sellingpartnerapi-na.amazon.com" 
+      : "sandbox.sellingpartnerapi-na.amazon.com";
+
     const path = `/listings/2021-08-01/items/${sellerId}/${sku}`;
 
     const opts = {
-      host, path, service: serviceName || "execute-api", region: region || "us-east-1", method: "PATCH",
-      headers: { "x-amz-access-token": accessToken, "Content-Type": "application/json", Accept: "application/json" },
+      host,
+      path,
+      service: serviceName || "execute-api",
+      region: region || "us-east-1",
+      method: "PATCH",
+      headers: {
+        "x-amz-access-token": accessToken,
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
       body: JSON.stringify(patches)
     };
 
-    aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
-    const response = await axios({ method: "PATCH", url: `https://${host}${path}`, headers: opts.headers, data: patches });
+    // Sign the request with aws4
+    aws4.sign(opts, { 
+      accessKeyId: awsAccessKey, 
+      secretAccessKey: awsSecretKey 
+    });
+
+    const response = await axios({
+      method: "PATCH",
+      url: `https://${host}${path}`,
+      headers: opts.headers,
+      data: patches
+    });
+
     res.json(response.data);
   } catch (err) {
-    res.status(err.response?.status || 500).json(err.response?.data || { error: err.message });
+    console.error("Update listing error:", err.response?.data || err.message);
+    res.status(err.response?.status || 500).json(
+      err.response?.data || { error: err.message }
+    );
   }
 });
 
