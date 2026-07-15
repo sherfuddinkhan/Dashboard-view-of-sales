@@ -2,69 +2,285 @@ import React, { useState,useEffect } from "react";
 import axios from "axios";
 
 const CreateListing = () => {
-  const [accessToken, setAccessToken] = useState("");
-  const [sku, setSku] = useState("");
-  const [marketplaceId, setMarketplaceId] = useState("ATVPDKIKX0DER");
-  const [productType, setProductType] = useState("PRODUCT");
-  const [jsonPayload, setJsonPayload] = useState("{}");
-  const [result, setResult] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-   useEffect(() => {
-             const token = localStorage.getItem("amazonAccessToken");
-             if (token) {
-                 setAccessToken(token);
-             }
-         }, []);
+const [accessToken, setAccessToken] = useState("");
 
-  const createListing = async () => {
-    setLoading(true);
-    setError("");
-    setResult("");
+const [awsAccessKey, setAwsAccessKey] = useState("");
+const [awsSecretKey, setAwsSecretKey] = useState("");
 
-    try {
-      const response = await axios.post("http://localhost:5000/api/create-listing", {
-        accessToken,
-        sku,
-        marketplaceId,
-        productType,
-        payload: JSON.parse(jsonPayload),
-      });
-      setResult(JSON.stringify(response.data, null, 2));
-    } catch (err) {
-      setError(err.response ? JSON.stringify(err.response.data, null, 2) : err.message);
-    } finally {
-      setLoading(false);
+const [region, setRegion] = useState("us-east-1");
+const [serviceName, setServiceName] = useState("execute-api");
+const [environment, setEnvironment] = useState("sandbox");
+
+const [sellerId, setSellerId] = useState("");
+
+const [sku, setSku] = useState("");
+
+const [marketplaceId, setMarketplaceId] = useState("");
+const defaultPayload = `{
+  "productType": "PRODUCT",
+  "requirements": "LISTING",
+  "attributes": {
+    "item_name": [
+      {
+        "value": "Wireless Bluetooth Mouse"
+      }
+    ],
+    "brand": [
+      {
+        "value": "Logitech"
+      }
+    ],
+    "manufacturer": [
+      {
+        "value": "Logitech"
+      }
+    ],
+    "condition_type": [
+      {
+        "value": "new_new"
+      }
+    ]
+  }
+}`;
+const addListing = () => {
+  setListings([
+    ...listings,
+    {
+      sku: "",
+      payload: defaultPayload,
     }
-  };
+  ]);
+};
+const removeListing = (index) => {
+  setListings(listings.filter((_, i) => i !== index));
+};
 
-  return (
-    <div style={containerStyle}>
-      <h2>Create Listing (Listings Items API)</h2>
+const updateSku = (index, value) => {
+  const updated = [...listings];
+  updated[index].sku = value;
+  setListings(updated);
+};
 
-      <label>Access Token</label>
-      <textarea rows={5} value={accessToken} onChange={(e) => setAccessToken(e.target.value)} style={styles.textArea} />
+const updatePayload = (index, value) => {
+  const updated = [...listings];
+  updated[index].payload = value;
+  setListings(updated);
+};
 
-      <label>SKU</label>
-      <input type="text" value={sku} onChange={(e) => setSku(e.target.value)} style={styles.input} />
+const [listings, setListings] = useState([
+  {
+    sku: "",
+    payload: defaultPayload,
+  },
+]);
 
-      <label>Marketplace ID</label>
-      <input type="text" value={marketplaceId} onChange={(e) => setMarketplaceId(e.target.value)} style={styles.input} />
+const [loading, setLoading] = useState(false);
+const [result, setResult] = useState("");
+const [error, setError] = useState("");
+ useEffect(() => {
+         const token = localStorage.getItem("amazonAccessToken");
+         if (token) {
+             setAccessToken(token);
+         }
+         const marketplace = JSON.parse(
+             localStorage.getItem("amazonMarketplaceResponse") || "{}"
+         );
+         if (marketplace.payload?.length) {
+             setMarketplaceId(marketplace.payload[0].marketplace.id);
+         }
+     }, []);
 
-      <label>Product Type</label>
-      <input type="text" value={productType} onChange={(e) => setProductType(e.target.value)} style={styles.input} />
+  const createBulkListings = async () => {
+  setLoading(true);
+  setError("");
+  setResult("");
 
-      <label>Listing Payload (JSON)</label>
-      <textarea rows={10} value={jsonPayload} onChange={(e) => setJsonPayload(e.target.value)} style={styles.textArea} />
+  try {
+    const finalListings = listings.map((listing) => ({
+      sku: listing.sku,
+      payload: JSON.parse(listing.payload),
+    }));
 
-      <button onClick={createListing} disabled={loading} style={styles.button}>
-        {loading ? "Creating..." : "Create Listing"}
+    const response = await axios.post(
+      "http://localhost:5000/api/listings/bulk-create",
+      {
+        accessToken,
+        awsAccessKey,
+        awsSecretKey,
+        region,
+        serviceName,
+        environment,
+        sellerId,
+        marketplaceIds: [marketplaceId],
+        listings: finalListings,
+      }
+    );
+
+    setResult(JSON.stringify(response.data, null, 2));
+  } catch (err) {
+    setError(
+      err.response
+        ? JSON.stringify(err.response.data, null, 2)
+        : err.message
+    );
+  } finally {
+    setLoading(false);
+  }
+};
+
+ return (
+  <div style={styles.container}>
+    <h2>Create Listing (Listings Items API)</h2>
+
+    <label>Access Token</label>
+    <textarea
+      rows={4}
+      value={accessToken}
+      onChange={(e) => setAccessToken(e.target.value)}
+      style={styles.textArea}
+    />
+
+    <label>AWS Access Key</label>
+    <input
+      type="text"
+      value={awsAccessKey}
+      onChange={(e) => setAwsAccessKey(e.target.value)}
+      style={styles.input}
+    />
+
+    <label>AWS Secret Key</label>
+    <input
+      type="password"
+      value={awsSecretKey}
+      onChange={(e) => setAwsSecretKey(e.target.value)}
+      style={styles.input}
+    />
+
+    <label>Region</label>
+    <input
+      type="text"
+      value={region}
+      onChange={(e) => setRegion(e.target.value)}
+      placeholder="us-east-1"
+      style={styles.input}
+    />
+
+    <label>Service Name</label>
+    <input
+      type="text"
+      value={serviceName}
+      onChange={(e) => setServiceName(e.target.value)}
+      placeholder="execute-api"
+      style={styles.input}
+    />
+
+    <label>Environment</label>
+    <select
+      value={environment}
+      onChange={(e) => setEnvironment(e.target.value)}
+      style={styles.input}
+    >
+      <option value="sandbox">Sandbox</option>
+      <option value="production">Production</option>
+    </select>
+
+    <label>Seller ID</label>
+    <input
+      type="text"
+      value={sellerId}
+      onChange={(e) => setSellerId(e.target.value)}
+      style={styles.input}
+    />
+
+    <label>Marketplace ID</label>
+    <input
+      type="text"
+      value={marketplaceId}
+      onChange={(e) => setMarketplaceId(e.target.value)}
+      placeholder="ATVPDKIKX0DER"
+      style={styles.input}
+    />
+    <h3>Listings</h3>
+
+{listings.map((listing, index) => (
+  <div
+    key={index}
+    style={{
+      border: "1px solid #ccc",
+      borderRadius: "8px",
+      padding: "15px",
+      marginBottom: "20px",
+    }}
+  >
+    <h4>Listing {index + 1}</h4>
+
+    <label>SKU</label>
+    <input
+      type="text"
+      value={listing.sku}
+      onChange={(e) => updateSku(index, e.target.value)}
+      style={styles.input}
+      placeholder="Enter SKU"
+    />
+
+    <label>Listing Payload (JSON)</label>
+    <textarea
+      rows={18}
+      value={listing.payload}
+      onChange={(e) => updatePayload(index, e.target.value)}
+      style={styles.textArea}
+    />
+
+    {listings.length > 1 && (
+      <button
+        type="button"
+        onClick={() => removeListing(index)}
+        style={{
+          ...styles.button,
+          backgroundColor: "#dc3545",
+          marginTop: "10px",
+        }}
+      >
+        Remove Listing
       </button>
+    )}
+  </div>
+))}
 
-      {result && <pre style={styles.pre}>{result}</pre>}
-      {error && <pre style={{ color: "red" }}>{error}</pre>}
-    </div>
-  );
+<button
+  type="button"
+  onClick={addListing}
+  style={{
+    ...styles.button,
+    backgroundColor: "#28a745",
+    marginRight: "10px",
+  }}
+>
+  + Add Another Listing
+</button>
+    <button
+  onClick={createBulkListings}
+  disabled={loading}
+  style={styles.button}
+>
+  {loading ? "Creating Listings..." : "Create Bulk Listings"}
+</button>
+
+    {result && (
+      <>
+        <h3>Response</h3>
+        <pre style={styles.pre}>{result}</pre>
+      </>
+    )}
+
+    {error && (
+      <>
+        <h3 style={{ color: "red" }}>Error</h3>
+        <pre style={{ color: "red" }}>{error}</pre>
+      </>
+    )}
+  </div>
+);
 };
 
 const styles = {

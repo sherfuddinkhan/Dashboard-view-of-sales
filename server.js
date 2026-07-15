@@ -307,23 +307,86 @@ app.post("/api/catalog-item", async (req, res) => {
 
 // ==================== 4. LISTINGS APIs ====================
 // Create Listing - PUT
-app.post("/api/listings/create", async (req, res) => {
+app.post("/api/listings/bulk-create", async (req, res) => {
   try {
-    const { accessToken, awsAccessKey, awsSecretKey, region, serviceName, environment, sellerId, sku, marketplaceIds, productType, attributes } = req.body;
-    const host = environment === "production" ? "sellingpartnerapi-na.amazon.com" : "sandbox.sellingpartnerapi-na.amazon.com";
-    const path = `/listings/2021-08-01/items/${sellerId}/${sku}?marketplaceIds=${marketplaceIds.join(',')}`;
+    const {
+      accessToken,
+      awsAccessKey,
+      awsSecretKey,
+      region,
+      serviceName,
+      environment,
+      sellerId,
+      marketplaceIds,
+      listings,
+    } = req.body;
 
-    const opts = {
-      host, path, service: serviceName || "execute-api", region: region || "us-east-1", method: "PUT",
-      headers: { "x-amz-access-token": accessToken, "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ productType, attributes })
-    };
+    const host =
+      environment === "production"
+        ? "sellingpartnerapi-na.amazon.com"
+        : "sandbox.sellingpartnerapi-na.amazon.com";
 
-    aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
-    const response = await axios({ method: "PUT", url: `https://${host}${path}`, headers: opts.headers, data: { productType, attributes } });
-    res.json(response.data);
+    const results = [];
+
+    for (const listing of listings) {
+      try {
+        const path =
+          `/listings/2021-08-01/items/${sellerId}/${listing.sku}` +
+          `?marketplaceIds=${marketplaceIds.join(",")}`;
+
+        const opts = {
+          host,
+          path,
+          service: serviceName || "execute-api",
+          region: region || "us-east-1",
+          method: "PUT",
+          headers: {
+            "x-amz-access-token": accessToken,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify(listing.payload),
+        };
+
+        aws4.sign(opts, {
+          accessKeyId: awsAccessKey,
+          secretAccessKey: awsSecretKey,
+        });
+
+        const response = await axios({
+          method: "PUT",
+          url: `https://${host}${path}`,
+          headers: opts.headers,
+          data: listing.payload,
+        });
+
+        results.push({
+          sku: listing.sku,
+          success: true,
+          response: response.data,
+        });
+      } catch (error) {
+        results.push({
+          sku: listing.sku,
+          success: false,
+          error:
+            error.response?.data || {
+              message: error.message,
+            },
+        });
+      }
+    }
+
+    res.json({
+      total: listings.length,
+      successful: results.filter((r) => r.success).length,
+      failed: results.filter((r) => !r.success).length,
+      results,
+    });
   } catch (err) {
-    res.status(err.response?.status || 500).json(err.response?.data || { error: err.message });
+    res.status(500).json({
+      error: err.message,
+    });
   }
 });
 
