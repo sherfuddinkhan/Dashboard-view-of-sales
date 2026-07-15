@@ -4,6 +4,7 @@ import axios from "axios";
 const GetListing = () => {
   const [accessToken, setAccessToken] = useState("");
   const [sku, setSku] = useState("");
+  const [sellerId, setSellerId] = useState("A13V1IB3VIYZZH");
   const [awsAccessKey, setAwsAccessKey] = useState(process.env.REACT_APP_AWS_ACCESS_KEY_ID || "");
   const [awsSecretKey, setAwsSecretKey] = useState(process.env.REACT_APP_AWS_SECRET_ACCESS_KEY || "");
   const [region, setRegion] = useState(process.env.REACT_APP_AWS_REGION || "us-east-1");
@@ -66,62 +67,124 @@ const GetListing = () => {
 };
 
   return (
-    <div style={containerStyle}>
-      <h2>Get Listing Details</h2>
+  <div style={styles.container}>
+    <h2>Get Listing Details (Listings Items API)</h2>
 
-      <label>Access Token</label>
-      <textarea
-        rows={5}
-        value={accessToken}
-        onChange={(e) => setAccessToken(e.target.value)}
-        style={styles.textarea}
-        placeholder="Paste your SP-API access token"
-      />
+    <label>Access Token</label>
+    <textarea
+      rows={5}
+      value={accessToken}
+      onChange={(e) => setAccessToken(e.target.value)}
+      style={styles.textarea}
+      placeholder="Paste your Amazon SP-API Access Token"
+    />
 
-      <label>SKU</label>
-      <input
-        type="text"
-        value={sku}
-        onChange={(e) => setSku(e.target.value)}
-        style={styles.input}
-        placeholder="Enter SKU"
-      />
+    <label>AWS Access Key</label>
+    <input
+      type="text"
+      value={awsAccessKey}
+      onChange={(e) => setAwsAccessKey(e.target.value)}
+      style={styles.input}
+      placeholder="Enter AWS Access Key"
+    />
 
-      <label>Marketplace ID</label>
-      <input
-        type="text"
-        value={marketplaceId}
-        onChange={(e) => setMarketplaceId(e.target.value)}
-        style={styles.input}
-      />
+    <label>AWS Secret Access Key</label>
+    <input
+      type="password"
+      value={awsSecretKey}
+      onChange={(e) => setAwsSecretKey(e.target.value)}
+      style={styles.input}
+      placeholder="Enter AWS Secret Access Key"
+    />
 
-      <button
-        onClick={getListing}
-        disabled={loading}
-        style={styles.button}
-      >
-        {loading ? "Fetching..." : "Get Listing"}
-      </button>
+    <label>AWS Region</label>
+    <input
+      type="text"
+      value={region}
+      onChange={(e) => setRegion(e.target.value)}
+      style={styles.input}
+      placeholder="us-east-1"
+    />
 
-      {result && (
-        <>
-          <h3>Result</h3>
-          <pre style={styles.pre}>{result}</pre>
-          <button
-            onClick={() => navigator.clipboard.writeText(result)}
-            style={styles.copyButton}
-          >
-            Copy Result
-          </button>
-        </>
-      )}
+    <label>AWS Service Name</label>
+    <input
+      type="text"
+      value={serviceName}
+      onChange={(e) => setServiceName(e.target.value)}
+      style={styles.input}
+      placeholder="execute-api"
+    />
 
-      {error && <pre style={{ color: "red" }}>{error}</pre>}
-    </div>
-  );
+    <label>Environment</label>
+    <select
+      value={environment}
+      onChange={(e) => setEnvironment(e.target.value)}
+      style={styles.input}
+    >
+      <option value="sandbox">Sandbox</option>
+      <option value="production">Production</option>
+    </select>
+
+    <label>Seller ID</label>
+    <input
+      type="text"
+      value={sellerId}
+      onChange={(e) => setSellerId(e.target.value)}
+      style={styles.input}
+      placeholder="Enter Amazon Seller ID"
+    />
+
+    <label>SKU</label>
+    <input
+      type="text"
+      value={sku}
+      onChange={(e) => setSku(e.target.value)}
+      style={styles.input}
+      placeholder="Enter Product SKU"
+    />
+
+    <label>Marketplace ID</label>
+    <input
+      type="text"
+      value={marketplaceId}
+      onChange={(e) => setMarketplaceId(e.target.value)}
+      style={styles.input}
+      placeholder="ATVPDKIKX0DER"
+    />
+
+    <button
+      onClick={getListing}
+      disabled={loading}
+      style={styles.button}
+    >
+      {loading ? "Fetching Listing..." : "Get Listing Details"}
+    </button>
+
+    {result && (
+      <>
+        <h3>Response</h3>
+        <pre style={styles.pre}>{result}</pre>
+
+        <button
+          onClick={() => navigator.clipboard.writeText(result)}
+          style={styles.copyButton}
+        >
+          Copy Response
+        </button>
+      </>
+    )}
+
+    {error && (
+      <>
+        <h3 style={{ color: "red" }}>Error</h3>
+        <pre style={{ color: "red" }}>{error}</pre>
+      </>
+    )}
+  </div>
+);
 };
 
-// Shared styles (copy this or import from a common file)
+
 
 
 const styles = {

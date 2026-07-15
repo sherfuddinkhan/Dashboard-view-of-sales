@@ -5,10 +5,104 @@ const UpdateListing = () => {
   const [accessToken, setAccessToken] = useState("");
   const [sku, setSku] = useState("");
   const [marketplaceId, setMarketplaceId] = useState("ATVPDKIKX0DER");
-  const [payload, setPayload] = useState('{\n  "attributes": {}\n}');
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+ const defaultUpdatePayload = `{
+  "productType": "PRODUCT",
+  "requirements": "LISTING",
+  "attributes": {
+    "item_name": [
+      {
+        "value": "Sample Product Name"
+      }
+    ],
+    "brand": [
+      {
+        "value": "Sample Brand"
+      }
+    ],
+    "manufacturer": [
+      {
+        "value": "Sample Manufacturer"
+      }
+    ],
+    "condition_type": [
+      {
+        "value": "new_new"
+      }
+    ],
+    "product_description": [
+      {
+        "value": "This is a sample product description."
+      }
+    ],
+    "bullet_point": [
+      {
+        "value": "Feature 1"
+      },
+      {
+        "value": "Feature 2"
+      },
+      {
+        "value": "Feature 3"
+      }
+    ],
+    "color": [
+      {
+        "value": "Black"
+      }
+    ],
+    "size": [
+      {
+        "value": "Medium"
+      }
+    ],
+    "material": [
+      {
+        "value": "Plastic"
+      }
+    ],
+    "item_weight": [
+      {
+        "value": 0.5,
+        "unit": "kilograms"
+      }
+    ],
+    "main_product_image_locator": [
+      {
+        "media_location": "https://yourdomain.com/images/product.jpg"
+      }
+    ],
+    "list_price": [
+      {
+        "currency": "USD",
+        "value": 100.00
+      }
+    ],
+    "purchasable_offer": [
+      {
+        "currency": "USD",
+        "our_price": [
+          {
+            "schedule": [
+              {
+                "value_with_tax": 89.99
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "fulfillment_availability": [
+      {
+        "fulfillment_channel_code": "DEFAULT",
+        "quantity": 100
+      }
+    ]
+  }
+}`;
+ const [payload, setPayload] = useState(defaultUpdatePayload);
     useEffect(() => {
            const token = localStorage.getItem("amazonAccessToken");
            if (token) {
