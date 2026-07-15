@@ -183,124 +183,64 @@ error:err.message
 
 app.post("/api/catalog-item", async (req, res) => {
   try {
-
     const {
       accessToken,
       awsAccessKey,
       awsSecretKey,
-      region,
-      serviceName,
-      environment,
+      region = "us-east-1",
+      environment = "production",
       asin,
       marketplaceId
     } = req.body;
 
+    console.log("Incoming body:", { asin, marketplaceId, region, environment });
 
-    // Validation
-    if (!accessToken) {
-      return res.status(400).json({
-        error: "Amazon Access Token is required"
-      });
-    }
+    if (!accessToken) return res.status(400).json({ error: "Amazon Access Token is required" });
+    if (!awsAccessKey || !awsSecretKey) return res.status(400).json({ error: "AWS Keys required" });
+    if (!asin) return res.status(400).json({ error: "ASIN required" });
+    if (!marketplaceId) return res.status(400).json({ error: "Marketplace ID required" });
 
-    if (!awsAccessKey || !awsSecretKey) {
-      return res.status(400).json({
-        error: "AWS Access Key and Secret Key are required"
-      });
-    }
+    const host = environment === "production"
+      ? "sellingpartnerapi-na.amazon.com"
+      : "sandbox.sellingpartnerapi-na.amazon.com";
 
-    if (!asin) {
-      return res.status(400).json({
-        error: "ASIN is required"
-      });
-    }
+    const basePath = `/catalog/2022-04-01/items/${asin.trim()}`;
+    const qs = new URLSearchParams({
+      marketplaceIds: marketplaceId.trim(),
+      includedData: "summaries"
+    }).toString();
+    
+    const fullPath = `${basePath}?${qs}`;
 
-    if (!marketplaceId) {
-      return res.status(400).json({
-        error: "Marketplace ID is required"
-      });
-    }
-
-
-    // Amazon SP-API Host
-    const host =
-      environment === "production"
-        ? "sellingpartnerapi-na.amazon.com"
-        : "sandbox.sellingpartnerapi-na.amazon.com";
-
-
-    // Amazon Catalog Item API
-    const path =
-      `/catalog/2022-04-01/items/${asin}` +
-      `?marketplaceIds=${marketplaceId}` +
-      `&includedData=summaries"`;
-
-
-    // AWS Signature Request
-    const options = {
+    const opts = {
       host,
-      path,
-      service: serviceName || "execute-api",
-      region: region || "us-east-1",
+      path: fullPath,
+      service: "execute-api",
+      region,
       method: "GET",
-
       headers: {
-     "x-amz-access-token": accessToken,
-    "accept": "application/json",
-    "content-type": "application/json"
+        host,
+        "x-amz-access-token": accessToken
       }
     };
 
-
-    // Sign AWS Request
-    aws4.sign(options, {
-      accessKeyId: awsAccessKey,
-      secretAccessKey: awsSecretKey
+    aws4.sign(opts, {
+      accessKeyId: awsAccessKey.trim(),
+      secretAccessKey: awsSecretKey.trim()
     });
 
-
-    console.log(
-      "Calling Amazon Catalog Item API:",
-      `https://${host}${path}`
-    );
-
-
-    // Call Amazon SP-API
-    const response = await axios.get(
-      `https://${host}${path}`,
-      {
-        headers: options.headers
+    const response = await axios.get(`https://${host}${fullPath}`, {
+      headers: {
+        ...opts.headers,
+        accept: "application/json"
       }
-    );
+    });
 
-
-    // Success response
-    res.status(200).json(response.data);
-
+    return res.json(response.data);
 
   } catch (error) {
-
-    console.error(
-      "Catalog Item Error:",
-      error.response?.data || error.message
-    );
-
-
-    res.status(
-      error.response?.status || 500
-    )
-    .json({
-
-      success: false,
-
-      error:
-        error.response?.data ||
-        {
-          message: error.message
-        }
-
-    });
-
+    console.error("SP-API ERROR:", JSON.stringify(error.response?.data, null, 2) || error.message);
+    return res.status(error.response?.status || 500).json(error.response?.data || { message: error.message });
   }
 });
 

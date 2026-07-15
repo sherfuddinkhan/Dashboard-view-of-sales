@@ -12,6 +12,8 @@ const CatalogItem = () => {
   const [awsSecretKey, setAwsSecretKey] = useState(process.env.REACT_APP_AWS_SECRET_ACCESS_KEY || "");
   const [region, setRegion] = useState(process.env.REACT_APP_AWS_REGION || "us-east-1");
   const [environment, setEnvironment] = useState(process.env.REACT_APP_AMAZON_ENVIRONMENT || "sandbox");
+  const [serviceName, setServiceName] = useState("execute-api");
+  const [sellerId, setSellerId] = useState("A13V1IB3VIYZZH");
   useEffect(() => {
          const token = localStorage.getItem("amazonAccessToken");
          if (token) {
@@ -26,73 +28,147 @@ const CatalogItem = () => {
      }, []);
  
 
-  const getCatalogItem = async () => {
-    if (!accessToken || !asin || !marketplaceId) {
-      setError("Access Token, ASIN, and Marketplace ID are required");
-      return;
-    }
-    setLoading(true);
-    setError("");
-    setResult("");
-    try {
-    const response = await axios.post(
-  "http://localhost:5000/api/catalog-item",
-  {
-    accessToken,
-    awsAccessKey,
-    awsSecretKey,
-    asin,
-    marketplaceId,
-    region: "us-east-1"
+const getCatalogItem = async () => {
+  console.log({ accessToken, asin, marketplaceId, region, environment }); // DEBUG THIS
+
+  if (!accessToken || !asin || !marketplaceId) {
+    setError("Access Token, ASIN, and Marketplace ID are required");
+    return;
   }
+
+  setLoading(true);
+  setError("");
+  setResult("");
+
+  try {
+    const response = await axios.post(
+      "http://localhost:5000/api/catalog-item",
+      {
+        accessToken: accessToken.trim(),
+        awsAccessKey: awsAccessKey.trim(),
+        awsSecretKey: awsSecretKey.trim(),
+        region: region || "us-east-1",
+        environment: environment || "production", // FORCE production for catalog
+        asin: asin.trim(),
+        marketplaceId: marketplaceId.trim() // must be ATVPDKIKX0DER for US
+      }
+    );
+    setResult(JSON.stringify(response.data, null, 2));
+  } catch (err) {
+    console.log("FULL ERROR FROM BACKEND:", err.response?.data);
+    const errorData = err.response?.data || err.message;
+    setError(typeof errorData === 'string' ? errorData : JSON.stringify(errorData, null, 2));
+  } finally {
+    setLoading(false);
+  }
+};
+
+ return (
+  <div style={containerStyle}>
+    <h2>Catalog Item Lookup</h2>
+
+    {/* Amazon Access Token */}
+    <label>Access Token</label>
+    <textarea
+      rows={5}
+      value={accessToken}
+      onChange={(e) => setAccessToken(e.target.value)}
+      style={styles.textArea}
+      placeholder="Paste Amazon Access Token"
+    />
+
+    {/* AWS Credentials */}
+    <h3 style={{ marginTop: "20px" }}>AWS Credentials</h3>
+
+    <label>AWS Access Key</label>
+    <input
+      type="text"
+      value={awsAccessKey}
+      onChange={(e) => setAwsAccessKey(e.target.value)}
+      style={styles.input}
+      placeholder="AKIAXXXXXXXXXXXXXXXX"
+    />
+
+    <label>AWS Secret Key</label>
+    <input
+      type="password"
+      value={awsSecretKey}
+      onChange={(e) => setAwsSecretKey(e.target.value)}
+      style={styles.input}
+      placeholder="AWS Secret Access Key"
+    />
+
+    <label>AWS Region</label>
+    <input
+      type="text"
+      value={region}
+      onChange={(e) => setRegion(e.target.value)}
+      style={styles.input}
+      placeholder="us-east-1"
+    />
+
+    <label>AWS Service Name</label>
+    <input
+      type="text"
+      value={serviceName}
+      onChange={(e) => setServiceName(e.target.value)}
+      style={styles.input}
+      placeholder="execute-api"
+    />
+    <label>Environment</label>
+<select
+  value={environment}
+  onChange={(e) => setEnvironment(e.target.value)}
+  style={styles.input}
+>
+  <option value="production">Production</option>
+  <option value="sandbox">Sandbox</option>
+</select>
+
+    {/* Catalog Details */}
+    <h3 style={{ marginTop: "20px" }}>Catalog Details</h3>
+
+    <label>ASIN</label>
+    <input
+      type="text"
+      value={asin}
+      onChange={(e) => setAsin(e.target.value)}
+      style={styles.input}
+      placeholder="B0ABC12345"
+    />
+
+    <label>Marketplace ID</label>
+    <input
+      type="text"
+      value={marketplaceId}
+      onChange={(e) => setMarketplaceId(e.target.value)}
+      style={styles.input}
+      placeholder="ATVPDKIKX0DER"
+    />
+
+    <button
+      onClick={getCatalogItem}
+      disabled={loading}
+      style={styles.button}
+    >
+      {loading ? "Fetching..." : "Get Catalog Item"}
+    </button>
+
+    {result && (
+      <div style={{ marginTop: "20px" }}>
+        <h3>Response</h3>
+        <pre style={styles.pre}>{result}</pre>
+      </div>
+    )}
+
+    {error && (
+      <div style={{ marginTop: "20px" }}>
+        <h3 style={{ color: "red" }}>Error</h3>
+        <pre style={{ color: "red" }}>{error}</pre>
+      </div>
+    )}
+  </div>
 );
-
-      setResult(JSON.stringify(response.data, null, 2));
-    } catch (err) {
-      setError(err.response ? JSON.stringify(err.response.data, null, 2) : err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div style={containerStyle}>
-      <h2>Catalog Item Lookup</h2>
-
-      <label>Access Token</label>
-      <textarea rows={5} value={accessToken} onChange={(e) => setAccessToken(e.target.value)} style={styles.textArea} />
-<label>AWS Access Key</label>
-<input
-  type="text"
-  value={awsAccessKey}
-  onChange={(e)=>setAwsAccessKey(e.target.value)}
-  style={styles.input}
-  placeholder="AKIAXXXXXXXX"
-/>
-
-
-<label>AWS Secret Key</label>
-<input
-  type="password"
-  value={awsSecretKey}
-  onChange={(e)=>setAwsSecretKey(e.target.value)}
-  style={styles.input}
-  placeholder="AWS Secret Key"
-/>
-      <label>ASIN</label>
-      <input type="text" value={asin} onChange={(e) => setAsin(e.target.value)} style={styles.input} placeholder="B0ABC12345" />
-
-      <label>Marketplace ID</label>
-      <input type="text" value={marketplaceId} onChange={(e) => setMarketplaceId(e.target.value)} style={styles.input} />
-
-      <button onClick={getCatalogItem} disabled={loading} style={styles.button}>
-        {loading ? "Fetching..." : "Get Catalog Item"}
-      </button>
-
-      {result && <pre style={styles.pre}>{result}</pre>}
-      {error && <pre style={{ color: "red" }}>{error}</pre>}
-    </div>
-  );
 };
 
 const styles = {
