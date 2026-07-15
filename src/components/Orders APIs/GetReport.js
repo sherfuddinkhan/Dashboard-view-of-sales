@@ -9,46 +9,106 @@ const GetReport = () => {
   const [error, setError] = useState("");
 
   const getReport = async () => {
-    if (!accessToken || !reportId) {
-      setError("Access Token and Report ID are required");
-      return;
-    }
+  if (!accessToken || !reportId) {
+    setError("Access Token and Report ID are required");
+    return;
+  }
+  if (!awsAccessKey || !awsSecretKey) {
+    setError("AWS Access Key and Secret Key are required");
+    return;
+  }
 
-    setLoading(true);
-    setError("");
-    setResult("");
+  setLoading(true);
+  setError("");
+  setResult("");
 
-    try {
-      const response = await axios.post("http://localhost:5000/api/get-report", {
-        accessToken,
-        reportId,
-      });
-      setResult(JSON.stringify(response.data, null, 2));
-    } catch (err) {
-      setError(err.response ? JSON.stringify(err.response.data, null, 2) : err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    const response = await axios.post("http://localhost:5000/api/get-report", {
+      accessToken,
+      awsAccessKey,
+      awsSecretKey,
+      region,
+      serviceName,
+      environment,
+      reportId
+    });
 
-  return (
-    <div style={containerStyle}>
-      <h2>Get Report Status</h2>
+    setResult(JSON.stringify(response.data, null, 2));
+  } catch (err) {
+    setError(err.response ? JSON.stringify(err.response.data, null, 2) : err.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
-      <label>Access Token</label>
-      <textarea rows={5} value={accessToken} onChange={(e) => setAccessToken(e.target.value)} style={styles.textArea} />
+return (
+  <div style={containerStyle}>
+    <h2>Get Report Status</h2>
 
-      <label>Report ID</label>
-      <input type="text" value={reportId} onChange={(e) => setReportId(e.target.value)} style={styles.input} />
+    <label>Access Token</label>
+    <textarea 
+      rows={5} 
+      value={accessToken} 
+      onChange={(e) => setAccessToken(e.target.value)} 
+      style={styles.textArea} 
+    />
 
-      <button onClick={getReport} disabled={loading} style={styles.button}>
-        {loading ? "Fetching..." : "Get Report Status"}
-      </button>
+    <label>AWS Access Key</label>
+    <input 
+      type="text" 
+      value={awsAccessKey} 
+      onChange={(e) => setAwsAccessKey(e.target.value)} 
+      style={styles.input} 
+    />
 
-      {result && <pre style={styles.pre}>{result}</pre>}
-      {error && <pre style={{ color: "red" }}>{error}</pre>}
+    <label>AWS Secret Key</label>
+    <input 
+      type="password" 
+      value={awsSecretKey} 
+      onChange={(e) => setAwsSecretKey(e.target.value)} 
+      style={styles.input} 
+    />
+
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+      <div>
+        <label>Environment</label>
+        <select 
+          value={environment} 
+          onChange={(e) => setEnvironment(e.target.value)} 
+          style={styles.input}
+        >
+          <option value="sandbox">Sandbox</option>
+          <option value="production">Production</option>
+        </select>
+      </div>
+      <div>
+        <label>Region</label>
+        <input 
+          type="text" 
+          value={region} 
+          onChange={(e) => setRegion(e.target.value)} 
+          style={styles.input} 
+        />
+      </div>
     </div>
-  );
+
+    <label>Report ID</label>
+    <input 
+      type="text" 
+      value={reportId} 
+      onChange={(e) => setReportId(e.target.value)} 
+      style={styles.input} 
+      placeholder="Report ID from report list" 
+    />
+
+    <button onClick={getReport} disabled={loading} style={styles.button}>
+      {loading ? "Fetching..." : "Get Report Status"}
+    </button>
+
+    {result && <pre style={styles.pre}>{result}</pre>}
+    {error && <pre style={{ color: "red" }}>{error}</pre>}
+  </div>
+);
 };
 
 

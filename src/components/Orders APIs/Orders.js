@@ -5,46 +5,159 @@ const GetOrders = () => {
   const [accessToken, setAccessToken] = useState("");
   const [createdAfter, setCreatedAfter] = useState("");
   const [marketplaceId, setMarketplaceId] = useState("");
+  const [createdBefore, setCreatedBefore] = useState("");
   const [result, setResult] = useState("");
+  const [maxResultsPerPage, setMaxResultsPerPage] = useState(20);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-   useEffect(() => {
-               const token = localStorage.getItem("amazonAccessToken");
-               if (token) {
-                   setAccessToken(token);
-               }
-               const marketplace = JSON.parse(
-                   localStorage.getItem("amazonMarketplaceResponse") || "{}"
-               );
-               if (marketplace.payload?.length) {
-                   setMarketplaceId(marketplace.payload[0].marketplace.id);
-               }
-           }, []);
+ const [awsAccessKey, setAwsAccessKey] = useState(process.env.REACT_APP_AWS_ACCESS_KEY_ID || "");
+  const [awsSecretKey, setAwsSecretKey] = useState(process.env.REACT_APP_AWS_SECRET_ACCESS_KEY || "");
+  const [region, setRegion] = useState(process.env.REACT_APP_AWS_REGION || "us-east-1");
+  const [environment, setEnvironment] = useState(process.env.REACT_APP_AMAZON_ENVIRONMENT || "sandbox");
+  const [serviceName, setServiceName] = useState("execute-api");
+  const [orderStatuses, setOrderStatuses] = useState("");
+  const [sellerId, setSellerId] = useState("A13V1IB3VIYZZH");
+  useEffect(() => {
+         const token = localStorage.getItem("amazonAccessToken");
+         if (token) {
+             setAccessToken(token);
+         }
+         const marketplace = JSON.parse(
+             localStorage.getItem("amazonMarketplaceResponse") || "{}"
+         );
+         if (marketplace.payload?.length) {
+             setMarketplaceId(marketplace.payload[0].marketplace.id);
+         }
+     }, []);
 
-  const getOrders = async () => {
-    setLoading(true); setError(""); setResult("");
-    try {
-      const res = await axios.post("http://localhost:5000/api/get-orders", { accessToken, createdAfter, marketplaceId });
-      setResult(JSON.stringify(res.data, null, 2));
-    } catch (err) {
-      setError(err.response ? JSON.stringify(err.response.data, null, 2) : err.message);
-    } finally { setLoading(false); }
-  };
+ const getOrders = async () => {
+  if (!accessToken || !marketplaceId) {
+    setError("Access Token and Marketplace ID are required");
+    return;
+  }
+  if (!awsAccessKey || !awsSecretKey) {
+    setError("AWS Access Key and Secret Key are required");
+    return;
+  }
 
-  return (
-    <div style={containerStyle}>
-      <h2>Get Orders</h2>
-      <label>Access Token</label>
-      <textarea rows={5} value={accessToken} onChange={(e) => setAccessToken(e.target.value)} style={styles.textArea} />
-      <label>Created After (ISO Date)</label>
-      <input type="text" value={createdAfter} onChange={(e) => setCreatedAfter(e.target.value)} style={styles.input} placeholder="2025-01-01T00:00:00Z" />
-      <button onClick={getOrders} disabled={loading} style={styles.button}>
-        {loading ? "Fetching..." : "Get Orders"}
-      </button>
-      {result && <pre style={styles.pre}>{result}</pre>}
-      {error && <pre style={{ color: "red" }}>{error}</pre>}
+  setLoading(true);
+  setError("");
+  setResult("");
+
+  try {
+    const res = await axios.post("http://localhost:5000/api/get-orders", {
+      accessToken,
+      awsAccessKey,
+      awsSecretKey,
+      region,
+      serviceName,
+      environment,
+      marketplaceId,
+      createdAfter,
+      createdBefore,
+      orderStatuses,     // e.g. "Unshipped,Shipped"
+      maxResultsPerPage
+    });
+
+    setResult(JSON.stringify(res.data, null, 2));
+  } catch (err) {
+    setError(err.response ? JSON.stringify(err.response.data, null, 2) : err.message);
+  } finally {
+    setLoading(false);
+  }
+};
+
+return (
+  <div style={containerStyle}>
+    <h2>Get Orders</h2>
+
+    <label>Access Token</label>
+    <textarea 
+      rows={5} 
+      value={accessToken} 
+      onChange={(e) => setAccessToken(e.target.value)} 
+      style={styles.textArea} 
+    />
+
+    <label>AWS Access Key</label>
+    <input 
+      type="text" 
+      value={awsAccessKey} 
+      onChange={(e) => setAwsAccessKey(e.target.value)} 
+      style={styles.input} 
+    />
+
+    <label>AWS Secret Key</label>
+    <input 
+      type="password" 
+      value={awsSecretKey} 
+      onChange={(e) => setAwsSecretKey(e.target.value)} 
+      style={styles.input} 
+    />
+
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+      <div>
+        <label>Environment</label>
+        <select value={environment} onChange={(e) => setEnvironment(e.target.value)} style={styles.input}>
+          <option value="sandbox">Sandbox</option>
+          <option value="production">Production</option>
+        </select>
+      </div>
+      <div>
+        <label>Region</label>
+        <input 
+          type="text" 
+          value={region} 
+          onChange={(e) => setRegion(e.target.value)} 
+          style={styles.input} 
+        />
+      </div>
     </div>
-  );
+
+    <label>Marketplace ID</label>
+    <input 
+      type="text" 
+      value={marketplaceId} 
+      onChange={(e) => setMarketplaceId(e.target.value)} 
+      style={styles.input} 
+      placeholder="ATVPDKIKX0DER" 
+    />
+
+    <label>Created After (ISO Date)</label>
+    <input 
+      type="text" 
+      value={createdAfter} 
+      onChange={(e) => setCreatedAfter(e.target.value)} 
+      style={styles.input} 
+      placeholder="2025-01-01T00:00:00Z" 
+    />
+
+    <label>Created Before (Optional)</label>
+    <input 
+      type="text" 
+      value={createdBefore} 
+      onChange={(e) => setCreatedBefore(e.target.value)} 
+      style={styles.input} 
+      placeholder="2025-01-31T00:00:00Z" 
+    />
+
+    <label>Order Statuses (Optional)</label>
+    <input 
+      type="text" 
+      value={orderStatuses} 
+      onChange={(e) => setOrderStatuses(e.target.value)} 
+      style={styles.input} 
+      placeholder="Unshipped,Shipped" 
+    />
+
+    <button onClick={getOrders} disabled={loading} style={styles.button}>
+      {loading ? "Fetching..." : "Get Orders"}
+    </button>
+
+    {result && <pre style={styles.pre}>{result}</pre>}
+    {error && <pre style={{ color: "red" }}>{error}</pre>}
+  </div>
+);
 };
 
 

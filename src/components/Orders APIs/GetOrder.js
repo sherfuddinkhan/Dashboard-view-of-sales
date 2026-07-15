@@ -9,62 +9,121 @@ const GetOrder = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [marketplaceId, setMarketplaceId] = useState("");
-  const token = localStorage.getItem("amazonAccessToken");
-  console.log("Acesstoken",token);
-   useEffect(() => {
-             const token = localStorage.getItem("amazonAccessToken");
-             if (token) {
-                 setAccessToken(token);
-             }
-             const marketplace = JSON.parse(
-                 localStorage.getItem("amazonMarketplaceResponse") || "{}"
-             );
-             if (marketplace.payload?.length) {
-                 setMarketplaceId(marketplace.payload[0].marketplace.id);
-             }
-         }, []);
+  const [awsAccessKey, setAwsAccessKey] = useState(process.env.REACT_APP_AWS_ACCESS_KEY_ID || "");
+  const [awsSecretKey, setAwsSecretKey] = useState(process.env.REACT_APP_AWS_SECRET_ACCESS_KEY || "");
+  const [region, setRegion] = useState(process.env.REACT_APP_AWS_REGION || "us-east-1");
+  const [environment, setEnvironment] = useState(process.env.REACT_APP_AMAZON_ENVIRONMENT || "sandbox");
+  const [serviceName, setServiceName] = useState("execute-api");
+  const [sellerId, setSellerId] = useState("A13V1IB3VIYZZH");
+  useEffect(() => {
+         const token = localStorage.getItem("amazonAccessToken");
+         if (token) {
+             setAccessToken(token);
+         }
+         const marketplace = JSON.parse(
+             localStorage.getItem("amazonMarketplaceResponse") || "{}"
+         );
+         if (marketplace.payload?.length) {
+             setMarketplaceId(marketplace.payload[0].marketplace.id);
+         }
+     }, []);
+const getOrder = async () => {
+  if (!accessToken || !orderId) {
+    setError("Access Token and Order ID are required");
+    return;
+  }
+  if (!awsAccessKey || !awsSecretKey) {
+    setError("AWS Access Key and Secret Key are required");
+    return;
+  }
 
-  const getOrder = async () => {
-    if (!accessToken || !orderId) {
-      setError("Access Token and Order ID are required");
-      return;
-    }
+  setLoading(true);
+  setError("");
+  setResult("");
 
-    setLoading(true);
-    setError("");
-    setResult("");
+  try {
+    const response = await axios.post("http://localhost:5000/api/get-order", {
+      accessToken,
+      awsAccessKey,
+      awsSecretKey,
+      region,
+      serviceName,
+      environment,
+      orderId
+    });
 
-    try {
-      const response = await axios.post("http://localhost:5000/api/get-order", {
-        accessToken,
-        orderId,
-      });
-      setResult(JSON.stringify(response.data, null, 2));
-    } catch (err) {
-      setError(err.response ? JSON.stringify(err.response.data, null, 2) : err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+    setResult(JSON.stringify(response.data, null, 2));
+  } catch (err) {
+    setError(err.response ? JSON.stringify(err.response.data, null, 2) : err.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
-  return (
-    <div style={containerStyle}>
-      <h2>Get Order Details</h2>
+return (
+  <div style={containerStyle}>
+    <h2>Get Order Details</h2>
 
-      <label>Access Token</label>
-      <textarea rows={5} value={accessToken} onChange={(e) => setAccessToken(e.target.value)} style={styles. textArea} />
+    <label>Access Token</label>
+    <textarea 
+      rows={5} 
+      value={accessToken} 
+      onChange={(e) => setAccessToken(e.target.value)} 
+      style={styles.textArea} 
+    />
 
-      <label>Order ID</label>
-      <input type="text" value={orderId} onChange={(e) => setOrderId(e.target.value)} style={styles.input} placeholder="026-1234567-1234567" />
+    <label>AWS Access Key</label>
+    <input 
+      type="text" 
+      value={awsAccessKey} 
+      onChange={(e) => setAwsAccessKey(e.target.value)} 
+      style={styles.input} 
+    />
 
-      <button onClick={getOrder} disabled={loading} style={styles.button}>
-        {loading ? "Fetching..." : "Get Order"}
-      </button>
+    <label>AWS Secret Key</label>
+    <input 
+      type="password" 
+      value={awsSecretKey} 
+      onChange={(e) => setAwsSecretKey(e.target.value)} 
+      style={styles.input} 
+    />
 
-      {result && <pre style={styles.pre}>{result}</pre>}
-      {error && <pre style={{ color: "red" }}>{error}</pre>}
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+      <div>
+        <label>Environment</label>
+        <select value={environment} onChange={(e) => setEnvironment(e.target.value)} style={styles.input}>
+          <option value="sandbox">Sandbox</option>
+          <option value="production">Production</option>
+        </select>
+      </div>
+      <div>
+        <label>Region</label>
+        <input 
+          type="text" 
+          value={region} 
+          onChange={(e) => setRegion(e.target.value)} 
+          style={styles.input} 
+        />
+      </div>
     </div>
-  );
+
+    <label>Order ID</label>
+    <input 
+      type="text" 
+      value={orderId} 
+      onChange={(e) => setOrderId(e.target.value)} 
+      style={styles.input} 
+      placeholder="026-1234567-1234567" 
+    />
+
+    <button onClick={getOrder} disabled={loading} style={styles.button}>
+      {loading ? "Fetching..." : "Get Order"}
+    </button>
+
+    {result && <pre style={styles.pre}>{result}</pre>}
+    {error && <pre style={{ color: "red" }}>{error}</pre>}
+  </div>
+);
 };
 
 

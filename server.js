@@ -188,59 +188,71 @@ app.post("/api/catalog-item", async (req, res) => {
       awsAccessKey,
       awsSecretKey,
       region = "us-east-1",
-      environment = "production",
+      serviceName = "execute-api",
+      environment = "sandbox",
       asin,
-      marketplaceId
+      keywords,
+      identifiers,
+      identifiersType = "ASIN",
+      marketplaceId,
+      includedData = "summaries,images,attributes"
     } = req.body;
 
-    console.log("Incoming body:", { asin, marketplaceId, region, environment });
-
-    if (!accessToken) return res.status(400).json({ error: "Amazon Access Token is required" });
-    if (!awsAccessKey || !awsSecretKey) return res.status(400).json({ error: "AWS Keys required" });
-    if (!asin) return res.status(400).json({ error: "ASIN required" });
-    if (!marketplaceId) return res.status(400).json({ error: "Marketplace ID required" });
+    if (!accessToken) return res.status(400).json({ error: "Access Token is required" });
+    if (!awsAccessKey || !awsSecretKey) return res.status(400).json({ error: "AWS keys are required" });
+    if (!marketplaceId) return res.status(400).json({ error: "Marketplace ID is required" });
 
     const host = environment === "production"
       ? "sellingpartnerapi-na.amazon.com"
       : "sandbox.sellingpartnerapi-na.amazon.com";
 
-    const basePath = `/catalog/2022-04-01/items/${asin.trim()}`;
-    const qs = new URLSearchParams({
-      marketplaceIds: marketplaceId.trim(),
-      includedData: "summaries"
-    }).toString();
-    
-    const fullPath = `${basePath}?${qs}`;
+    let path = "/catalog/2022-04-01/items";
+
+    // Single ASIN lookup (most reliable)
+    if (asin) {
+      path += `/${asin}`;
+    }
+
+    const params = new URLSearchParams({ marketplaceIds: marketplaceId });
+
+    if (keywords) params.append("keywords", keywords);
+    if (identifiers) {
+      params.append("identifiers", identifiers);
+      params.append("identifiersType", identifiersType);
+    }
+    if (includedData) params.append("includedData", includedData);
+
+    if (Object.keys(Object.fromEntries(params)).length > 1) {  // has query params
+      path += `?${params.toString()}`;
+    }
 
     const opts = {
       host,
-      path: fullPath,
-      service: "execute-api",
+      path,
+      service: serviceName,
       region,
       method: "GET",
       headers: {
-        host,
-        "x-amz-access-token": accessToken
+        "x-amz-access-token": accessToken,
+        "accept": "application/json",
+        "user-agent": "MyApp/1.0 (Language=Node.js)"
       }
     };
 
-    aws4.sign(opts, {
-      accessKeyId: awsAccessKey.trim(),
-      secretAccessKey: awsSecretKey.trim()
+    aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
+
+    console.log("Catalog Request:", `https://${host}${path}`);
+
+    const response = await axios.get(`https://${host}${path}`, { headers: opts.headers });
+
+    res.json(response.data);
+
+  } catch (err) {
+    console.error("Catalog Error:", err.response?.data || err.message);
+    res.status(err.response?.status || 500).json({
+      success: false,
+      error: err.response?.data || { message: err.message }
     });
-
-    const response = await axios.get(`https://${host}${fullPath}`, {
-      headers: {
-        ...opts.headers,
-        accept: "application/json"
-      }
-    });
-
-    return res.json(response.data);
-
-  } catch (error) {
-    console.error("SP-API ERROR:", JSON.stringify(error.response?.data, null, 2) || error.message);
-    return res.status(error.response?.status || 500).json(error.response?.data || { message: error.message });
   }
 });
 
@@ -479,69 +491,541 @@ app.post("/api/listings/submission", async (req, res) => {
 });
 
 // ==================== 5. ORDERS APIs ====================
-// Get Orders
-app.post("/api/orders", async (req, res) => {
-  try {
-    const { accessToken, awsAccessKey, awsSecretKey, region, serviceName, environment, marketplaceIds, createdAfter, createdBefore } = req.body;
-    const host = environment === "production" ? "sellingpartnerapi-na.amazon.com" : "sandbox.sellingpartnerapi-na.amazon.com";
-    const query = new URLSearchParams({ MarketplaceIds: marketplaceIds });
-    if (createdAfter) query.append('CreatedAfter', createdAfter);
-    if (createdBefore) query.append('CreatedBefore', createdBefore);
-    const path = `/orders/v0/orders?${query.toString()}`;
 
-    const opts = {
-      host, path, service: serviceName || "execute-api", region: region || "us-east-1", method: "GET",
-      headers: { "x-amz-access-token": accessToken, Accept: "application/json" }
+app.post("/api/get-orders", async (req, res) => {
+  try {
+    const {
+      accessToken,
+      awsAccessKey,
+      awsSecretKey,
+      region,
+      serviceName,
+      environment,
+      marketplaceId,
+      createdAfter,
+      createdBefore,
+      orderStatuses,
+      maxResultsPerPage,
+    } = req.body;
+
+    // Validation
+    if (!accessToken) {
+      return res.status(400).json({
+        success: false,
+        error: "Amazon Access Token is required",
+      });
+    }
+
+    if (!awsAccessKey || !awsSecretKey) {
+      return res.status(400).json({
+        success: false,
+        error: "AWS Access Key and Secret Key are required",
+      });
+    }
+
+    if (!marketplaceId) {
+      return res.status(400).json({
+        success: false,
+        error: "Marketplace ID is required",
+      });
+    }
+
+    // SP-API Host
+    const host =
+      environment === "production"
+        ? "sellingpartnerapi-na.amazon.com"
+        : "sandbox.sellingpartnerapi-na.amazon.com";
+
+    // Build Query Parameters
+    const params = new URLSearchParams();
+
+    params.append("MarketplaceIds", marketplaceId);
+
+    if (createdAfter) {
+      params.append("CreatedAfter", createdAfter);
+    }
+
+    if (createdBefore) {
+      params.append("CreatedBefore", createdBefore);
+    }
+
+    if (orderStatuses) {
+      params.append("OrderStatuses", orderStatuses);
+    }
+
+    if (maxResultsPerPage) {
+      params.append("MaxResultsPerPage", maxResultsPerPage);
+    }
+
+    const path = `/orders/v0/orders?${params.toString()}`;
+
+    // Request to sign
+    const options = {
+      host,
+      path,
+      service: serviceName || "execute-api",
+      region: region || "us-east-1",
+      method: "GET",
+      headers: {
+        host,
+        "x-amz-access-token": accessToken,
+        accept: "application/json",
+        "content-type": "application/json",
+      },
     };
 
-    aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
-    const response = await axios({ method: "GET", url: `https://${host}${path}`, headers: opts.headers });
-    res.json(response.data);
-  } catch (err) {
-    res.status(err.response?.status || 500).json(err.response?.data || { error: err.message });
+    // AWS Signature V4
+    aws4.sign(options, {
+      accessKeyId: awsAccessKey,
+      secretAccessKey: awsSecretKey,
+    });
+
+    console.log("Amazon Orders API URL:");
+    console.log(`https://${host}${path}`);
+
+    // Amazon API Call
+    const response = await axios.get(
+      `https://${host}${path}`,
+      {
+        headers: options.headers,
+      }
+    );
+
+    res.status(200).json({
+      success: true,
+      data: response.data,
+    });
+
+  } catch (error) {
+    console.error(
+      "Orders API Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      error: error.response?.data || {
+        message: error.message,
+      },
+    });
   }
 });
 
-// Get Order
-app.post("/api/orders/get", async (req, res) => {
+app.post("/api/get-report-document", async (req, res) => {
   try {
-    const { accessToken, awsAccessKey, awsSecretKey, region, serviceName, environment, orderId } = req.body;
-    const host = environment === "production" ? "sellingpartnerapi-na.amazon.com" : "sandbox.sellingpartnerapi-na.amazon.com";
-    const path = `/orders/v0/orders/${orderId}`;
+    const {
+      accessToken,
+      awsAccessKey,
+      awsSecretKey,
+      region,
+      serviceName,
+      environment,
+      reportDocumentId,
+    } = req.body;
 
-    const opts = {
-      host, path, service: serviceName || "execute-api", region: region || "us-east-1", method: "GET",
-      headers: { "x-amz-access-token": accessToken, Accept: "application/json" }
+    // Validation
+    if (!accessToken) {
+      return res.status(400).json({
+        success: false,
+        error: "Amazon Access Token is required",
+      });
+    }
+
+    if (!awsAccessKey || !awsSecretKey) {
+      return res.status(400).json({
+        success: false,
+        error: "AWS Access Key and Secret Key are required",
+      });
+    }
+
+    if (!reportDocumentId) {
+      return res.status(400).json({
+        success: false,
+        error: "Report Document ID is required",
+      });
+    }
+
+    // Amazon SP-API Host
+    const host =
+      environment === "production"
+        ? "sellingpartnerapi-na.amazon.com"
+        : "sandbox.sellingpartnerapi-na.amazon.com";
+
+    // Reports API Path
+    const path = `/reports/2021-06-30/documents/${reportDocumentId}`;
+
+    // Request options for AWS Signature V4
+    const options = {
+      host,
+      path,
+      service: serviceName || "execute-api",
+      region: region || "us-east-1",
+      method: "GET",
+      headers: {
+        host,
+        "x-amz-access-token": accessToken,
+        accept: "application/json",
+        "content-type": "application/json",
+      },
     };
 
-    aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
-    const response = await axios({ method: "GET", url: `https://${host}${path}`, headers: opts.headers });
-    res.json(response.data);
-  } catch (err) {
-    res.status(err.response?.status || 500).json(err.response?.data || { error: err.message });
+    // Sign request
+    aws4.sign(options, {
+      accessKeyId: awsAccessKey,
+      secretAccessKey: awsSecretKey,
+    });
+
+    console.log("Calling Amazon Report Document API:");
+    console.log(`https://${host}${path}`);
+
+    // Call Amazon SP-API
+    const response = await axios.get(
+      `https://${host}${path}`,
+      {
+        headers: options.headers,
+      }
+    );
+
+    res.status(200).json({
+      success: true,
+      data: response.data,
+    });
+
+  } catch (error) {
+    console.error(
+      "Report Document API Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      error:
+        error.response?.data || {
+          message: error.message,
+        },
+    });
   }
 });
 
-// Get Order Items
-app.post("/api/orders/items", async (req, res) => {
+app.post("/api/get-report", async (req, res) => {
   try {
-    const { accessToken, awsAccessKey, awsSecretKey, region, serviceName, environment, orderId } = req.body;
-    const host = environment === "production" ? "sellingpartnerapi-na.amazon.com" : "sandbox.sellingpartnerapi-na.amazon.com";
+    const {
+      accessToken,
+      awsAccessKey,
+      awsSecretKey,
+      region,
+      serviceName,
+      environment,
+      reportId,
+    } = req.body;
+
+    // Validation
+    if (!accessToken) {
+      return res.status(400).json({
+        success: false,
+        error: "Amazon Access Token is required",
+      });
+    }
+
+    if (!awsAccessKey || !awsSecretKey) {
+      return res.status(400).json({
+        success: false,
+        error: "AWS Access Key and Secret Key are required",
+      });
+    }
+
+    if (!reportId) {
+      return res.status(400).json({
+        success: false,
+        error: "Report ID is required",
+      });
+    }
+
+    // Amazon SP-API Host
+    const host =
+      environment === "production"
+        ? "sellingpartnerapi-na.amazon.com"
+        : "sandbox.sellingpartnerapi-na.amazon.com";
+
+    // API Path
+    const path = `/reports/2021-06-30/reports/${reportId}`;
+
+    // AWS Signature V4 Request
+    const options = {
+      host,
+      path,
+      service: serviceName || "execute-api",
+      region: region || "us-east-1",
+      method: "GET",
+      headers: {
+        host,
+        "x-amz-access-token": accessToken,
+        accept: "application/json",
+        "content-type": "application/json",
+      },
+    };
+
+    // Sign the request
+    aws4.sign(options, {
+      accessKeyId: awsAccessKey,
+      secretAccessKey: awsSecretKey,
+    });
+
+    console.log("Calling Amazon Get Report API:");
+    console.log(`https://${host}${path}`);
+
+    // Call Amazon SP-API
+    const response = await axios.get(
+      `https://${host}${path}`,
+      {
+        headers: options.headers,
+      }
+    );
+
+    // Success
+    res.status(200).json({
+      success: true,
+      data: response.data,
+    });
+
+  } catch (error) {
+    console.error(
+      "Get Report API Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      error:
+        error.response?.data || {
+          message: error.message,
+        },
+    });
+  }
+});
+
+app.post("/api/get-order-items", async (req, res) => {
+  try {
+    const {
+      accessToken,
+      awsAccessKey,
+      awsSecretKey,
+      region,
+      serviceName,
+      environment,
+      orderId,
+    } = req.body;
+
+    // ==========================
+    // Validation
+    // ==========================
+    if (!accessToken) {
+      return res.status(400).json({
+        success: false,
+        error: "Amazon Access Token is required",
+      });
+    }
+
+    if (!awsAccessKey || !awsSecretKey) {
+      return res.status(400).json({
+        success: false,
+        error: "AWS Access Key and Secret Key are required",
+      });
+    }
+
+    if (!orderId) {
+      return res.status(400).json({
+        success: false,
+        error: "Amazon Order ID is required",
+      });
+    }
+
+    // ==========================
+    // Amazon SP-API Host
+    // ==========================
+    const host =
+      environment === "production"
+        ? "sellingpartnerapi-na.amazon.com"
+        : "sandbox.sellingpartnerapi-na.amazon.com";
+
+    // ==========================
+    // API Path
+    // ==========================
     const path = `/orders/v0/orders/${orderId}/orderItems`;
 
-    const opts = {
-      host, path, service: serviceName || "execute-api", region: region || "us-east-1", method: "GET",
-      headers: { "x-amz-access-token": accessToken, Accept: "application/json" }
+    // ==========================
+    // AWS Signature V4 Request
+    // ==========================
+    const options = {
+      host,
+      path,
+      service: serviceName || "execute-api",
+      region: region || "us-east-1",
+      method: "GET",
+      headers: {
+        host,
+        "x-amz-access-token": accessToken,
+        accept: "application/json",
+        "content-type": "application/json",
+      },
     };
 
-    aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
-    const response = await axios({ method: "GET", url: `https://${host}${path}`, headers: opts.headers });
-    res.json(response.data);
-  } catch (err) {
-    res.status(err.response?.status || 500).json(err.response?.data || { error: err.message });
+    // ==========================
+    // Sign Request
+    // ==========================
+    aws4.sign(options, {
+      accessKeyId: awsAccessKey,
+      secretAccessKey: awsSecretKey,
+    });
+
+    console.log("Calling Amazon Get Order Items API:");
+    console.log(`https://${host}${path}`);
+
+    // ==========================
+    // Call Amazon SP-API
+    // ==========================
+    const response = await axios.get(
+      `https://${host}${path}`,
+      {
+        headers: options.headers,
+      }
+    );
+
+    // ==========================
+    // Success Response
+    // ==========================
+    res.status(200).json({
+      success: true,
+      data: response.data,
+    });
+
+  } catch (error) {
+    console.error(
+      "Get Order Items API Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      error:
+        error.response?.data || {
+          message: error.message,
+        },
+    });
   }
 });
 
+app.post("/api/get-order", async (req, res) => {
+  try {
+    const {
+      accessToken,
+      awsAccessKey,
+      awsSecretKey,
+      region,
+      serviceName,
+      environment,
+      orderId,
+    } = req.body;
+
+    // ==========================
+    // Validation
+    // ==========================
+    if (!accessToken) {
+      return res.status(400).json({
+        success: false,
+        error: "Amazon Access Token is required",
+      });
+    }
+
+    if (!awsAccessKey || !awsSecretKey) {
+      return res.status(400).json({
+        success: false,
+        error: "AWS Access Key and Secret Key are required",
+      });
+    }
+
+    if (!orderId) {
+      return res.status(400).json({
+        success: false,
+        error: "Amazon Order ID is required",
+      });
+    }
+
+    // ==========================
+    // Amazon SP-API Host
+    // ==========================
+    const host =
+      environment === "production"
+        ? "sellingpartnerapi-na.amazon.com"
+        : "sandbox.sellingpartnerapi-na.amazon.com";
+
+    // ==========================
+    // Orders API Path
+    // GET /orders/v0/orders/{orderId}
+    // ==========================
+    const path = `/orders/v0/orders/${orderId}`;
+
+    // ==========================
+    // AWS Signature V4 Options
+    // ==========================
+    const options = {
+      host,
+      path,
+      service: serviceName || "execute-api",
+      region: region || "us-east-1",
+      method: "GET",
+      headers: {
+        host,
+        "x-amz-access-token": accessToken,
+        accept: "application/json",
+        "content-type": "application/json",
+      },
+    };
+
+    // ==========================
+    // Sign Request
+    // ==========================
+    aws4.sign(options, {
+      accessKeyId: awsAccessKey,
+      secretAccessKey: awsSecretKey,
+    });
+
+    console.log("Calling Amazon Get Order API:");
+    console.log(`https://${host}${path}`);
+
+    // ==========================
+    // Call Amazon SP-API
+    // ==========================
+    const response = await axios.get(
+      `https://${host}${path}`,
+      {
+        headers: options.headers,
+      }
+    );
+
+    // ==========================
+    // Success Response
+    // ==========================
+    res.status(200).json({
+      success: true,
+      data: response.data,
+    });
+
+  } catch (error) {
+    console.error(
+      "Get Order API Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      error:
+        error.response?.data || {
+          message: error.message,
+        },
+    });
+  }
+});
 // ==================== 6. REPORTS APIs ====================
 // Create Report
 app.post("/api/reports/create", async (req, res) => {
@@ -608,20 +1092,76 @@ app.post("/api/reports/document", async (req, res) => {
 // Get Pricing
 app.post("/api/pricing", async (req, res) => {
   try {
-    const { accessToken, awsAccessKey, awsSecretKey, region, serviceName, environment, asin, marketplaceId } = req.body;
-    const host = environment === "production" ? "sellingpartnerapi-na.amazon.com" : "sandbox.sellingpartnerapi-na.amazon.com";
-    const path = `/products/pricing/v0/items/${asin}/offers?MarketplaceId=${marketplaceId}&ItemCondition=New`;
+    const {
+      accessToken,
+      awsAccessKey,
+      awsSecretKey,
+      region = "us-east-1",
+      serviceName = "execute-api",
+      environment = "sandbox",        // Changed default to sandbox for testing
+      sku,
+      asin,
+      marketplaceId,
+      itemCondition = "New",
+      customerType = "Consumer"       // Added common parameter
+    } = req.body;
+
+    // Validation
+    if (!accessToken) return res.status(400).json({ error: "Access Token is required" });
+    if (!awsAccessKey || !awsSecretKey) return res.status(400).json({ error: "AWS Access Key and Secret Key are required" });
+    if (!marketplaceId) return res.status(400).json({ error: "Marketplace ID is required" });
+    if (!sku && !asin) return res.status(400).json({ error: "Either SKU or ASIN is required" });
+
+    const host = environment === "production"
+      ? "sellingpartnerapi-na.amazon.com"
+      : "sandbox.sellingpartnerapi-na.amazon.com";
+
+    const identifier = sku || asin;
+    // Build query parameters properly
+    const params = new URLSearchParams({
+      MarketplaceId: marketplaceId,
+      ItemCondition: itemCondition,
+      CustomerType: customerType
+    });
+
+    if (sku) {
+      params.append("SellerSKU", sku);
+    }
+
+    const path = `/products/pricing/v0/items/${identifier}/offers?${params.toString()}`;
 
     const opts = {
-      host, path, service: serviceName || "execute-api", region: region || "us-east-1", method: "GET",
-      headers: { "x-amz-access-token": accessToken, Accept: "application/json" }
+      host,
+      path,
+      service: serviceName,
+      region,
+      method: "GET",
+      headers: {
+        "x-amz-access-token": accessToken,
+        "accept": "application/json",
+        "user-agent": "MyApp/1.0 (Language=Node.js)"
+      }
     };
 
-    aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
-    const response = await axios({ method: "GET", url: `https://${host}${path}`, headers: opts.headers });
+    aws4.sign(opts, {
+      accessKeyId: awsAccessKey,
+      secretAccessKey: awsSecretKey
+    });
+
+    console.log(`Calling Pricing API: https://${host}${path}`);
+
+    const response = await axios.get(`https://${host}${path}`, {
+      headers: opts.headers
+    });
+
     res.json(response.data);
+
   } catch (err) {
-    res.status(err.response?.status || 500).json(err.response?.data || { error: err.message });
+    console.error("Pricing API Error:", err.response?.data || err.message);
+    res.status(err.response?.status || 500).json({
+      success: false,
+      error: err.response?.data || { message: err.message }
+    });
   }
 });
 
