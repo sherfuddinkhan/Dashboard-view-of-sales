@@ -461,23 +461,60 @@ app.post("/api/listings/update", async (req, res) => {
   }
 });
 
-// Delete Listing - DELETE
+// DELETE Listing
 app.post("/api/listings/delete", async (req, res) => {
   try {
-    const { accessToken, awsAccessKey, awsSecretKey, region, serviceName, environment, sellerId, sku, marketplaceIds } = req.body;
-    const host = environment === "production" ? "sellingpartnerapi-na.amazon.com" : "sandbox.sellingpartnerapi-na.amazon.com";
+    const { 
+      accessToken, 
+      awsAccessKey, 
+      awsSecretKey, 
+      region, 
+      serviceName, 
+      environment, 
+      sellerId, 
+      sku, 
+      marketplaceIds, 
+    } = req.body;
+
+    if (!accessToken || !awsAccessKey || !awsSecretKey || !sellerId || !sku) {
+      return res.status(400).json({ error: "Missing required fields: accessToken, aws keys, sellerId, sku" });
+    }
+
+    const host = environment === "production" 
+      ? "sellingpartnerapi-na.amazon.com" 
+      : "sandbox.sellingpartnerapi-na.amazon.com";
+
     const path = `/listings/2021-08-01/items/${sellerId}/${sku}?marketplaceIds=${marketplaceIds}`;
 
     const opts = {
-      host, path, service: serviceName || "execute-api", region: region || "us-east-1", method: "DELETE",
-      headers: { "x-amz-access-token": accessToken, Accept: "application/json" }
+      host,
+      path,
+      service: serviceName || "execute-api",
+      region: region || "us-east-1",
+      method: "DELETE",
+      headers: { 
+        "x-amz-access-token": accessToken, 
+        "Accept": "application/json" 
+      }
     };
 
-    aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
-    const response = await axios({ method: "DELETE", url: `https://${host}${path}`, headers: opts.headers });
+    require('aws4').sign(opts, { 
+      accessKeyId: awsAccessKey, 
+      secretAccessKey: awsSecretKey 
+    });
+
+    const response = await require('axios')({
+      method: "DELETE",
+      url: `https://${host}${path}`,
+      headers: opts.headers
+    });
+
     res.json(response.data);
   } catch (err) {
-    res.status(err.response?.status || 500).json(err.response?.data || { error: err.message });
+    console.error("Delete listing error:", err.response?.data || err.message);
+    res.status(err.response?.status || 500).json(
+      err.response?.data || { error: err.message }
+    );
   }
 });
 
