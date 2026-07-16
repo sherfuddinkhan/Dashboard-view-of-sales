@@ -2,79 +2,82 @@ import React, { useState } from "react";
 
 // Auth
 import AmazonTokenGenerator from "./Authentication/AmazonTokenGenerator";
-
 // Seller & Catalog
 import MarketplaceParticipations from "./Seller APIs/MarketplaceParticipations";
 import CatalogItem from "./Catalog APIs/CatalogItem";
 import Pricing from "./Pricing APIs/Pricing";
 import CatalogSearch from "./Catalog APIs/CatalogSearch";
-
 // Listings
 import CreateListing from "./Listings APIs/CreateListing";
 import GetListing from "./Listings APIs/GetListing";
 import UpdateListing from "./Listings APIs/UpdateListing";
 import DeleteListing from "./Listings APIs/DeleteListing";
 import ListingSubmission from "./Listings APIs/ListingSubmission";
-
 // Orders
 import Orders from "./Orders APIs/Orders";
 import GetOrder from "./Orders APIs/GetOrder";
-import GetOrderItems from "./Orders APIs/GetOrderItems"
+import GetOrderItems from "./Orders APIs/GetOrderItems";
 import CreateReport from "./Orders APIs/CreateReport";
-import GetReport from "./Orders APIs/GetReport"
-import GetReportDocument from "./Orders APIs/GetReportDocument"
-
+import GetReport from "./Orders APIs/GetReport";
+import GetReportDocument from "./Orders APIs/GetReportDocument";
 // Feeds
 import CreateFeedDocument from "./Feeds APIs/CreateFeedDocument";
 import CreateFeed from "./Feeds APIs/CreateFeed";
 import GetFeed from "./Feeds APIs/GetFeed";
-
 // Uploads
 import Uploads from "./Uploads APIs/Uploads";
-
 // Finances
 import Finances from "./Finances/Finances";
-
 // Shipping
 import Shipping from "./Shipping/Shipping";
 import GetRates from "./Shipping/GetRates";
 import PurchaseLabel from "./Shipping/PurchaseLabel";
 import TrackingDetails from "./Shipping/TrackingDetails";
-
 // Messaging
 import Messaging from "./Messaging/Messaging";
 import MessageTemplates from "./Messaging/MessageTemplates";
 import SendMessage from "./Messaging/SendMessage";
-
 // Notifications
 import Notifications from "./Notifications/Notifications";
 import CreateDestination from "./Notifications/CreateDestination";
 import CreateSubscription from "./Notifications/CreateSubscription";
 import NotificationResult from "./Notifications/NotificationResult";
-
 // ProductTypeDefinitions
 import ProductTypeDefinitions from "./ProductTypeDefinitions/ProductTypeDefinitions";
 import SearchProductTypes from "./ProductTypeDefinitions/SearchProductTypes";
 import ProductTypeSchema from "./ProductTypeDefinitions/ProductTypeSchema";
 
+// Dashboard Components
+import AmazonDashboard from "./AmazonDashboard";
+import AnalyticsDashboard from "./AnalyticsDashboard";
 
+// Individual ML Analytics Components
+import CustomerSegmentation from "./CustomerSegmentation";
+import ProductRecommendation from "./ProductRecommendation";
+import SalesForecast from "./SalesForecast";
+import ReturnPrediction from "./ReturnPrediction";
+import FraudDetection from "./FraudDetection";
+import InventoryAnalysis from "./InventoryAnalysis";
+import RecommendationSystem from "./RecommendationSystem";
+import RFMAnalysis from "./RFMAnalysis";
 
 const Dashboard = () => {
-  const [activeTab, setActiveTab] = useState("token");
+  const [activeTab, setActiveTab] = useState("amazon-dashboard");
 
- const [expanded, setExpanded] = useState({
-  auth: true,
-  seller: true,
-  product: true,
-  listings: true,
-  orders: false,
-  finances: false,
-  notifications: false,
-  shipping: false,
-  messaging: false,
-  reports: false,
-  feeds: false,
-});
+  const [expanded, setExpanded] = useState({
+    dashboards: true,
+    analytics: true,
+    auth: true,
+    seller: true,
+    product: true,
+    listings: true,
+    orders: false,
+    finances: false,
+    notifications: false,
+    shipping: false,
+    messaging: false,
+    feeds: false,
+  });
 
   // Global state
   const [accessToken, setAccessToken] = useState("");
@@ -101,6 +104,28 @@ const Dashboard = () => {
 
   const categories = [
     {
+      key: "dashboards",
+      title: "📊 Main Dashboards",
+      items: [
+        { id: "amazon-dashboard", label: "Amazon Dashboard", Component: AmazonDashboard },
+        { id: "analytics-dashboard", label: "Analytics Dashboard", Component: AnalyticsDashboard },
+      ],
+    },
+    {
+      key: "analytics",
+      title: "🤖 ML Analytics Components",
+      items: [
+        { id: "customer-segmentation", label: "Customer Segmentation (K-Means)", Component: CustomerSegmentation },
+        { id: "product-recommendation", label: "Product Recommendation (Apriori)", Component: ProductRecommendation },
+        { id: "sales-forecast", label: "Sales Forecast (XGBoost)", Component: SalesForecast },
+        { id: "return-prediction", label: "Return Prediction (Decision Tree)", Component: ReturnPrediction },
+        { id: "fraud-detection", label: "Fraud Detection (Isolation Forest)", Component: FraudDetection },
+        { id: "inventory-analysis", label: "Inventory Analysis (ABC)", Component: InventoryAnalysis },
+        { id: "recommendation-system", label: "Recommendation System", Component: RecommendationSystem },
+        { id: "rfm-analysis", label: "RFM Analysis", Component: RFMAnalysis },
+      ],
+    },
+    {
       key: "auth",
       title: "1. Authentication",
       items: [
@@ -108,20 +133,20 @@ const Dashboard = () => {
       ],
     },
     {
-  key: "seller",
-  title: "2. Seller & Catalog",
-  items: [
-    { id: "marketplace",label: "Marketplace Participations",Component: MarketplaceParticipations},
-    { id: "catalogSearch",label: "Catalog Item Search",Component: CatalogSearch},
-    { id: "catalog",label: "CatalogItemDetails",Component: CatalogItem},
-    { id: "pricing", label: "Pricing",Component: Pricing},
-    ],
-},
+      key: "seller",
+      title: "2. Seller & Catalog",
+      items: [
+        { id: "marketplace", label: "Marketplace Participations", Component: MarketplaceParticipations },
+        { id: "catalogSearch", label: "Catalog Item Search", Component: CatalogSearch },
+        { id: "catalog", label: "CatalogItemDetails", Component: CatalogItem },
+        { id: "pricing", label: "Pricing", Component: Pricing },
+      ],
+    },
     {
       key: "product",
       title: "3. Product Types",
       items: [
-        { id: "product-types-home", label: "producttypeDefinition", Component: ProductTypeDefinitions },
+        { id: "product-types-home", label: "Product Type Definition", Component: ProductTypeDefinitions },
         { id: "search-product-types", label: "Search Product Types", Component: SearchProductTypes },
         { id: "product-type-schema", label: "Product Type Schema", Component: ProductTypeSchema },
       ],
@@ -148,7 +173,6 @@ const Dashboard = () => {
         { id: "get-report-doc", label: "Get Report Document", Component: GetReportDocument },
       ],
     },
-    
     {
       key: "finances",
       title: "6. Finances",
@@ -164,25 +188,25 @@ const Dashboard = () => {
         { id: "notification-result", label: "Notification Result", Component: NotificationResult },
       ],
     },
-    { 
+    {
       key: "shipping",
       title: "8. Shipping",
       items: [
-       { id: "shipping-home", label: "Overview", Component: Shipping },
-       { id: "get-rates", label: "Get Rates", Component: GetRates },
-       { id: "purchase-label", label: "Purchase Label", Component: PurchaseLabel },
-       { id: "tracking-details", label: "Tracking Details", Component: TrackingDetails },
+        { id: "shipping-home", label: "Overview", Component: Shipping },
+        { id: "get-rates", label: "Get Rates", Component: GetRates },
+        { id: "purchase-label", label: "Purchase Label", Component: PurchaseLabel },
+        { id: "tracking-details", label: "Tracking Details", Component: TrackingDetails },
       ],
-},
-{
-  key: "messaging",
-  title: "9. Messaging",
-  items: [
-    { id: "messaging-home", label: "Messaging", Component: Messaging },
-    { id: "message-templates", label: "Message Templates", Component: MessageTemplates },
-    { id: "send-message", label: "Send Message", Component: SendMessage },
-  ],
-},
+    },
+    {
+      key: "messaging",
+      title: "9. Messaging",
+      items: [
+        { id: "messaging-home", label: "Messaging", Component: Messaging },
+        { id: "message-templates", label: "Message Templates", Component: MessageTemplates },
+        { id: "send-message", label: "Send Message", Component: SendMessage },
+      ],
+    },
     {
       key: "feeds",
       title: "10. Feeds & Uploads",
