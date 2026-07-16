@@ -1,15 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { 
-  Card, CardContent, CardHeader, CardTitle 
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { RefreshCw, Users, TrendingUp, AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
 
-const API_BASE_URL = '/api'; // Adjust based on your Flask proxy/setup
+const API_BASE_URL = '/api';
 
 const CustomerSegmentation = () => {
   const [segments, setSegments] = useState([]);
@@ -28,12 +21,9 @@ const CustomerSegmentation = () => {
       setSegments(response.data.segments || []);
       setSummary(response.data.summary || {});
       setLastUpdated(new Date());
-      
-      toast.success('Customer segments updated successfully');
     } catch (err) {
       console.error('Error fetching segmentation:', err);
       setError(err.response?.data?.error || 'Failed to load customer segmentation data');
-      toast.error('Failed to load segmentation data');
     } finally {
       setLoading(false);
     }
@@ -55,162 +45,134 @@ const CustomerSegmentation = () => {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="p-6 space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Customer Segmentation</h2>
-          <p className="text-muted-foreground mt-1">
+          <h2 className="text-3xl font-bold text-gray-800">Customer Segmentation</h2>
+          <p className="text-gray-600 mt-1">
             K-Means clustering based on RFM metrics and purchase behavior
           </p>
         </div>
         
         <div className="flex items-center gap-3">
           {lastUpdated && (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-gray-500">
               Last updated: {lastUpdated.toLocaleTimeString()}
             </p>
           )}
-          <Button 
-            onClick={fetchSegmentation} 
+          <button
+            onClick={fetchSegmentation}
             disabled={loading}
-            variant="outline"
-            className="flex items-center gap-2"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
-          </Button>
+          </button>
         </div>
       </div>
 
       {error && (
-        <Card className="border-red-200">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3 text-red-600">
-              <AlertCircle className="h-5 w-5" />
-              <p>{error}</p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg flex items-center gap-3">
+          <AlertCircle className="h-5 w-5" />
+          <p>{error}</p>
+        </div>
       )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
-              {summary.total_customers?.toLocaleString() || '—'}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="bg-white p-6 rounded-xl shadow">
+          <div className="flex justify-between items-center">
+            <p className="text-gray-500 text-sm">Total Customers</p>
+            <Users className="h-5 w-5 text-gray-400" />
+          </div>
+          <p className="text-4xl font-bold mt-3">
+            {summary.total_customers?.toLocaleString() || '—'}
+          </p>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">High Value</CardTitle>
-            <TrendingUp className="h-4 w-4 text-emerald-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-emerald-600">
-              {summary.high_value_percentage ? `${summary.high_value_percentage}%` : '—'}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {summary.high_value_count || 0} customers
-            </p>
-          </CardContent>
-        </Card>
+        <div className="bg-white p-6 rounded-xl shadow">
+          <div className="flex justify-between items-center">
+            <p className="text-gray-500 text-sm">High Value</p>
+            <TrendingUp className="h-5 w-5 text-emerald-600" />
+          </div>
+          <p className="text-4xl font-bold text-emerald-600 mt-3">
+            {summary.high_value_percentage ? `${summary.high_value_percentage}%` : '—'}
+          </p>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Order Value</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
-              ${summary.avg_order_value?.toFixed(2) || '—'}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="bg-white p-6 rounded-xl shadow">
+          <p className="text-gray-500 text-sm">Avg Order Value</p>
+          <p className="text-4xl font-bold mt-3">
+            ${summary.avg_order_value?.toFixed(2) || '—'}
+          </p>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Clusters</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
-              {summary.num_clusters || 5}
-            </div>
-            <p className="text-xs text-muted-foreground">K-Means</p>
-          </CardContent>
-        </Card>
+        <div className="bg-white p-6 rounded-xl shadow">
+          <p className="text-gray-500 text-sm">Clusters</p>
+          <p className="text-4xl font-bold mt-3">
+            {summary.num_clusters || 5}
+          </p>
+        </div>
       </div>
 
       {/* Segments Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Customer Segments</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="bg-white rounded-xl shadow overflow-hidden">
+        <div className="p-6 border-b">
+          <h3 className="font-semibold text-lg">Customer Segments</h3>
+        </div>
+        
+        <div className="overflow-x-auto">
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-              <p className="mt-4 text-muted-foreground">Running K-Means clustering...</p>
+            <div className="p-12 text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-4 text-gray-600">Running K-Means clustering...</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Segment</TableHead>
-                  <TableHead>Customers</TableHead>
-                  <TableHead>% of Total</TableHead>
-                  <TableHead>Avg RFM Score</TableHead>
-                  <TableHead>Avg Order Value</TableHead>
-                  <TableHead>Characteristics</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50 border-b">
+                  <th className="text-left p-4">Segment</th>
+                  <th className="text-left p-4">Customers</th>
+                  <th className="text-left p-4">% of Total</th>
+                  <th className="text-left p-4">Avg RFM Score</th>
+                  <th className="text-left p-4">Avg Order Value</th>
+                  <th className="text-left p-4">Characteristics</th>
+                </tr>
+              </thead>
+              <tbody>
                 {segments.length > 0 ? (
                   segments.map((segment, index) => (
-                    <TableRow key={index}>
-                      <TableCell>
-                        <Badge className={getSegmentColor(segment.segment)}>
+                    <tr key={index} className="border-b hover:bg-gray-50">
+                      <td className="p-4">
+                        <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getSegmentColor(segment.segment)}`}>
                           {segment.segment}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {segment.count.toLocaleString()}
-                      </TableCell>
-                      <TableCell>
-                        {segment.percentage}%
-                      </TableCell>
-                      <TableCell>{segment.avg_rfm_score?.toFixed(1)}</TableCell>
-                      <TableCell>${segment.avg_order_value?.toFixed(2)}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-md">
-                        {segment.characteristics}
-                      </TableCell>
-                    </TableRow>
+                        </span>
+                      </td>
+                      <td className="p-4 font-medium">{segment.count?.toLocaleString()}</td>
+                      <td className="p-4">{segment.percentage}%</td>
+                      <td className="p-4">{segment.avg_rfm_score?.toFixed(1)}</td>
+                      <td className="p-4">${segment.avg_order_value?.toFixed(2)}</td>
+                      <td className="p-4 text-sm text-gray-600 max-w-md">{segment.characteristics}</td>
+                    </tr>
                   ))
                 ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <tr>
+                    <td colSpan="6" className="p-12 text-center text-gray-500">
                       No segmentation data available
-                    </TableCell>
-                  </TableRow>
+                    </td>
+                  </tr>
                 )}
-              </TableBody>
-            </Table>
+              </tbody>
+            </table>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Notes */}
-      <Card className="bg-muted/50">
-        <CardContent className="pt-6 text-sm text-muted-foreground">
-          <p><strong>How it works:</strong> Customers are clustered using K-Means on Recency, Frequency, Monetary (RFM) features + purchase patterns. Data is processed on the Flask backend.</p>
-        </CardContent>
-      </Card>
+      <div className="bg-gray-50 p-6 rounded-xl text-sm text-gray-600">
+        <strong>How it works:</strong> Customers are clustered using K-Means on Recency, Frequency, Monetary (RFM) features.
+      </div>
     </div>
   );
 };

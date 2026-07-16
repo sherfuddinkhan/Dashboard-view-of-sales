@@ -1,19 +1,20 @@
 import React from 'react';
-import CustomerSegmentation from './CustomerSegmentation';
-import ProductRecommendation from './ProductRecommendation';
-import SalesForecast from './SalesForecast';
-import ReturnPrediction from './ReturnPrediction';
-import FraudDetection from './FraudDetection';
-import InventoryAnalysis from './InventoryAnalysis';
-import RecommendationSystem from './RecommendationSystem';
-import RFMAnalysis from './RFMAnalysis';
+
+import CustomerSegmentation from "../Analytics/CustomerSegmentation";
+import ProductRecommendation from "../Analytics/ProductRecommendation";
+import SalesForecast from "../Analytics/SalesForecast";
+import ReturnPrediction from "../Analytics/ReturnPrediction";
+import FraudDetection from "../Analytics/FraudDetection";
+import InventoryAnalysis from "../Analytics/InventoryAnalysis";
+import RecommendationSystem from "../Analytics/RecommendationSystem";
+import RFMAnalysis from "../Analytics/RFMAnalysis";
 
 const AnalyticsDashboard = () => {
   return (
-    <div className="space-y-10 p-6">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-2">AI Analytics Dashboard</h1>
-        <p className="text-muted-foreground">Machine Learning Insights from Your Amazon Data</p>
+    <div className="p-6 space-y-10">
+      <div className="text-center mb-10">
+        <h1 className="text-4xl font-bold text-gray-800 mb-2">AI Analytics Dashboard</h1>
+        <p className="text-gray-600 text-lg">Machine Learning Insights from Your Amazon Data</p>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">

@@ -1,13 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { 
-  Card, CardContent, CardHeader, CardTitle 
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { RefreshCw, Star, ShoppingCart, Users, AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
+import { RefreshCw, Star, ShoppingCart, AlertCircle } from 'lucide-react';
 
 const API_BASE_URL = '/api';
 
@@ -24,16 +17,12 @@ const RecommendationSystem = () => {
     
     try {
       const response = await axios.get(`${API_BASE_URL}/recommendation-system`);
-      
       setRecommendations(response.data.recommendations || []);
       setSummary(response.data.summary || {});
       setLastUpdated(new Date());
-      
-      toast.success('Personalized recommendations updated');
     } catch (err) {
-      console.error('Error fetching recommendation system data:', err);
-      setError(err.response?.data?.error || 'Failed to load recommendations');
-      toast.error('Failed to load recommendation system data');
+      setError('Failed to load recommendation system data');
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -44,164 +33,90 @@ const RecommendationSystem = () => {
   }, []);
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="p-6 space-y-8">
+      <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Recommendation System</h2>
-          <p className="text-muted-foreground mt-1">
-            Hybrid Model (Collaborative + Content-Based + Sales Trends)
-          </p>
+          <h2 className="text-3xl font-bold">Recommendation System</h2>
+          <p className="text-gray-600">Hybrid (Collaborative + Content-Based)</p>
         </div>
-        
-        <div className="flex items-center gap-3">
-          {lastUpdated && (
-            <p className="text-sm text-muted-foreground">
-              Last updated: {lastUpdated.toLocaleTimeString()}
-            </p>
-          )}
-          <Button 
-            onClick={fetchRecommendations} 
-            disabled={loading}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-        </div>
+        <button
+          onClick={fetchRecommendations}
+          disabled={loading}
+          className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 disabled:opacity-50"
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
       </div>
 
       {error && (
-        <Card className="border-red-200">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3 text-red-600">
-              <AlertCircle className="h-5 w-5" />
-              <p>{error}</p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="bg-red-100 border border-red-400 text-red-700 p-4 rounded-lg flex items-center gap-3">
+          <AlertCircle className="h-5 w-5" /> {error}
+        </div>
       )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Recommendations</CardTitle>
-            <Star className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
-              {summary.total_recommendations?.toLocaleString() || '—'}
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-white p-6 rounded-xl shadow">
+          <p className="text-gray-500">Total Recommendations</p>
+          <p className="text-4xl font-bold mt-3">{summary.total_recommendations?.toLocaleString() || '—'}</p>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Top Category</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-emerald-600">
-              {summary.top_category || '—'}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="bg-white p-6 rounded-xl shadow">
+          <p className="text-gray-500">Top Category</p>
+          <p className="text-4xl font-bold text-emerald-600 mt-3">{summary.top_category || '—'}</p>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Confidence</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
-              {summary.avg_confidence ? `${summary.avg_confidence}%` : '—'}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Users</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
-              {summary.active_users?.toLocaleString() || '—'}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="bg-white p-6 rounded-xl shadow">
+          <p className="text-gray-500">Avg Confidence</p>
+          <p className="text-4xl font-bold mt-3">
+            {summary.avg_confidence ? `${summary.avg_confidence}%` : '—'}
+          </p>
+        </div>
       </div>
 
       {/* Recommendations Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Personalized Product Recommendations</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="bg-white rounded-xl shadow overflow-hidden">
+        <div className="p-6 border-b font-semibold">Personalized Product Recommendations</div>
+        <div className="overflow-x-auto">
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-              <p className="mt-4 text-muted-foreground">Generating hybrid recommendations...</p>
+            <div className="p-12 text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-4">Generating hybrid recommendations...</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Product</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Score</TableHead>
-                  <TableHead>Reason</TableHead>
-                  <TableHead>Est. Conversion</TableHead>
-                  <TableHead>Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recommendations.length > 0 ? (
-                  recommendations.map((rec, index) => (
-                    <TableRow key={index}>
-                      <TableCell className="font-medium">{rec.product}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{rec.category}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                          {rec.score.toFixed(2)}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-md">
-                        {rec.reason}
-                      </TableCell>
-                      <TableCell>
-                        {(rec.estimated_conversion * 100).toFixed(1)}%
-                      </TableCell>
-                      <TableCell>
-                        <Button size="sm" variant="outline">
-                          <ShoppingCart className="h-4 w-4 mr-1" />
-                          Promote
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-                      No recommendations available
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="text-left p-4">Product</th>
+                  <th className="text-left p-4">Category</th>
+                  <th className="text-left p-4">Score</th>
+                  <th className="text-left p-4">Reason</th>
+                  <th className="text-left p-4">Est. Conversion</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recommendations.map((rec, i) => (
+                  <tr key={i} className="border-t hover:bg-gray-50">
+                    <td className="p-4 font-medium">{rec.product}</td>
+                    <td className="p-4">{rec.category}</td>
+                    <td className="p-4">
+                      <div className="flex items-center gap-1">
+                        <Star className="h-5 w-5 text-yellow-400" />
+                        {rec.score?.toFixed(2)}
+                      </div>
+                    </td>
+                    <td className="p-4 text-sm text-gray-600 max-w-md">{rec.reason}</td>
+                    <td className="p-4 font-medium">
+                      {(rec.estimated_conversion * 100).toFixed(1)}%
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Notes */}
-      <Card className="bg-muted/50">
-        <CardContent className="pt-6 text-sm text-muted-foreground">
-          <p><strong>Hybrid System:</strong> Combines Collaborative Filtering, Content-Based, and Trending products. Ideal for homepage, cart, and email campaigns.</p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };

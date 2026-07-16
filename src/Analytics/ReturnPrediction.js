@@ -1,13 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { 
-  Card, CardContent, CardHeader, CardTitle 
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { RefreshCw, AlertTriangle, ShieldCheck, AlertCircle, Clock } from 'lucide-react';
-import { toast } from 'sonner';
+import { RefreshCw, AlertTriangle, AlertCircle } from 'lucide-react';
 
 const API_BASE_URL = '/api';
 
@@ -24,16 +17,12 @@ const ReturnPrediction = () => {
     
     try {
       const response = await axios.get(`${API_BASE_URL}/return-prediction`);
-      
       setPredictions(response.data.predictions || []);
       setSummary(response.data.summary || {});
       setLastUpdated(new Date());
-      
-      toast.success('Return predictions updated');
     } catch (err) {
-      console.error('Error fetching return predictions:', err);
-      setError(err.response?.data?.error || 'Failed to load return predictions');
-      toast.error('Failed to load return predictions');
+      setError('Failed to load return predictions');
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -53,159 +42,91 @@ const ReturnPrediction = () => {
   };
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="p-6 space-y-8">
+      <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Return Prediction</h2>
-          <p className="text-muted-foreground mt-1">
-            Decision Tree Model • Predict likelihood of returns per order
-          </p>
+          <h2 className="text-3xl font-bold">Return Prediction</h2>
+          <p className="text-gray-600">Decision Tree Model</p>
         </div>
-        
-        <div className="flex items-center gap-3">
-          {lastUpdated && (
-            <p className="text-sm text-muted-foreground">
-              Last updated: {lastUpdated.toLocaleTimeString()}
-            </p>
-          )}
-          <Button 
-            onClick={fetchReturnPredictions} 
-            disabled={loading}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-        </div>
+        <button
+          onClick={fetchReturnPredictions}
+          disabled={loading}
+          className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 disabled:opacity-50"
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
       </div>
 
       {error && (
-        <Card className="border-red-200">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3 text-red-600">
-              <AlertCircle className="h-5 w-5" />
-              <p>{error}</p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="bg-red-100 border border-red-400 text-red-700 p-4 rounded-lg flex items-center gap-3">
+          <AlertCircle className="h-5 w-5" /> {error}
+        </div>
       )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Predicted Returns</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-red-600">
-              {summary.predicted_returns?.toLocaleString() || '—'}
-            </div>
-            <p className="text-sm text-muted-foreground mt-1">
-              Next 30 days
-            </p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-white p-6 rounded-xl shadow">
+          <p className="text-gray-500">Predicted Returns</p>
+          <p className="text-4xl font-bold text-red-600 mt-3">
+            {summary.predicted_returns?.toLocaleString() || '—'}
+          </p>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Return Risk</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
-              {summary.avg_risk ? `${summary.avg_risk}%` : '—'}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="bg-white p-6 rounded-xl shadow">
+          <p className="text-gray-500">High Risk Orders</p>
+          <p className="text-4xl font-bold text-amber-600 mt-3">
+            {summary.high_risk_count?.toLocaleString() || '—'}
+          </p>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">High Risk Orders</CardTitle>
-            <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-amber-600">
-              {summary.high_risk_count?.toLocaleString() || '—'}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Model Accuracy</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
-              {summary.accuracy ? `${summary.accuracy}%` : '—'}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="bg-white p-6 rounded-xl shadow">
+          <p className="text-gray-500">Avg Return Risk</p>
+          <p className="text-4xl font-bold mt-3">
+            {summary.avg_risk ? `${summary.avg_risk}%` : '—'}
+          </p>
+        </div>
       </div>
 
       {/* Predictions Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>High-Risk Return Predictions</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="bg-white rounded-xl shadow overflow-hidden">
+        <div className="p-6 border-b font-semibold">High-Risk Return Predictions</div>
+        <div className="overflow-x-auto">
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-              <p className="mt-4 text-muted-foreground">Running Decision Tree inference...</p>
+            <div className="p-12 text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-4">Analyzing return risk...</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Order ID</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Return Probability</TableHead>
-                  <TableHead>Risk Level</TableHead>
-                  <TableHead>Reasons</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {predictions.length > 0 ? (
-                  predictions.map((item, index) => (
-                    <TableRow key={index}>
-                      <TableCell className="font-mono text-sm">{item.order_id}</TableCell>
-                      <TableCell className="font-medium">{item.product}</TableCell>
-                      <TableCell>{item.customer}</TableCell>
-                      <TableCell className="font-semibold">
-                        {(item.return_probability * 100).toFixed(1)}%
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getRiskColor(item.risk_level)}>
-                          {item.risk_level}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-xs">
-                        {item.reasons}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-                      No high-risk predictions at the moment
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="text-left p-4">Order ID</th>
+                  <th className="text-left p-4">Product</th>
+                  <th className="text-left p-4">Probability</th>
+                  <th className="text-left p-4">Risk Level</th>
+                  <th className="text-left p-4">Reasons</th>
+                </tr>
+              </thead>
+              <tbody>
+                {predictions.map((item, i) => (
+                  <tr key={i} className="border-t hover:bg-gray-50">
+                    <td className="p-4 font-mono">{item.order_id}</td>
+                    <td className="p-4">{item.product}</td>
+                    <td className="p-4 font-semibold">{(item.return_probability * 100).toFixed(1)}%</td>
+                    <td className="p-4">
+                      <span className={`inline-block px-3 py-1 rounded-full text-sm ${getRiskColor(item.risk_level)}`}>
+                        {item.risk_level}
+                      </span>
+                    </td>
+                    <td className="p-4 text-sm text-gray-600">{item.reasons}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Notes */}
-      <Card className="bg-muted/50">
-        <CardContent className="pt-6 text-sm text-muted-foreground">
-          <p><strong>Decision Tree Features:</strong> Product category, price, customer history, shipping method, review sentiment, and time since purchase.</p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };

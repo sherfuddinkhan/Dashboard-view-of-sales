@@ -48,18 +48,20 @@ import SearchProductTypes from "./ProductTypeDefinitions/SearchProductTypes";
 import ProductTypeSchema from "./ProductTypeDefinitions/ProductTypeSchema";
 
 // Dashboard Components
-import AmazonDashboard from "./AmazonDashboard";
-import AnalyticsDashboard from "./AnalyticsDashboard";
+import AmazonDashboard from "../Dashboard/AmazonDashboard";
+import AnalyticsDashboard from "../Dashboard/AnalyticsDashboard";
 
-// Individual ML Analytics Components
-import CustomerSegmentation from "./CustomerSegmentation";
-import ProductRecommendation from "./ProductRecommendation";
-import SalesForecast from "./SalesForecast";
-import ReturnPrediction from "./ReturnPrediction";
-import FraudDetection from "./FraudDetection";
-import InventoryAnalysis from "./InventoryAnalysis";
-import RecommendationSystem from "./RecommendationSystem";
-import RFMAnalysis from "./RFMAnalysis";
+
+// Individual ML Components (inside Analytics folder)
+//ML Analytics Components (from Analytics folder)
+import CustomerSegmentation from "../Analytics/CustomerSegmentation";
+import ProductRecommendation from "../Analytics/ProductRecommendation";
+import SalesForecast from "../Analytics/SalesForecast";
+import ReturnPrediction from "../Analytics/ReturnPrediction";
+import FraudDetection from "../Analytics/FraudDetection";
+import InventoryAnalysis from "../Analytics/InventoryAnalysis";
+import RecommendationSystem from "../Analytics/RecommendationSystem";
+import RFMAnalysis from "../Analytics/RFMAnalysis";
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("amazon-dashboard");

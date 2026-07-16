@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { RefreshCw, AlertCircle, Package, ShoppingCart, TrendingUp, AlertTriangle } from 'lucide-react';
-import { toast } from 'sonner';
+import { RefreshCw, Package, ShoppingCart, TrendingUp, AlertTriangle, AlertCircle } from 'lucide-react';
 
 const API_BASE_URL = '/api'; // Node.js API
 
@@ -22,10 +18,9 @@ const AmazonDashboard = () => {
       const response = await axios.get(`${API_BASE_URL}/dashboard`);
       setData(response.data);
       setLastUpdated(new Date());
-      toast.success('Amazon data refreshed');
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to load Amazon dashboard data');
-      toast.error('Failed to load dashboard');
+      setError('Failed to load Amazon dashboard data');
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -38,137 +33,129 @@ const AmazonDashboard = () => {
   if (loading && !data) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 p-6">
+    <div className="p-6 space-y-8">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-4xl font-bold">Amazon Dashboard</h1>
-          <p className="text-muted-foreground">Real-time operational data from Amazon Seller Account</p>
+          <h1 className="text-4xl font-bold text-gray-800">Amazon Dashboard</h1>
+          <p className="text-gray-600">Real-time operational data from Amazon Seller Account</p>
         </div>
-        <Button onClick={fetchDashboard} disabled={loading} variant="outline">
-          <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+        <button
+          onClick={fetchDashboard}
+          disabled={loading}
+          className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 disabled:opacity-50"
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           Refresh
-        </Button>
+        </button>
       </div>
 
       {error && (
-        <Card className="border-red-300">
-          <CardContent className="pt-6 text-red-600 flex items-center gap-3">
-            <AlertCircle className="h-5 w-5" />
-            {error}
-          </CardContent>
-        </Card>
+        <div className="bg-red-100 border border-red-400 text-red-700 p-4 rounded-lg flex items-center gap-3">
+          <AlertCircle className="h-5 w-5" /> {error}
+        </div>
       )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Products</CardTitle>
-            <Package className="h-5 w-5 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold">{data?.summary?.totalProducts?.toLocaleString() || 0}</div>
-          </CardContent>
-        </Card>
+        <div className="bg-white p-6 rounded-xl shadow">
+          <div className="flex justify-between items-center">
+            <p className="text-gray-500">Total Products</p>
+            <Package className="h-6 w-6 text-gray-400" />
+          </div>
+          <p className="text-4xl font-bold mt-3">{data?.summary?.totalProducts?.toLocaleString() || 0}</p>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
-            <ShoppingCart className="h-5 w-5 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold">{data?.summary?.totalOrders?.toLocaleString() || 0}</div>
-          </CardContent>
-        </Card>
+        <div className="bg-white p-6 rounded-xl shadow">
+          <div className="flex justify-between items-center">
+            <p className="text-gray-500">Total Orders</p>
+            <ShoppingCart className="h-6 w-6 text-gray-400" />
+          </div>
+          <p className="text-4xl font-bold mt-3">{data?.summary?.totalOrders?.toLocaleString() || 0}</p>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Revenue</CardTitle>
-            <TrendingUp className="h-5 w-5 text-emerald-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold">₹{data?.summary?.revenue?.toLocaleString() || 0}</div>
-          </CardContent>
-        </Card>
+        <div className="bg-white p-6 rounded-xl shadow">
+          <div className="flex justify-between items-center">
+            <p className="text-gray-500">Revenue</p>
+            <TrendingUp className="h-6 w-6 text-emerald-600" />
+          </div>
+          <p className="text-4xl font-bold mt-3 text-emerald-600">
+            ₹{data?.summary?.revenue?.toLocaleString() || 0}
+          </p>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Returns</CardTitle>
-            <AlertTriangle className="h-5 w-5 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold">{data?.summary?.returns?.toLocaleString() || 0}</div>
-          </CardContent>
-        </Card>
+        <div className="bg-white p-6 rounded-xl shadow">
+          <div className="flex justify-between items-center">
+            <p className="text-gray-500">Returns</p>
+            <AlertTriangle className="h-6 w-6 text-red-500" />
+          </div>
+          <p className="text-4xl font-bold mt-3 text-red-600">
+            {data?.summary?.returns?.toLocaleString() || 0}
+          </p>
+        </div>
       </div>
 
-      {/* Tables Section */}
+      {/* Tables */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
         {/* Products Table */}
-        <Card>
-          <CardHeader><CardTitle>Products</CardTitle></CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ASIN</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Stock</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data?.products?.slice(0, 10).map((p, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="font-mono">{p.asin}</TableCell>
-                    <TableCell>{p.name}</TableCell>
-                    <TableCell>₹{p.price}</TableCell>
-                    <TableCell>{p.stock}</TableCell>
-                  </TableRow>
+        <div className="bg-white rounded-xl shadow">
+          <div className="p-6 border-b font-semibold">Products</div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="text-left p-4">ASIN</th>
+                  <th className="text-left p-4">Name</th>
+                  <th className="text-left p-4">Price</th>
+                  <th className="text-left p-4">Stock</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data?.products?.slice(0, 8).map((p, i) => (
+                  <tr key={i} className="border-t hover:bg-gray-50">
+                    <td className="p-4 font-mono text-sm">{p.asin}</td>
+                    <td className="p-4">{p.name}</td>
+                    <td className="p-4">₹{p.price}</td>
+                    <td className="p-4">{p.stock}</td>
+                  </tr>
                 ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-        {/* Orders Table */}
-        <Card>
-          <CardHeader><CardTitle>Recent Orders</CardTitle></CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Order ID</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Date</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data?.orders?.slice(0, 10).map((o, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="font-mono">{o.orderId}</TableCell>
-                    <TableCell>₹{o.amount}</TableCell>
-                    <TableCell>{o.status}</TableCell>
-                    <TableCell>{o.date}</TableCell>
-                  </TableRow>
+        {/* Recent Orders Table */}
+        <div className="bg-white rounded-xl shadow">
+          <div className="p-6 border-b font-semibold">Recent Orders</div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="text-left p-4">Order ID</th>
+                  <th className="text-left p-4">Amount</th>
+                  <th className="text-left p-4">Status</th>
+                  <th className="text-left p-4">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data?.orders?.slice(0, 8).map((o, i) => (
+                  <tr key={i} className="border-t hover:bg-gray-50">
+                    <td className="p-4 font-mono">{o.orderId}</td>
+                    <td className="p-4">₹{o.amount}</td>
+                    <td className="p-4">{o.status}</td>
+                    <td className="p-4">{o.date}</td>
+                  </tr>
                 ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
-
-      {/* You can add more tables (Listings, Inventory, Reports, Feeds, etc.) similarly */}
-      <p className="text-center text-sm text-muted-foreground mt-8">
-        Add more tables (Listings, Inventory, Reports, Financial Events, Feeds, Uploads) following the same pattern.
-      </p>
     </div>
   );
 };
