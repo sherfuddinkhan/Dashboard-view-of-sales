@@ -59,7 +59,12 @@ const Sidebar = () => {
             <FiUsers />
             <span>Customer Segmentation</span>
           </NavLink>
-          <NavLink to="/analytics/product-recommendation" className="sidebar-link">
+          <NavLink to="/Analytics/RandomForestPrediction" className="sidebar-link">
+            <FiTarget />
+            <span>Sales/Product Prediction</span>
+            </NavLink>
+
+            <NavLink to="/analytics/product-recommendation" className="sidebar-link">
             <FiTarget />
             <span>Product Recommendation</span>
           </NavLink>

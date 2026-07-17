@@ -61,6 +61,7 @@ import ReturnPrediction from "../Analytics/ReturnPrediction";
 import FraudDetection from "../Analytics/FraudDetection";
 import InventoryAnalysis from "../Analytics/InventoryAnalysis";
 import RecommendationSystem from "../Analytics/RecommendationSystem";
+import RandomForestPrediction from "../Analytics/RandomForestPrediction";
 import RFMAnalysis from "../Analytics/RFMAnalysis";
 
 const Dashboard = () => {
@@ -119,6 +120,7 @@ const Dashboard = () => {
       items: [
         { id: "customer-segmentation", label: "Customer Segmentation (K-Means)", Component: CustomerSegmentation },
         { id: "product-recommendation", label: "Product Recommendation (Apriori)", Component: ProductRecommendation },
+        { id: "Random Forest", label: "Sales/Product Prediction", Component: RandomForestPrediction},
         { id: "sales-forecast", label: "Sales Forecast (XGBoost)", Component: SalesForecast },
         { id: "return-prediction", label: "Return Prediction (Decision Tree)", Component: ReturnPrediction },
         { id: "fraud-detection", label: "Fraud Detection (Isolation Forest)", Component: FraudDetection },
