@@ -363,6 +363,107 @@ app.post("/api/catalog-item", async (req, res) => {
 
 
 // ==================== 4. LISTINGS APIs ====================
+/*
+=========================================================
+Product Pricing API (India)
+=========================================================
+*/
+
+app.get("/api/product-pricing", async (req, res) => {
+
+    try {
+
+        const asin = req.query.asin;
+        const marketplaceId =
+            req.query.marketplaceId || "A21TJRUUN4KGV";
+
+        if (!asin) {
+
+            return res.status(400).json({
+                success: false,
+                message: "ASIN is required."
+            });
+
+        }
+
+        const path =
+            `/products/pricing/v0/price?MarketplaceId=${marketplaceId}&ItemType=Asin&Asins=${asin}`;
+
+        const options = {
+
+            host: "sellingpartnerapi-na.amazon.com",
+
+            path: path,
+
+            service: "execute-api",
+
+            region: process.env.AWS_REGION,
+
+            method: "GET",
+
+            headers: {
+
+                "x-amz-access-token":
+                    process.env.LWA_ACCESS_TOKEN,
+
+                "content-type":
+                    "application/json"
+
+            }
+
+        };
+
+        aws4.sign(options, {
+
+            accessKeyId:
+                process.env.AWS_ACCESS_KEY_ID,
+
+            secretAccessKey:
+                process.env.AWS_SECRET_ACCESS_KEY
+
+        });
+
+        const response = await axios({
+
+            method: "GET",
+
+            url:
+                `https://${options.host}${options.path}`,
+
+            headers: options.headers
+
+        });
+
+        res.status(200).json({
+
+            success: true,
+
+            message: "Product Pricing Retrieved Successfully",
+
+            data: response.data
+
+        });
+
+    }
+
+    catch (error) {
+
+        console.log(error.response?.data || error.message);
+
+        res.status(500).json({
+
+            success: false,
+
+            error:
+                error.response?.data || error.message
+
+        });
+
+    }
+
+});
+
+
 // Create Listing - PUT
 app.post("/api/listings/bulk-create", async (req, res) => {
   try {
@@ -1269,6 +1370,210 @@ app.post("/api/pricing", async (req, res) => {
     });
   }
 });
+const express = require("express");
+const axios = require("axios");
+const aws4 = require("aws4");
+const cors = require("cors");
+require("dotenv").config();
+
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+
+/*
+=====================================================
+FBA Inventory API
+=====================================================
+*/
+
+app.get("/api/inventory", async (req, res) => {
+
+    try {
+
+        const marketplaceId =
+            req.query.marketplaceId || "A21TJRUUN4KGV";
+
+        const details =
+            req.query.details || true;
+
+        const query =
+
+            `/fba/inventory/v1/summaries` +
+
+            `?details=${details}` +
+
+            `&granularityType=Marketplace` +
+
+            `&granularityId=${marketplaceId}` +
+
+            `&marketplaceIds=${marketplaceId}`;
+
+        const options = {
+
+            host: "sellingpartnerapi-na.amazon.com",
+
+            service: "execute-api",
+
+            region: process.env.AWS_REGION,
+
+            method: "GET",
+
+            path: query,
+
+            headers: {
+
+                "x-amz-access-token":
+                    process.env.LWA_ACCESS_TOKEN,
+
+                "content-type":
+                    "application/json"
+
+            }
+
+        };
+
+        aws4.sign(options, {
+
+            accessKeyId:
+                process.env.AWS_ACCESS_KEY_ID,
+
+            secretAccessKey:
+                process.env.AWS_SECRET_ACCESS_KEY
+
+        });
+
+        const response = await axios({
+
+            method: "GET",
+
+            url:
+                `https://${options.host}${options.path}`,
+
+            headers: options.headers
+
+        });
+
+        const payload =
+            response.data.payload;
+
+        const inventorySummaries =
+            payload.inventorySummaries || [];
+
+        let totalAvailable = 0;
+        let totalReserved = 0;
+        let totalInbound = 0;
+        let totalResearching = 0;
+        let totalUnfulfillable = 0;
+
+        const inventory = inventorySummaries.map(item => {
+
+            const available =
+                item.fulfillableQuantity || 0;
+
+            const reserved =
+                item.reservedQuantity?.totalReservedQuantity || 0;
+
+            const inbound =
+
+                (item.inboundWorkingQuantity || 0) +
+
+                (item.inboundShippedQuantity || 0) +
+
+                (item.inboundReceivingQuantity || 0);
+
+            const researching =
+                item.researchingQuantity?.totalResearchingQuantity || 0;
+
+            const unfulfillable =
+                item.unfulfillableQuantity?.totalUnfulfillableQuantity || 0;
+
+            totalAvailable += available;
+            totalReserved += reserved;
+            totalInbound += inbound;
+            totalResearching += researching;
+            totalUnfulfillable += unfulfillable;
+
+            return {
+
+                asin:
+                    item.asin,
+
+                sku:
+                    item.sellerSku,
+
+                condition:
+                    item.condition,
+
+                available,
+
+                reserved,
+
+                inbound,
+
+                researching,
+
+                unfulfillable
+
+            };
+
+        });
+
+        res.json({
+
+            summary: {
+
+                available:
+                    totalAvailable,
+
+                reserved:
+                    totalReserved,
+
+                inbound:
+                    totalInbound,
+
+                researching:
+                    totalResearching,
+
+                unfulfillable:
+                    totalUnfulfillable
+
+            },
+
+            inventory
+
+        });
+
+    }
+
+    catch (error) {
+
+        console.log(error.response?.data);
+
+        res.status(500).json({
+
+            error:
+                error.response?.data ||
+                error.message
+
+        });
+
+    }
+
+});
+
+const PORT =
+    process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+
+    console.log(
+
+        `Server Running On Port ${PORT}`
+
+    );
+
+});
 
 // ==================== 8. FEEDS APIs ====================
 // Create Feed Document
@@ -1998,6 +2303,169 @@ app.post("/api/create-upload-destination", async (req, res) => {
     });
   }
 });
+
+///////////// shipment////////////////////////
+// Mock Data Database Store
+// In-Memory Database Store for Testing Engine
+let scheduledPackages = [
+  {
+    amazonOrderId: "403-1234567-1234567",
+    marketplaceId: "ATVPDKIKX0DER",
+    packageStatus: "Scheduled",
+    scheduledSlot: {
+      slotId: "slot-2026-07-20-morning",
+      startTime: "2026-07-20T09:00:00Z",
+      endTime: "2026-07-20T13:00:00Z"
+    },
+    packageDimensions: { length: 20, width: 15, height: 10, unit: "cm" },
+    packageWeight: { value: 1.5, unit: "kg" }
+  }
+];
+
+// ====================================================================
+// API 1: Find Handover Slots
+// Route: POST -> http://localhost:5000/easyShip/2022-03-23/timeSlot
+// ====================================================================
+app.post('/easyShip/2022-03-23/timeSlot', (req, res) => {
+  const { accessToken, amazonOrderId, marketplaceId, packageDimensions, packageWeight } = req.body;
+
+  if (!accessToken) {
+    return res.status(401).json({
+      errors: [{ code: "Unauthorized", message: "Missing Access Token credentials." }]
+    });
+  }
+
+  if (!amazonOrderId || !marketplaceId || !packageDimensions || !packageWeight) {
+    return res.status(400).json({
+      errors: [{ code: "InvalidInput", message: "Missing order or package dimensions configurations." }]
+    });
+  }
+
+  // Generate dynamic mockup pickup slots based on July 2026 timeframe
+  const timeSlots = [
+    { 
+      slotId: "slot-2026-07-20-morning", 
+      startTime: "2026-07-20T09:00:00Z", 
+      endTime: "2026-07-20T13:00:00Z" 
+    },
+    { 
+      slotId: "slot-2026-07-20-afternoon", 
+      startTime: "2026-07-20T14:00:00Z", 
+      endTime: "2026-07-20T18:00:00Z" 
+    },
+    { 
+      slotId: "slot-2026-07-21-morning", 
+      startTime: "2026-07-21T09:00:00Z", 
+      endTime: "2026-07-21T13:00:00Z" 
+    }
+  ];
+
+  res.status(200).json({ timeSlots });
+});
+
+// ====================================================================
+// API 2: Check Package Status
+// Route: GET -> http://localhost:5000/easyShip/2022-03-23/package
+// ====================================================================
+app.get('/easyShip/2022-03-23/package', (req, res) => {
+  const { amazonOrderId, marketplaceId } = req.query;
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({
+      errors: [{ code: "Unauthorized", message: "Access Token missing from Authorization header." }]
+    });
+  }
+
+  if (!amazonOrderId || !marketplaceId) {
+    return res.status(400).json({
+      errors: [{ code: "InvalidParameter", message: "amazonOrderId and marketplaceId are mandatory parameters." }]
+    });
+  }
+
+  const foundPackage = scheduledPackages.find(
+    p => p.amazonOrderId === amazonOrderId && p.marketplaceId === marketplaceId
+  );
+
+  if (!foundPackage) {
+    return res.status(404).json({
+      errors: [{ code: "NotFound", message: "No scheduled package record found for this Order ID." }]
+    });
+  }
+
+  res.status(200).json(foundPackage);
+});
+
+// ====================================================================
+// API 3: Schedule Package Handover
+// Route: POST -> http://localhost:5000/easyShip/2022-03-23/package
+// ====================================================================
+app.post('/easyShip/2022-03-23/package', (req, res) => {
+  const { 
+    accessToken, 
+    amazonOrderId, 
+    marketplaceId, 
+    packageDimensions, 
+    packageWeight, 
+    handOverTimeSlot 
+  } = req.body;
+
+  if (!accessToken) {
+    return res.status(401).json({
+      errors: [{ code: "Unauthorized", message: "Missing Access Token." }]
+    });
+  }
+
+  if (!amazonOrderId || !marketplaceId || !handOverTimeSlot?.slotId) {
+    return res.status(400).json({
+      errors: [{ code: "InvalidInput", message: "Missing scheduling context parameters." }]
+    });
+  }
+
+  const newPackageRegistration = {
+    amazonOrderId,
+    marketplaceId,
+    packageStatus: "Scheduled",
+    scheduledSlot: handOverTimeSlot,
+    packageDimensions,
+    packageWeight
+  };
+
+  scheduledPackages.push(newPackageRegistration);
+  res.status(200).json(newPackageRegistration);
+});
+
+// ====================================================================
+// API 4: Reschedule / Update Package Settings
+// Route: PATCH -> http://localhost:5000/easyShip/2022-03-23/package
+// ====================================================================
+app.patch('/easyShip/2022-03-23/package', (req, res) => {
+  const { accessToken, amazonOrderId, marketplaceId, handOverTimeSlot } = req.body;
+
+  if (!accessToken) {
+    return res.status(401).json({
+      errors: [{ code: "Unauthorized", message: "Missing Access Token authentication parameters." }]
+    });
+  }
+
+  const recordIndex = scheduledPackages.findIndex(
+    p => p.amazonOrderId === amazonOrderId && p.marketplaceId === marketplaceId
+  );
+
+  if (recordIndex === -1) {
+    return res.status(404).json({
+      errors: [{ code: "NotFound", message: "The requested scheduled package does not exist." }]
+    });
+  }
+
+  // Update existing package parameters
+  scheduledPackages[recordIndex].scheduledSlot = handOverTimeSlot;
+  scheduledPackages[recordIndex].packageStatus = "Rescheduled";
+
+  res.status(200).json(scheduledPackages[recordIndex]);
+});
+
+
 // Start Server
 const PORT = 5000;
 app.listen(PORT, () => {
