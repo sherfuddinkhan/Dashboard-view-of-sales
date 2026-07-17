@@ -71,10 +71,15 @@ const Sidebar = () => {
             <FiTarget />
             <span>Product Recommendation</span>
           </NavLink>
+          <NavLink to="/analytics/abc-analysis" className="sidebar-link">
+            <FiBarChart2 />
+            <span>ABC Analysis</span>
+          </NavLink>
           <NavLink to="/analytics/sales-forecast" className="sidebar-link">
             <FiBarChart2 />
             <span>Sales Forecast</span>
           </NavLink>
+
           <NavLink to="/analytics/return-prediction" className="sidebar-link">
             <FiAlertTriangle />
             <span>Return Prediction</span>
