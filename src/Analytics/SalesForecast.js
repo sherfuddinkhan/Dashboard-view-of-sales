@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { RefreshCw, TrendingUp, Calendar, AlertCircle, BarChart3 } from 'lucide-react';
+import { RefreshCw, TrendingUp, Calendar, AlertCircle, BarChart3, ShieldCheck } from 'lucide-react';
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = "http://127.0.0.1:5000/api";
 
 const SalesForecast = () => {
   const [forecast, setForecast] = useState([]);
@@ -14,14 +14,13 @@ const SalesForecast = () => {
   const fetchForecast = async () => {
     setLoading(true);
     setError(null);
-    
     try {
-      const response = await axios.get(`${API_BASE_URL}/sales-forecast`);
-      setForecast(response.data.forecast || []);
+    const response = await axios.get(`${API_BASE_URL}/linear-regression`);
+      setForecast(response.data.predictions || []);
       setSummary(response.data.summary || {});
       setLastUpdated(new Date());
     } catch (err) {
-      setError('Failed to load sales forecast');
+      setError('Failed to load sales forecast data');
       console.error(err);
     } finally {
       setLoading(false);
@@ -32,111 +31,378 @@ const SalesForecast = () => {
     fetchForecast();
   }, []);
 
-  const getTrendColor = (trend) => {
-    if (trend === 'Up') return 'text-emerald-600';
-    if (trend === 'Down') return 'text-red-600';
-    return 'text-amber-600';
+  const getTrendStyle = (trend) => {
+    const baseStyle = {
+      padding: '4px 10px',
+      borderRadius: '100px',
+      fontSize: '0.75rem',
+      fontWeight: '600',
+      display: 'inline-block',
+      border: '1px solid',
+    };
+
+    if (trend === 'Up') {
+      return { ...baseStyle, backgroundColor: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0' };
+    }
+    if (trend === 'Down') {
+      return { ...baseStyle, backgroundColor: '#fff1f2', color: '#be123c', borderColor: '#fecdd3' };
+    }
+    return { ...baseStyle, backgroundColor: '#fffbeb', color: '#b45309', borderColor: '#fde68a' };
   };
 
   return (
-    <div className="p-6 space-y-8">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-3xl font-bold">Sales Forecast</h2>
-          <p className="text-gray-600">XGBoost + Linear Regression</p>
-        </div>
-        <button
-          onClick={fetchForecast}
-          disabled={loading}
-          className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 disabled:opacity-50"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
-      </div>
-
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 p-4 rounded-lg flex items-center gap-3">
-          <AlertCircle className="h-5 w-5" />
-          {error}
-        </div>
-      )}
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-xl shadow">
-          <div className="flex justify-between">
-            <p className="text-gray-500">Next 30 Days</p>
-            <Calendar className="h-5 w-5 text-gray-400" />
+    <div style={styles.dashboardWrapper}>
+      <div style={styles.container}>
+        
+        {/* Header */}
+        <div style={styles.header}>
+          <div>
+            <h1 style={styles.title}>Sales Forecast</h1>
+            <p style={styles.subtitle}>Hybrid Predictive Engine (XGBoost + Linear Regression)</p>
           </div>
-          <p className="text-4xl font-bold mt-3">
-            ₹{summary.next_30_days?.toLocaleString() || '—'}
-          </p>
+
+          <div style={styles.headerControls}>
+            {lastUpdated && (
+              <span style={styles.syncBadge}>
+                Synced: {lastUpdated.toLocaleTimeString()}
+              </span>
+            )}
+            <button
+              onClick={fetchForecast}
+              disabled={loading}
+              style={{
+                ...styles.refreshButton,
+                opacity: loading ? 0.6 : 1,
+                cursor: loading ? 'not-allowed' : 'pointer'
+              }}
+            >
+              <RefreshCw 
+                size={16} 
+                style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} 
+              />
+              Recalculate Forecast
+            </button>
+          </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow">
-          <p className="text-gray-500">Next 90 Days</p>
-          <p className="text-4xl font-bold mt-3">
-            ₹{summary.next_90_days?.toLocaleString() || '—'}
-          </p>
+        {/* Error Box */}
+        {error && (
+          <div style={styles.errorBox}>
+            <AlertCircle size={20} style={{ color: '#dc2626', flexShrink: 0 }} />
+            <div>
+              <h4 style={{ margin: 0, fontWeight: '600', color: '#7f1d1d' }}>Execution Error</h4>
+              <p style={{ margin: '4px 0 0 0', fontSize: '0.875rem', color: '#991b1b' }}>{error}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Summary Metrics Grid */}
+        <div style={styles.metricsGrid}>
+          <div style={styles.card}>
+            <div style={styles.cardHeader}>
+              <p style={styles.cardLabel}>Next 30 Days Forecast</p>
+              <div style={{ ...styles.iconWrapper, backgroundColor: '#e0e7ff', color: '#4f46e5' }}><Calendar size={18} /></div>
+            </div>
+            <div style={styles.cardValueRow}>
+              <span style={styles.cardValue}>
+                {summary.next_30_days ? `₹${summary.next_30_days.toLocaleString()}` : '—'}
+              </span>
+              <span style={styles.cardUnit}>Gross Est.</span>
+            </div>
+          </div>
+
+          <div style={styles.card}>
+            <div style={styles.cardHeader}>
+              <p style={styles.cardLabel}>Next 90 Days Forecast</p>
+              <div style={{ ...styles.iconWrapper, backgroundColor: '#eff6ff', color: '#2563eb' }}><BarChart3 size={18} /></div>
+            </div>
+            <div style={styles.cardValueRow}>
+              <span style={styles.cardValue}>
+                {summary.next_90_days ? `₹${summary.next_90_days.toLocaleString()}` : '—'}
+              </span>
+              <span style={styles.cardUnit}>Long Range</span>
+            </div>
+          </div>
+
+          <div style={styles.card}>
+            <div style={styles.cardHeader}>
+              <p style={styles.cardLabel}>Growth Forecast</p>
+              <div style={{ ...styles.iconWrapper, backgroundColor: '#d1fae5', color: '#059669' }}><TrendingUp size={18} /></div>
+            </div>
+            <div style={styles.cardValueRow}>
+              <span style={{ ...styles.cardValue, color: '#059669' }}>
+                {summary.growth_rate ? `${summary.growth_rate}%` : '—'}
+              </span>
+              <span style={styles.cardUnit}>MoM Velocity</span>
+            </div>
+          </div>
+
+          <div style={styles.card}>
+            <div style={styles.cardHeader}>
+              <p style={styles.cardLabel}>Model Confidence Accuracy</p>
+              <div style={{ ...styles.iconWrapper, backgroundColor: '#f3e8ff', color: '#9333ea' }}><ShieldCheck size={18} /></div>
+            </div>
+            <div style={styles.cardValueRow}>
+              <span style={styles.cardValue}>
+                {summary.accuracy ? `${summary.accuracy}%` : '—'}
+              </span>
+              <span style={styles.cardUnit}>R-Squared (test)</span>
+            </div>
+          </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow">
-          <p className="text-gray-500">Growth Rate</p>
-          <p className="text-4xl font-bold text-emerald-600 mt-3">
-            {summary.growth_rate ? `${summary.growth_rate}%` : '—'}
-          </p>
-        </div>
+        {/* Forecast Table Card */}
+        <div style={styles.tableCard}>
+          <div style={styles.tableHeaderSection}>
+            <h2 style={styles.tableTitle}>Expected 30-Day Outlook</h2>
+            <span style={styles.tableStatusBadge}>Regression Metrics Balanced</span>
+          </div>
 
-        <div className="bg-white p-6 rounded-xl shadow">
-          <p className="text-gray-500">Model Accuracy</p>
-          <p className="text-4xl font-bold mt-3">
-            {summary.accuracy ? `${summary.accuracy}%` : '—'}
-          </p>
-        </div>
-      </div>
-
-      {/* Forecast Table */}
-      <div className="bg-white rounded-xl shadow overflow-hidden">
-        <div className="p-6 border-b font-semibold">Next 30 Days Sales Forecast</div>
-        <div className="overflow-x-auto">
           {loading ? (
-            <div className="p-12 text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-4">Generating forecast...</p>
+            <div style={styles.loadingState}>
+              <div style={styles.spinner}></div>
+              <p style={{ margin: '16px 0 4px 0', fontSize: '0.875rem', fontWeight: '500', color: '#475569' }}>Parsing Time-Series Sequences...</p>
+              <p style={{ margin: 0, fontSize: '0.75rem', color: '#94a3b8' }}>Fitting multi-layered trend weight metrics</p>
             </div>
           ) : (
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="text-left p-4">Date</th>
-                  <th className="text-left p-4">Predicted Sales</th>
-                  <th className="text-left p-4">Lower Bound</th>
-                  <th className="text-left p-4">Upper Bound</th>
-                  <th className="text-left p-4">Trend</th>
-                </tr>
-              </thead>
-              <tbody>
-                {forecast.map((day, i) => (
-                  <tr key={i} className="border-t hover:bg-gray-50">
-                    <td className="p-4">{day.date}</td>
-                    <td className="p-4 font-semibold">₹{day.predicted?.toLocaleString()}</td>
-                    <td className="p-4">₹{day.lower_bound?.toLocaleString()}</td>
-                    <td className="p-4">₹{day.upper_bound?.toLocaleString()}</td>
-                    <td className="p-4">
-                      <span className={`px-3 py-1 rounded-full text-sm ${day.trend === 'Up' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                        {day.trend}
-                      </span>
-                    </td>
+            <div style={styles.tableOverflowContainer}>
+              <table style={styles.table}>
+                <thead>
+                  <tr style={styles.tableThRow}>
+                    <th style={{ ...styles.th, textAlign: 'left' }}>Target Date</th>
+                    <th style={{ ...styles.th, textAlign: 'right' }}>Predicted Sales</th>
+                    <th style={{ ...styles.th, textAlign: 'right' }}>Lower Bound (Confidence)</th>
+                    <th style={{ ...styles.th, textAlign: 'right' }}>Upper Bound (Confidence)</th>
+                    <th style={{ ...styles.th, textAlign: 'center' }}>Projected Trend</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+             <tbody>
+{
+forecast.map((item) => (
+<tr key={item.ProductKey}>
+    <td>{item.ProductName}</td>
+    <td>{item.TotalSold}</td>
+    <td>{item.Revenue}</td>
+    <td>{item.PredictedRevenue.toFixed(2)}</td>
+</tr>
+))
+}
+</tbody>
+              </table>
+            </div>
           )}
         </div>
+
       </div>
     </div>
   );
 };
+
+// Vanilla JavaScript CSS Stylesheet object
+const styles = {
+  dashboardWrapper: {
+    backgroundColor: '#f8fafc',
+    minHeight: '100vh',
+    padding: '32px 24px',
+    fontFamily: 'system-ui, -apple-system, sans-serif',
+    color: '#334155',
+    boxSizing: 'border-box',
+  },
+  container: {
+    maxWidth: '1280px',
+    margin: '0 auto',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '32px',
+  },
+  header: {
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: '16px',
+    borderBottom: '1px solid #e2e8f0',
+    paddingBottom: '20px',
+  },
+  title: {
+    fontSize: '1.875rem',
+    fontWeight: '700',
+    color: '#0f172a',
+    margin: 0,
+    letterSpacing: '-0.025em',
+  },
+  subtitle: {
+    fontSize: '0.875rem',
+    color: '#64748b',
+    margin: '4px 0 0 0',
+  },
+  headerControls: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+  },
+  syncBadge: {
+    fontSize: '0.75rem',
+    color: '#94a3b8',
+    backgroundColor: '#f1f5f9',
+    padding: '6px 10px',
+    borderRadius: '6px',
+    fontWeight: '500',
+  },
+  refreshButton: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '8px 16px',
+    backgroundColor: '#2563eb',
+    color: '#ffffff',
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    borderRadius: '8px',
+    border: 'none',
+    boxShadow: '0 1px 2px 0 rgba(37, 99, 235, 0.05)',
+    transition: 'background-color 0.2s',
+  },
+  errorBox: {
+    backgroundColor: '#fff1f2',
+    border: '1px solid #fecdd3',
+    padding: '16px',
+    borderRadius: '12px',
+    display: 'flex',
+    alignItems: 'start',
+    gap: '12px',
+  },
+  metricsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+    gap: '20px',
+  },
+  card: {
+    backgroundColor: '#ffffff',
+    border: '1px solid #e2e8f0',
+    borderRadius: '16px',
+    padding: '24px',
+    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+  },
+  cardHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'start',
+  },
+  cardLabel: {
+    fontSize: '0.75rem',
+    fontWeight: '600',
+    color: '#64748b',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    margin: 0,
+  },
+  iconWrapper: {
+    padding: '8px',
+    borderRadius: '8px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardValueRow: {
+    marginTop: '16px',
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: '4px',
+  },
+  cardValue: {
+    fontSize: '1.875rem',
+    fontWeight: '700',
+    color: '#0f172a',
+    letterSpacing: '-0.025em',
+  },
+  cardUnit: {
+    fontSize: '0.75rem',
+    color: '#94a3b8',
+    fontWeight: '500',
+    marginLeft: '4px',
+  },
+  tableCard: {
+    backgroundColor: '#ffffff',
+    border: '1px solid #e2e8f0',
+    borderRadius: '16px',
+    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+    overflow: 'hidden',
+  },
+  tableHeaderSection: {
+    padding: '20px 24px',
+    borderBottom: '1px solid #f1f5f9',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  tableTitle: {
+    fontSize: '1.125rem',
+    fontWeight: '700',
+    color: '#0f172a',
+    margin: 0,
+    flexGrow: 1,
+  },
+  tableStatusBadge: {
+    fontSize: '0.75rem',
+    fontWeight: '600',
+    color: '#2563eb',
+    backgroundColor: '#eff6ff',
+    padding: '4px 10px',
+    borderRadius: '100px',
+  },
+  tableOverflowContainer: {
+    overflowX: 'auto',
+  },
+  table: {
+    width: '100%',
+    borderCollapse: 'collapse',
+    fontSize: '0.875rem',
+  },
+  tableThRow: {
+    backgroundColor: '#f8fafc',
+    borderBottom: '1px solid #e2e8f0',
+  },
+  th: {
+    padding: '14px 24px',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    fontSize: '0.75rem',
+    color: '#64748b',
+  },
+  tableTdRow: {
+    borderBottom: '1px solid #f1f5f9',
+    transition: 'background-color 0.2s',
+  },
+  td: {
+    padding: '16px 24px',
+    verticalAlign: 'middle',
+  },
+  loadingState: {
+    padding: '80px 0',
+    textAlign: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  spinner: {
+    width: '40px',
+    height: '40px',
+    border: '4px solid #2563eb',
+    borderTopColor: 'transparent',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+  }
+};
+
+// Injection of dynamic spinner keyframes
+if (typeof document !== 'undefined') {
+  const styleSheet = document.createElement("style");
+  styleSheet.innerText = `@keyframes spin { to { transform: rotate(360deg); } }`;
+  document.head.appendChild(styleSheet);
+}
 
 export default SalesForecast;
