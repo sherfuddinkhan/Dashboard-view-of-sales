@@ -8,20 +8,22 @@ const CatalogSearch = () => {
     const [awsSecretKey, setAwsSecretKey] = useState(process.env.REACT_APP_AWS_SECRET_ACCESS_KEY || "");
     const [region, setRegion] = useState(process.env.REACT_APP_AWS_REGION || "us-east-1");
     const [environment, setEnvironment] = useState(process.env.REACT_APP_AMAZON_ENVIRONMENT || "sandbox");
-
     const [marketplaceId, setMarketplaceId] = useState("");
-
     const [keywords, setKeywords] = useState("");
-
     const [identifiers, setIdentifiers] = useState("");
-
     const [identifiersType, setIdentifiersType] = useState("UPC");
-
     const [response, setResponse] = useState("");
-
     const [loading, setLoading] = useState(false);
-
     const [error, setError] = useState("");
+    const [includedData, setIncludedData] = useState([
+    "summaries",
+    "images",
+    "identifiers"
+]);
+
+const [locale, setLocale] = useState("en_US");
+
+const [pageSize, setPageSize] = useState(20);
 
     useEffect(() => {
 

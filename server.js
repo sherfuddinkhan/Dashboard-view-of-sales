@@ -80,180 +80,285 @@ app.post("/api/marketplace", async (req, res) => {
 
 app.post("/api/catalog/search", async (req, res) => {
 
-try {
+    try {
 
-const {
-    accessToken,
-    awsAccessKey,
-    awsSecretKey,
-    region,
-    environment,
-    marketplaceId,
-    keywords,
-    identifiers,
-    identifiersType
-} = req.body;
+        const {
+            accessToken,
+            awsAccessKey,
+            awsSecretKey,
+            region = "us-east-1",
+            serviceName = "execute-api",
+            environment = "production",
+            marketplaceIds = [],
+            keywords = [],
+            identifiers = [],
+            identifiersType,
+            includedData = [],
+            locale = "en_US",
+            pageSize = 20,
+            pageToken
 
+        } = req.body;
 
-const host =
-environment === "production"
-? "sellingpartnerapi-na.amazon.com"
-: "sandbox.sellingpartnerapi-na.amazon.com";
+        if (!accessToken)
+            return res.status(400).json({
+                error: "Access Token is required"
+            });
 
+        if (!awsAccessKey || !awsSecretKey)
+            return res.status(400).json({
+                error: "AWS Credentials are required"
+            });
 
-let path =
-`/catalog/2022-04-01/items?marketplaceIds=${marketplaceId}`;
+        if (!marketplaceIds.length)
+            return res.status(400).json({
+                error: "Marketplace ID is required"
+            });
 
+        const host =
+            environment === "production"
+                ? "sellingpartnerapi-na.amazon.com"
+                : "sandbox.sellingpartnerapi-na.amazon.com";
 
-if(keywords){
-    path += `&keywords=${encodeURIComponent(keywords)}`;
-}
+        const params = new URLSearchParams();
 
+        // Required
 
-if(identifiers){
+        params.append("marketplaceIds",marketplaceIds.join(","));
 
-    path += `&identifiers=${encodeURIComponent(identifiers)}`;
-    path += `&identifiersType=${identifiersType}`;
+        // Search by Keywords
 
-}
+        if (keywords.length) {
+            params.append("keywords",keywords.join(","));
+        }
 
+        // Search by Identifier
 
-// Start with only summaries
-path += "&includedData=summaries";
+        if (identifiers.length) {
+            params.append( "identifiers",identifiers.join(","));
+            params.append("identifiersType",identifiersType
+            );
+        }
+        // Optional
+        if (includedData.length) {
+            params.append(
+                "includedData",
+                includedData.join(",")
+            );
+        }
 
+        if (locale) {
+            params.append("locale",locale);
+        }
+        if (pageSize) {
+            params.append("pageSize", pageSize);
+        }
+        if (pageToken) {
+            params.append(  "pageToken",pageToken);
+        }
 
-const opts = {
+        const path =
+            `/catalog/2022-04-01/items?${params.toString()}`;
+console.log("catlog items path",`https://${host}${path}`);
+        const options = {
+            host,
+            path,
+            service: serviceName,
+            region,
+            method: "GET",
+            headers: {
+                "x-amz-access-token": accessToken,
+                "accept": "application/json",
+                "user-agent":"AmazonSellerAnalytics/1.0"
+            }
+        };
+        aws4.sign(
+            options,
+            {
+                accessKeyId: awsAccessKey,
+                secretAccessKey: awsSecretKey
+            }
+        );
+        console.log( `https://${host}${path}`
+        );
+        const response = await axios.get(  `https://${host}${path}`,
+            {
+                headers: options.headers
+            }
+        );
+        res.json(response.data);
+    }
+    catch (err) {
+        console.error(
+            err.response?.data || err.message
+        );
+        res.status(
+            err.response?.status || 500
+        ).json({
 
-host,
-path,
-service:"execute-api",
-region:region || "us-east-1",
-method:"GET",
+            success: false,
 
-headers:{
-    "x-amz-access-token":accessToken,
-    "accept":"application/json"
-}
+            error:
+                err.response?.data ||
+                err.message
 
-};
+        });
 
-
-aws4.sign(opts,{
-accessKeyId:awsAccessKey,
-secretAccessKey:awsSecretKey
-});
-
-
-console.log(
-`https://${host}${path}`
-);
-
-
-const response = await axios.get(
-`https://${host}${path}`,
-{
-headers:opts.headers
-}
-);
-
-
-res.json(response.data);
-
-
-}
-catch(err){
-
-console.log(
-err.response?.data || err.message
-);
-
-
-res.status(
-err.response?.status || 500
-)
-.json(
-err.response?.data || {
-error:err.message
-}
-);
-
-}
+    }
 
 });
 
 app.post("/api/catalog-item", async (req, res) => {
-  try {
-    const {
-      accessToken,
-      awsAccessKey,
-      awsSecretKey,
-      region = "us-east-1",
-      serviceName = "execute-api",
-      environment = "sandbox",
-      asin,
-      keywords,
-      identifiers,
-      identifiersType = "ASIN",
-      marketplaceId,
-      includedData = "summaries,images,attributes"
-    } = req.body;
 
-    if (!accessToken) return res.status(400).json({ error: "Access Token is required" });
-    if (!awsAccessKey || !awsSecretKey) return res.status(400).json({ error: "AWS keys are required" });
-    if (!marketplaceId) return res.status(400).json({ error: "Marketplace ID is required" });
+    try {
 
-    const host = environment === "production"
-      ? "sellingpartnerapi-na.amazon.com"
-      : "sandbox.sellingpartnerapi-na.amazon.com";
+        const {
 
-    let path = "/catalog/2022-04-01/items";
+            accessToken,
+            awsAccessKey,
+            awsSecretKey,
 
-    // Single ASIN lookup (most reliable)
-    if (asin) {
-      path += `/${asin}`;
+            region = "us-east-1",
+            serviceName = "execute-api",
+            environment = "production",
+
+            asin,
+
+            marketplaceIds = [],
+
+            includedData = [],
+
+            locale = "en_US"
+
+        } = req.body;
+
+        if (!accessToken)
+            return res.status(400).json({
+                error: "Access Token is required"
+            });
+
+        if (!awsAccessKey || !awsSecretKey)
+            return res.status(400).json({
+                error: "AWS Credentials are required"
+            });
+
+        if (!asin)
+            return res.status(400).json({
+                error: "ASIN is required"
+            });
+
+        if (!marketplaceIds.length)
+            return res.status(400).json({
+                error: "Marketplace ID is required"
+            });
+
+        const host =
+            environment === "production"
+                ? "sellingpartnerapi-na.amazon.com"
+                : "sandbox.sellingpartnerapi-na.amazon.com";
+
+        let path = `/catalog/2022-04-01/items/${encodeURIComponent(asin)}`;
+
+        const params = new URLSearchParams();
+
+        params.append(
+            "marketplaceIds",
+            marketplaceIds.join(",")
+        );
+
+        if (includedData.length) {
+
+            params.append(
+                "includedData",
+                includedData.join(",")
+            );
+
+        }
+
+        if (locale) {
+
+            params.append(
+                "locale",
+                locale
+            );
+
+        }
+
+        path += `?${params.toString()}`;
+
+        const options = {
+
+            host,
+
+            path,
+
+            service: serviceName,
+
+            region,
+
+            method: "GET",
+
+            headers: {
+
+                "x-amz-access-token": accessToken,
+
+                "accept": "application/json",
+
+                "user-agent": "AmazonSellerAnalytics/1.0"
+
+            }
+
+        };
+
+        aws4.sign(
+            options,
+            {
+                accessKeyId: awsAccessKey,
+                secretAccessKey: awsSecretKey
+            }
+        );
+
+        console.log(
+            "Catalog Item URL:",
+            `https://${host}${path}`
+        );
+
+        const response = await axios.get(
+
+            `https://${host}${path}`,
+
+            {
+
+                headers: options.headers
+
+            }
+
+        );
+
+        res.json(response.data);
+
     }
 
-    const params = new URLSearchParams({ marketplaceIds: marketplaceId });
+    catch (err) {
 
-    if (keywords) params.append("keywords", keywords);
-    if (identifiers) {
-      params.append("identifiers", identifiers);
-      params.append("identifiersType", identifiersType);
+        console.error(
+            err.response?.data || err.message
+        );
+
+        res.status(
+            err.response?.status || 500
+        ).json({
+
+            success: false,
+
+            error:
+                err.response?.data ||
+                err.message
+
+        });
+
     }
-    if (includedData) params.append("includedData", includedData);
 
-    if (Object.keys(Object.fromEntries(params)).length > 1) {  // has query params
-      path += `?${params.toString()}`;
-    }
-
-    const opts = {
-      host,
-      path,
-      service: serviceName,
-      region,
-      method: "GET",
-      headers: {
-        "x-amz-access-token": accessToken,
-        "accept": "application/json",
-        "user-agent": "MyApp/1.0 (Language=Node.js)"
-      }
-    };
-
-    aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
-
-    console.log("Catalog Request:", `https://${host}${path}`);
-
-    const response = await axios.get(`https://${host}${path}`, { headers: opts.headers });
-
-    res.json(response.data);
-
-  } catch (err) {
-    console.error("Catalog Error:", err.response?.data || err.message);
-    res.status(err.response?.status || 500).json({
-      success: false,
-      error: err.response?.data || { message: err.message }
-    });
-  }
 });
 
 

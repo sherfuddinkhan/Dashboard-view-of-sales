@@ -14,6 +14,13 @@ const CatalogItem = () => {
   const [environment, setEnvironment] = useState(process.env.REACT_APP_AMAZON_ENVIRONMENT || "sandbox");
   const [serviceName, setServiceName] = useState("execute-api");
   const [sellerId, setSellerId] = useState("A13V1IB3VIYZZH");
+  const [includedData, setIncludedData] = useState([
+    "summaries",
+    "attributes",
+    "images"
+]);
+
+const [locale, setLocale] = useState("en_US");
   useEffect(() => {
          const token = localStorage.getItem("amazonAccessToken");
          if (token) {
@@ -44,20 +51,13 @@ const getCatalogItem = async () => {
         const response = await axios.post(
             "http://localhost:5000/api/catalog-item",
             {
-
                 accessToken,
-
                 awsAccessKey,
-
                 awsSecretKey,
-
                 region,
-
                 environment,
-
                 // Swagger Parameters
                 asin,
-
                 marketplaceIds: [
                     marketplaceId
                 ],
@@ -77,20 +77,19 @@ const getCatalogItem = async () => {
 
             }
         );
-
-        setResult(
-            JSON.stringify(response.data, null, 2)
-        );
-
+        setResult(JSON.stringify(response.data, null, 2));
     }
     catch (err) {
+            console.log("STATUS:");
+    console.log(err.response?.status);
 
-        setError(
-            err.response
-                ? JSON.stringify(err.response.data, null, 2)
-                : err.message
-        );
+    console.log("HEADERS:");
+    console.log(err.response?.headers);
 
+    console.log("DATA:");
+    console.log(JSON.stringify(err.response?.data, null, 2));
+        setError( err.response? JSON.stringify(err.response.data, null, 2): err.message );
+       
     }
     finally {
 
