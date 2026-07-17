@@ -62,6 +62,7 @@ import FraudDetection from "../Analytics/FraudDetection";
 import InventoryAnalysis from "../Analytics/InventoryAnalysis";
 import RecommendationSystem from "../Analytics/RecommendationSystem";
 import RandomForestPrediction from "../Analytics/RandomForestPrediction";
+import IsolationForestAnomaly from "../Analytics/IsolationForestAnomaly";
 import RFMAnalysis from "../Analytics/RFMAnalysis";
 
 const Dashboard = () => {
@@ -127,6 +128,7 @@ const Dashboard = () => {
         { id: "inventory-analysis", label: "Inventory Analysis (ABC)", Component: InventoryAnalysis },
         { id: "recommendation-system", label: "Recommendation System", Component: RecommendationSystem },
         { id: "rfm-analysis", label: "RFM Analysis", Component: RFMAnalysis },
+        { id:"finance-anomaly",label:"Finance Anomaly Detection",Component:IsolationForestAnomaly}
       ],
     },
     {
