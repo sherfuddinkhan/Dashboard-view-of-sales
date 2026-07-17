@@ -1702,6 +1702,80 @@ app.post("/api/product-types/schema", async (req, res) => {
 
 //     Messaging 
 
+// POST /api/feedback/topics
+app.post('/api/feedback/topics', async (req, res) => {
+  const {
+    accessToken,
+    awsAccessKey,     // Available here if you are implementing custom AWS SigV4 signing
+    awsSecretKey,     // Available here if you are implementing custom AWS SigV4 signing
+    region,
+    serviceName,
+    environment,
+    asin,
+    marketplaceId,
+    sortBy
+  } = req.body;
+
+  // 1. Basic Parameter Validation
+  if (!asin || !marketplaceId || !sortBy) {
+    return res.status(400).json({ 
+      error: 'Missing required feedback criteria: asin, marketplaceId, or sortBy are mandatory.' 
+    });
+  }
+
+  if (!accessToken) {
+    return res.status(401).json({ 
+      error: 'Missing Amazon SP-API Access Token.' 
+    });
+  }
+
+  // 2. Resolve Environment Endpoint URL
+  // Default to North America Sandbox/Production endpoints. Modify matching patterns if targeting EU/FE regions.
+  const baseUrl = environment === 'production' 
+    ? 'https://sellingpartnerapi-na.amazon.com' 
+    : 'https://sandbox.sellingpartnerapi-na.amazon.com';
+
+  const targetPath = `/customerFeedback/2024-06-01/items/${asin}/reviews/topics`;
+  const endpointUrl = `${baseUrl}${targetPath}`;
+
+  try {
+    // 3. Dispatch direct request to Amazon Selling Partner API
+    const response = await axios.get(endpointUrl, {
+      params: { 
+        marketplaceId, 
+        sortBy 
+      },
+      headers: {
+        'X-Amz-Access-Token': accessToken,
+        'Accept': 'application/json'
+      }
+    });
+
+    // 4. Handle Empty Content States cleanly
+    if (response.status === 204) {
+      return res.status(200).json({
+        message: 'No feedback topics data available for this ASIN.',
+        positiveTopics: [],
+        negativeTopics: []
+      });
+    }
+
+    // Return the functional object mapping back to the client
+    return res.status(200).json(response.data);
+
+  } catch (error) {
+    console.error('SP-API Error Context:', error.response?.data || error.message);
+    
+    const statusCode = error.response?.status || 500;
+    const errorPayload = error.response?.data || { 
+      errors: [{ message: error.message || 'Internal Server communication failure.' }] 
+    };
+
+    return res.status(statusCode).json(errorPayload);
+  }
+});
+
+app.listen(PORT, () => console.log(`🚀 Broker Backend processing dynamic structural requests on port ${PORT}`));
 app.post("/messaging/actions", async (req, res) => {
   try {
     const {
