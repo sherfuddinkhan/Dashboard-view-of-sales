@@ -47,162 +47,296 @@ const CatalogSearch = () => {
 
     }, []);
 
-    const searchCatalog = async () => {
+   const searchCatalog = async () => {
 
-        setLoading(true);
-        setResponse("");
-        setError("");
+    setLoading(true);
+    setResponse("");
+    setError("");
 
-        try {
+    try {
 
-            const result = await axios.post(
+        const payload = {
 
-                "http://localhost:5000/api/catalog/search",
+            accessToken,
 
-                {
-                    accessToken,
-                    awsAccessKey,
-                    awsSecretKey,
-                    region,
-                    environment,
-                    marketplaceId,
-                    keywords,
-                    identifiers,
-                    identifiersType
-                }
+            awsAccessKey,
 
-            );
+            awsSecretKey,
 
-            setResponse(
-                JSON.stringify(result.data, null, 2)
-            );
+            region,
+
+            environment,
+
+            marketplaceIds: [
+                marketplaceId
+            ],
+
+            includedData: [
+                "summaries",
+                "images",
+                "identifiers"
+            ],
+
+            pageSize: 20,
+
+            locale: "en_US"
+
+        };
+
+        // Search by Keywords
+
+        if (keywords.trim()) {
+
+            payload.keywords = [
+                keywords.trim()
+            ];
+
+        }
+
+        // Search by Identifier
+
+        else if (identifiers.trim()) {
+
+            payload.identifiers = [
+                identifiers.trim()
+            ];
+
+            payload.identifiersType = identifiersType;
+
+        }
+
+        const result = await axios.post(
+
+            "http://localhost:5000/api/catalog/search",
+
+            payload
+
+        );
+
+        setResponse(
+            JSON.stringify(result.data, null, 2)
+        );
+
+        localStorage.setItem(
+            "amazonCatalogSearch",
+            JSON.stringify(result.data)
+        );
+
+        if (
+            result.data.items &&
+            result.data.items.length > 0
+        ) {
 
             localStorage.setItem(
-                "amazonCatalogSearch",
-                JSON.stringify(result.data)
-            );
-
-            if (
-                result.data.items &&
-                result.data.items.length > 0
-            ) {
-
-                localStorage.setItem(
-                    "amazonASIN",
-                    result.data.items[0].asin
-                );
-
-            }
-
-        }
-
-        catch (err) {
-
-            setError(
-
-                err.response
-                    ? JSON.stringify(err.response.data, null, 2)
-                    : err.message
-
+                "amazonASIN",
+                result.data.items[0].asin
             );
 
         }
 
-        finally {
+    }
+    catch (err) {
 
-            setLoading(false);
+        setError(
 
+            err.response
+                ? JSON.stringify(err.response.data, null, 2)
+                : err.message
+
+        );
+
+    }
+    finally {
+
+        setLoading(false);
+
+    }
+
+};
+
+   return (
+
+<div style={styles.container}>
+
+    <h2>Amazon Catalog Search</h2>
+
+    <label>Access Token</label>
+
+    <textarea
+        rows={5}
+        value={accessToken}
+        onChange={(e)=>setAccessToken(e.target.value)}
+        style={styles.textArea}
+    />
+
+    <h3>AWS Credentials</h3>
+
+    <label>AWS Access Key</label>
+
+    <input
+        value={awsAccessKey}
+        onChange={(e)=>setAwsAccessKey(e.target.value)}
+        style={styles.input}
+    />
+
+    <label>AWS Secret Key</label>
+
+    <input
+        type="password"
+        value={awsSecretKey}
+        onChange={(e)=>setAwsSecretKey(e.target.value)}
+        style={styles.input}
+    />
+
+    <label>Region</label>
+
+    <input
+        value={region}
+        onChange={(e)=>setRegion(e.target.value)}
+        style={styles.input}
+    />
+
+    <label>Environment</label>
+
+    <select
+        value={environment}
+        onChange={(e)=>setEnvironment(e.target.value)}
+        style={styles.input}
+    >
+        <option value="sandbox">Sandbox</option>
+        <option value="production">Production</option>
+    </select>
+
+    <h3>Search Parameters</h3>
+
+    <label>Marketplace ID</label>
+
+    <input
+        value={marketplaceId}
+        onChange={(e)=>setMarketplaceId(e.target.value)}
+        style={styles.input}
+        placeholder="ATVPDKIKX0DER"
+    />
+
+    <label>Keywords</label>
+
+    <input
+        value={keywords}
+        onChange={(e)=>setKeywords(e.target.value)}
+        placeholder="Samsung TV"
+        style={styles.input}
+    />
+
+    <h3 style={{textAlign:"center"}}>OR</h3>
+
+    <label>Identifier</label>
+
+    <input
+        value={identifiers}
+        onChange={(e)=>setIdentifiers(e.target.value)}
+        placeholder="ASIN / UPC / EAN / GTIN"
+        style={styles.input}
+    />
+
+    <label>Identifier Type</label>
+
+    <select
+        value={identifiersType}
+        onChange={(e)=>setIdentifiersType(e.target.value)}
+        style={styles.input}
+    >
+        <option value="ASIN">ASIN</option>
+        <option value="UPC">UPC</option>
+        <option value="EAN">EAN</option>
+        <option value="GTIN">GTIN</option>
+        <option value="ISBN">ISBN</option>
+        <option value="JAN">JAN</option>
+        <option value="SKU">SKU</option>
+        <option value="MINSAN">MINSAN</option>
+    </select>
+
+    <label>Included Data</label>
+
+    <select
+        multiple
+        value={includedData}
+        onChange={(e)=>
+            setIncludedData(
+                Array.from(
+                    e.target.selectedOptions,
+                    option=>option.value
+                )
+            )
         }
+        style={{...styles.input,height:180}}
+    >
+        <option value="summaries">summaries</option>
+        <option value="attributes">attributes</option>
+        <option value="images">images</option>
+        <option value="dimensions">dimensions</option>
+        <option value="identifiers">identifiers</option>
+        <option value="relationships">relationships</option>
+        <option value="salesRanks">salesRanks</option>
+        <option value="productTypes">productTypes</option>
+        <option value="classifications">classifications</option>
+        <option value="vendorDetails">vendorDetails</option>
+    </select>
 
-    };
+    <label>Locale</label>
 
-    return (
+    <input
+        value={locale}
+        onChange={(e)=>setLocale(e.target.value)}
+        placeholder="en_US"
+        style={styles.input}
+    />
 
-        <div style={styles.container}>
+    <label>Page Size</label>
 
-            <h2>Amazon Catalog Item Search</h2>
+    <input
+        type="number"
+        value={pageSize}
+        onChange={(e)=>setPageSize(e.target.value)}
+        style={styles.input}
+    />
 
-            <label>Marketplace ID</label>
+    <button
+        onClick={searchCatalog}
+        disabled={loading}
+        style={styles.button}
+    >
+        {loading ? "Searching..." : "Search Catalog"}
+    </button>
 
-            <input
-                value={marketplaceId}
-                onChange={(e) => setMarketplaceId(e.target.value)}
-                style={styles.input}
+    {response && (
+        <>
+            <h3>Response</h3>
+
+            <textarea
+                rows={20}
+                readOnly
+                value={response}
+                style={styles.textArea}
             />
+        </>
+    )}
 
-            <label>Keywords</label>
+    {error && (
+        <>
+            <h3 style={{color:"red"}}>Error</h3>
 
-            <input
-                value={keywords}
-                onChange={(e) => setKeywords(e.target.value)}
-                placeholder="Travel Bag"
-                style={styles.input}
+            <textarea
+                rows={10}
+                readOnly
+                value={error}
+                style={styles.textArea}
             />
+        </>
+    )}
 
-            <h3 style={{ textAlign: "center" }}>OR</h3>
+</div>
 
-            <label>Identifier</label>
-
-            <input
-                value={identifiers}
-                onChange={(e) => setIdentifiers(e.target.value)}
-                placeholder="UPC / EAN / GTIN / ASIN"
-                style={styles.input}
-            />
-
-            <label>Identifier Type</label>
-
-            <select
-                value={identifiersType}
-                onChange={(e) => setIdentifiersType(e.target.value)}
-                style={styles.input}
-            >
-
-                <option>ASIN</option>
-                <option>UPC</option>
-                <option>EAN</option>
-                <option>GTIN</option>
-                <option>ISBN</option>
-                <option>SKU</option>
-
-            </select>
-
-            <button
-                onClick={searchCatalog}
-                style={styles.button}
-                disabled={loading}
-            >
-
-                {loading ? "Searching..." : "Search Catalog"}
-
-            </button>
-
-            {response && (
-
-                <>
-                    <h3>Response</h3>
-
-                    <textarea
-                        rows={20}
-                        readOnly
-                        value={response}
-                        style={styles.textarea}
-                    />
-                </>
-
-            )}
-
-            {error && (
-
-                <pre style={{ color: "red" }}>
-                    {error}
-                </pre>
-
-            )}
-
-        </div>
-
-    );
+);
 
 };
 

@@ -29,145 +29,234 @@ const CatalogItem = () => {
  
 
 const getCatalogItem = async () => {
-  console.log({ accessToken, asin, marketplaceId, region, environment }); // DEBUG THIS
 
-  if (!accessToken || !asin || !marketplaceId) {
-    setError("Access Token, ASIN, and Marketplace ID are required");
-    return;
-  }
+    if (!accessToken || !asin || !marketplaceId) {
+        setError("Access Token, ASIN and Marketplace ID are required.");
+        return;
+    }
 
-  setLoading(true);
-  setError("");
-  setResult("");
+    setLoading(true);
+    setError("");
+    setResult("");
 
-  try {
-    const response = await axios.post(
-      "http://localhost:5000/api/catalog-item",
-      {
-        accessToken: accessToken.trim(),
-        awsAccessKey: awsAccessKey.trim(),
-        awsSecretKey: awsSecretKey.trim(),
-        region: region || "us-east-1",
-        environment: environment || "production", // FORCE production for catalog
-        asin: asin.trim(),
-        marketplaceId: marketplaceId.trim() // must be ATVPDKIKX0DER for US
-      }
-    );
-    setResult(JSON.stringify(response.data, null, 2));
-  } catch (err) {
-    console.log("FULL ERROR FROM BACKEND:", err.response?.data);
-    const errorData = err.response?.data || err.message;
-    setError(typeof errorData === 'string' ? errorData : JSON.stringify(errorData, null, 2));
-  } finally {
-    setLoading(false);
-  }
+    try {
+
+        const response = await axios.post(
+            "http://localhost:5000/api/catalog-item",
+            {
+
+                accessToken,
+
+                awsAccessKey,
+
+                awsSecretKey,
+
+                region,
+
+                environment,
+
+                // Swagger Parameters
+                asin,
+
+                marketplaceIds: [
+                    marketplaceId
+                ],
+
+                includedData: [
+                    "summaries",
+                    "attributes",
+                    "images",
+                    "dimensions",
+                    "identifiers",
+                    "productTypes",
+                    "relationships",
+                    "salesRanks"
+                ],
+
+                locale: "en_US"
+
+            }
+        );
+
+        setResult(
+            JSON.stringify(response.data, null, 2)
+        );
+
+    }
+    catch (err) {
+
+        setError(
+            err.response
+                ? JSON.stringify(err.response.data, null, 2)
+                : err.message
+        );
+
+    }
+    finally {
+
+        setLoading(false);
+
+    }
+
 };
 
- return (
-  <div style={containerStyle}>
-    <h2>Catalog Item Lookup</h2>
+return (
+    <div style={styles.container}>
 
-    {/* Amazon Access Token */}
-    <label>Access Token</label>
-    <textarea
-      rows={5}
-      value={accessToken}
-      onChange={(e) => setAccessToken(e.target.value)}
-      style={styles.textArea}
-      placeholder="Paste Amazon Access Token"
-    />
+        <h2>Amazon Catalog Item</h2>
 
-    {/* AWS Credentials */}
-    <h3 style={{ marginTop: "20px" }}>AWS Credentials</h3>
+        {/* Access Token */}
 
-    <label>AWS Access Key</label>
-    <input
-      type="text"
-      value={awsAccessKey}
-      onChange={(e) => setAwsAccessKey(e.target.value)}
-      style={styles.input}
-      placeholder="AKIAXXXXXXXXXXXXXXXX"
-    />
+        <label>Access Token</label>
 
-    <label>AWS Secret Key</label>
-    <input
-      type="password"
-      value={awsSecretKey}
-      onChange={(e) => setAwsSecretKey(e.target.value)}
-      style={styles.input}
-      placeholder="AWS Secret Access Key"
-    />
+        <textarea
+            rows={5}
+            value={accessToken}
+            onChange={(e) => setAccessToken(e.target.value)}
+            style={styles.textArea}
+            placeholder="Paste Amazon Access Token"
+        />
 
-    <label>AWS Region</label>
-    <input
-      type="text"
-      value={region}
-      onChange={(e) => setRegion(e.target.value)}
-      style={styles.input}
-      placeholder="us-east-1"
-    />
+        {/* AWS Credentials */}
 
-    <label>AWS Service Name</label>
-    <input
-      type="text"
-      value={serviceName}
-      onChange={(e) => setServiceName(e.target.value)}
-      style={styles.input}
-      placeholder="execute-api"
-    />
-    <label>Environment</label>
-<select
-  value={environment}
-  onChange={(e) => setEnvironment(e.target.value)}
-  style={styles.input}
->
-  <option value="production">Production</option>
-  <option value="sandbox">Sandbox</option>
-</select>
+        <h3>AWS Credentials</h3>
 
-    {/* Catalog Details */}
-    <h3 style={{ marginTop: "20px" }}>Catalog Details</h3>
+        <label>AWS Access Key</label>
 
-    <label>ASIN</label>
-    <input
-      type="text"
-      value={asin}
-      onChange={(e) => setAsin(e.target.value)}
-      style={styles.input}
-      placeholder="B0ABC12345"
-    />
+        <input
+            type="text"
+            value={awsAccessKey}
+            onChange={(e) => setAwsAccessKey(e.target.value)}
+            style={styles.input}
+        />
 
-    <label>Marketplace ID</label>
-    <input
-      type="text"
-      value={marketplaceId}
-      onChange={(e) => setMarketplaceId(e.target.value)}
-      style={styles.input}
-      placeholder="ATVPDKIKX0DER"
-    />
+        <label>AWS Secret Key</label>
 
-    <button
-      onClick={getCatalogItem}
-      disabled={loading}
-      style={styles.button}
-    >
-      {loading ? "Fetching..." : "Get Catalog Item"}
-    </button>
+        <input
+            type="password"
+            value={awsSecretKey}
+            onChange={(e) => setAwsSecretKey(e.target.value)}
+            style={styles.input}
+        />
 
-    {result && (
-      <div style={{ marginTop: "20px" }}>
-        <h3>Response</h3>
-        <pre style={styles.pre}>{result}</pre>
-      </div>
-    )}
+        <label>Region</label>
 
-    {error && (
-      <div style={{ marginTop: "20px" }}>
-        <h3 style={{ color: "red" }}>Error</h3>
-        <pre style={{ color: "red" }}>{error}</pre>
-      </div>
-    )}
-  </div>
+        <input
+            value={region}
+            onChange={(e) => setRegion(e.target.value)}
+            style={styles.input}
+        />
+
+        <label>Service Name</label>
+
+        <input
+            value={serviceName}
+            onChange={(e) => setServiceName(e.target.value)}
+            style={styles.input}
+        />
+
+        <label>Environment</label>
+
+        <select
+            value={environment}
+            onChange={(e) => setEnvironment(e.target.value)}
+            style={styles.input}
+        >
+            <option value="sandbox">Sandbox</option>
+            <option value="production">Production</option>
+        </select>
+
+        <h3>Catalog Item Parameters</h3>
+
+        <label>ASIN</label>
+
+        <input
+            value={asin}
+            onChange={(e) => setAsin(e.target.value)}
+            placeholder="B07N4M94X4"
+            style={styles.input}
+        />
+
+        <label>Marketplace ID</label>
+
+        <input
+            value={marketplaceId}
+            onChange={(e) => setMarketplaceId(e.target.value)}
+            placeholder="ATVPDKIKX0DER"
+            style={styles.input}
+        />
+
+        <label>Included Data</label>
+
+        <select
+            multiple
+            value={includedData}
+            onChange={(e) =>
+                setIncludedData(
+                    Array.from(
+                        e.target.selectedOptions,
+                        option => option.value
+                    )
+                )
+            }
+            style={{ ...styles.input, height: 180 }}
+        >
+            <option value="summaries">summaries</option>
+            <option value="attributes">attributes</option>
+            <option value="images">images</option>
+            <option value="dimensions">dimensions</option>
+            <option value="identifiers">identifiers</option>
+            <option value="productTypes">productTypes</option>
+            <option value="relationships">relationships</option>
+            <option value="salesRanks">salesRanks</option>
+            <option value="classifications">classifications</option>
+            <option value="vendorDetails">vendorDetails</option>
+        </select>
+
+        <label>Locale</label>
+
+        <input
+            value={locale}
+            onChange={(e) => setLocale(e.target.value)}
+            placeholder="en_US"
+            style={styles.input}
+        />
+
+        <button
+            onClick={getCatalogItem}
+            disabled={loading}
+            style={styles.button}
+        >
+            {loading ? "Fetching..." : "Get Catalog Item"}
+        </button>
+
+        {result && (
+            <>
+                <h3>Response</h3>
+
+                <textarea
+                    rows={20}
+                    readOnly
+                    value={result}
+                    style={styles.textArea}
+                />
+            </>
+        )}
+
+        {error && (
+            <>
+                <h3 style={{ color: "red" }}>Error</h3>
+
+                <textarea
+                    rows={10}
+                    readOnly
+                    value={error}
+                    style={styles.textArea}
+                />
+            </>
+        )}
+
+    </div>
 );
 };
 
