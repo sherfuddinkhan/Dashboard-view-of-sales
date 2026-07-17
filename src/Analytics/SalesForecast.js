@@ -51,151 +51,174 @@ const SalesForecast = () => {
   };
 
   return (
-    <div style={styles.dashboardWrapper}>
-      <div style={styles.container}>
-        
-        {/* Header */}
-        <div style={styles.header}>
-          <div>
-            <h1 style={styles.title}>Sales Forecast</h1>
-            <p style={styles.subtitle}>Hybrid Predictive Engine (XGBoost + Linear Regression)</p>
-          </div>
+  <div style={styles.dashboardWrapper}>
+    <div style={styles.container}>
+      
+      {/* Header */}
+      <div style={styles.header}>
+        <div>
+          <h1 style={styles.title}>Sales Forecast</h1>
+          <p style={styles.subtitle}>Hybrid Predictive Engine (XGBoost + Linear Regression)</p>
+        </div>
 
-          <div style={styles.headerControls}>
-            {lastUpdated && (
-              <span style={styles.syncBadge}>
-                Synced: {lastUpdated.toLocaleTimeString()}
-              </span>
-            )}
-            <button
-              onClick={fetchForecast}
-              disabled={loading}
-              style={{
-                ...styles.refreshButton,
-                opacity: loading ? 0.6 : 1,
-                cursor: loading ? 'not-allowed' : 'pointer'
-              }}
-            >
-              <RefreshCw 
-                size={16} 
-                style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} 
-              />
-              Recalculate Forecast
-            </button>
+        <div style={styles.headerControls}>
+          {lastUpdated && (
+            <span style={styles.syncBadge}>
+              Synced: {lastUpdated.toLocaleTimeString()}
+            </span>
+          )}
+          <button
+            onClick={fetchForecast}
+            disabled={loading}
+            style={{
+              ...styles.refreshButton,
+              opacity: loading ? 0.6 : 1,
+              cursor: loading ? 'not-allowed' : 'pointer'
+            }}
+          >
+            <RefreshCw 
+              size={16} 
+              style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} 
+            />
+            Recalculate Forecast
+          </button>
+        </div>
+      </div>
+
+      {/* Error Box */}
+      {error && (
+        <div style={styles.errorBox}>
+          <AlertCircle size={20} style={{ color: '#dc2626', flexShrink: 0 }} />
+          <div>
+            <h4 style={{ margin: 0, fontWeight: '600', color: '#7f1d1d' }}>Execution Error</h4>
+            <p style={{ margin: '4px 0 0 0', fontSize: '0.875rem', color: '#991b1b' }}>{error}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Summary Metrics Grid */}
+      <div style={styles.metricsGrid}>
+        <div style={styles.card}>
+          <div style={styles.cardHeader}>
+            <p style={styles.cardLabel}>Next 30 Days Forecast</p>
+            <div style={{ ...styles.iconWrapper, backgroundColor: '#e0e7ff', color: '#4f46e5' }}><Calendar size={18} /></div>
+          </div>
+          <div style={styles.cardValueRow}>
+            <span style={styles.cardValue}>
+              {summary.next_30_days ? `₹${summary.next_30_days.toLocaleString()}` : '—'}
+            </span>
+            <span style={styles.cardUnit}>Gross Est.</span>
           </div>
         </div>
 
-        {/* Error Box */}
-        {error && (
-          <div style={styles.errorBox}>
-            <AlertCircle size={20} style={{ color: '#dc2626', flexShrink: 0 }} />
-            <div>
-              <h4 style={{ margin: 0, fontWeight: '600', color: '#7f1d1d' }}>Execution Error</h4>
-              <p style={{ margin: '4px 0 0 0', fontSize: '0.875rem', color: '#991b1b' }}>{error}</p>
-            </div>
+        <div style={styles.card}>
+          <div style={styles.cardHeader}>
+            <p style={styles.cardLabel}>Next 90 Days Forecast</p>
+            <div style={{ ...styles.iconWrapper, backgroundColor: '#eff6ff', color: '#2563eb' }}><BarChart3 size={18} /></div>
+          </div>
+          <div style={styles.cardValueRow}>
+            <span style={styles.cardValue}>
+              {summary.next_90_days ? `₹${summary.next_90_days.toLocaleString()}` : '—'}
+            </span>
+            <span style={styles.cardUnit}>Long Range</span>
+          </div>
+        </div>
+
+        <div style={styles.card}>
+          <div style={styles.cardHeader}>
+            <p style={styles.cardLabel}>Growth Forecast</p>
+            <div style={{ ...styles.iconWrapper, backgroundColor: '#d1fae5', color: '#059669' }}><TrendingUp size={18} /></div>
+          </div>
+          <div style={styles.cardValueRow}>
+            <span style={{ ...styles.cardValue, color: '#059669' }}>
+              {summary.growth_rate ? `${summary.growth_rate}%` : '—'}
+            </span>
+            <span style={styles.cardUnit}>MoM Velocity</span>
+          </div>
+        </div>
+
+        <div style={styles.card}>
+          <div style={styles.cardHeader}>
+            <p style={styles.cardLabel}>Model Confidence Accuracy</p>
+            <div style={{ ...styles.iconWrapper, backgroundColor: '#f3e8ff', color: '#9333ea' }}><ShieldCheck size={18} /></div>
+          </div>
+          <div style={styles.cardValueRow}>
+            <span style={styles.cardValue}>
+              {summary.accuracy ? `${summary.accuracy}%` : '—'}
+            </span>
+            <span style={styles.cardUnit}>R-Squared (test)</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Forecast Table Card */}
+      <div style={styles.tableCard}>
+        <div style={styles.tableHeaderSection}>
+          <h2 style={styles.tableTitle}>Expected 30-Day Outlook</h2>
+          <span style={styles.tableStatusBadge}>Regression Metrics Balanced</span>
+        </div>
+
+        {loading ? (
+          <div style={styles.loadingState}>
+            <div style={styles.spinner}></div>
+            <p style={{ margin: '16px 0 4px 0', fontSize: '0.875rem', fontWeight: '500', color: '#475569' }}>Parsing Time-Series Sequences...</p>
+            <p style={{ margin: 0, fontSize: '0.75rem', color: '#94a3b8' }}>Fitting multi-layered trend weight metrics</p>
+          </div>
+        ) : (
+          <div style={styles.tableOverflowContainer}>
+            <table style={styles.table}>
+              <thead>
+                <tr style={styles.tableThRow}>
+                  <th style={{ ...styles.th, textAlign: 'left', width: '30%' }}>Target Item</th>
+                  <th style={{ ...styles.th, textAlign: 'right', width: '15%' }}>Units Sold</th>
+                  <th style={{ ...styles.th, textAlign: 'right', width: '20%' }}>Current Revenue</th>
+                  <th style={{ ...styles.th, textAlign: 'right', width: '20%' }}>Predicted Revenue</th>
+                  <th style={{ ...styles.th, textAlign: 'center', width: '15%' }}>Projected Trend</th>
+                </tr>
+              </thead>
+              <tbody>
+                {forecast.length > 0 ? (
+                  forecast.map((item) => {
+                    // Quick internal logic to check trend direction dynamically
+                    const isUp = item.PredictedRevenue > item.Revenue;
+                    return (
+                      <tr key={item.ProductKey} style={styles.tableTdRow}>
+                        <td style={{ ...styles.td, textAlign: 'left', fontWeight: '600', color: '#1e293b' }}>
+                          {item.ProductName}
+                        </td>
+                        <td style={{ ...styles.td, textAlign: 'right', fontFamily: 'monospace', color: '#475569' }}>
+                          {item.TotalSold?.toLocaleString()}
+                        </td>
+                        <td style={{ ...styles.td, textAlign: 'right', fontFamily: 'monospace', color: '#64748b' }}>
+                          {item.Revenue ? `₹${item.Revenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : '—'}
+                        </td>
+                        <td style={{ ...styles.td, textAlign: 'right', fontFamily: 'monospace', fontWeight: '700', color: '#0f172a' }}>
+                          {item.PredictedRevenue ? `₹${item.PredictedRevenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : '—'}
+                        </td>
+                        <td style={{ ...styles.td, textAlign: 'center' }}>
+                          <span style={getTrendStyle(isUp ? 'Up' : 'Stable')}>
+                            {isUp ? 'Up' : 'Stable'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan="5" style={{ ...styles.td, textAlign: 'center', padding: '48px 0', color: '#94a3b8', fontWeight: '500' }}>
+                      No inventory records loaded to build prediction tracks.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         )}
-
-        {/* Summary Metrics Grid */}
-        <div style={styles.metricsGrid}>
-          <div style={styles.card}>
-            <div style={styles.cardHeader}>
-              <p style={styles.cardLabel}>Next 30 Days Forecast</p>
-              <div style={{ ...styles.iconWrapper, backgroundColor: '#e0e7ff', color: '#4f46e5' }}><Calendar size={18} /></div>
-            </div>
-            <div style={styles.cardValueRow}>
-              <span style={styles.cardValue}>
-                {summary.next_30_days ? `₹${summary.next_30_days.toLocaleString()}` : '—'}
-              </span>
-              <span style={styles.cardUnit}>Gross Est.</span>
-            </div>
-          </div>
-
-          <div style={styles.card}>
-            <div style={styles.cardHeader}>
-              <p style={styles.cardLabel}>Next 90 Days Forecast</p>
-              <div style={{ ...styles.iconWrapper, backgroundColor: '#eff6ff', color: '#2563eb' }}><BarChart3 size={18} /></div>
-            </div>
-            <div style={styles.cardValueRow}>
-              <span style={styles.cardValue}>
-                {summary.next_90_days ? `₹${summary.next_90_days.toLocaleString()}` : '—'}
-              </span>
-              <span style={styles.cardUnit}>Long Range</span>
-            </div>
-          </div>
-
-          <div style={styles.card}>
-            <div style={styles.cardHeader}>
-              <p style={styles.cardLabel}>Growth Forecast</p>
-              <div style={{ ...styles.iconWrapper, backgroundColor: '#d1fae5', color: '#059669' }}><TrendingUp size={18} /></div>
-            </div>
-            <div style={styles.cardValueRow}>
-              <span style={{ ...styles.cardValue, color: '#059669' }}>
-                {summary.growth_rate ? `${summary.growth_rate}%` : '—'}
-              </span>
-              <span style={styles.cardUnit}>MoM Velocity</span>
-            </div>
-          </div>
-
-          <div style={styles.card}>
-            <div style={styles.cardHeader}>
-              <p style={styles.cardLabel}>Model Confidence Accuracy</p>
-              <div style={{ ...styles.iconWrapper, backgroundColor: '#f3e8ff', color: '#9333ea' }}><ShieldCheck size={18} /></div>
-            </div>
-            <div style={styles.cardValueRow}>
-              <span style={styles.cardValue}>
-                {summary.accuracy ? `${summary.accuracy}%` : '—'}
-              </span>
-              <span style={styles.cardUnit}>R-Squared (test)</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Forecast Table Card */}
-        <div style={styles.tableCard}>
-          <div style={styles.tableHeaderSection}>
-            <h2 style={styles.tableTitle}>Expected 30-Day Outlook</h2>
-            <span style={styles.tableStatusBadge}>Regression Metrics Balanced</span>
-          </div>
-
-          {loading ? (
-            <div style={styles.loadingState}>
-              <div style={styles.spinner}></div>
-              <p style={{ margin: '16px 0 4px 0', fontSize: '0.875rem', fontWeight: '500', color: '#475569' }}>Parsing Time-Series Sequences...</p>
-              <p style={{ margin: 0, fontSize: '0.75rem', color: '#94a3b8' }}>Fitting multi-layered trend weight metrics</p>
-            </div>
-          ) : (
-            <div style={styles.tableOverflowContainer}>
-              <table style={styles.table}>
-                <thead>
-                  <tr style={styles.tableThRow}>
-                    <th style={{ ...styles.th, textAlign: 'left' }}>Target Date</th>
-                    <th style={{ ...styles.th, textAlign: 'right' }}>Predicted Sales</th>
-                    <th style={{ ...styles.th, textAlign: 'right' }}>Lower Bound (Confidence)</th>
-                    <th style={{ ...styles.th, textAlign: 'right' }}>Upper Bound (Confidence)</th>
-                    <th style={{ ...styles.th, textAlign: 'center' }}>Projected Trend</th>
-                  </tr>
-                </thead>
-             <tbody>
-{
-forecast.map((item) => (
-<tr key={item.ProductKey}>
-    <td>{item.ProductName}</td>
-    <td>{item.TotalSold}</td>
-    <td>{item.Revenue}</td>
-    <td>{item.PredictedRevenue.toFixed(2)}</td>
-</tr>
-))
-}
-</tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
       </div>
+
     </div>
-  );
+  </div>
+);
 };
 
 // Vanilla JavaScript CSS Stylesheet object
