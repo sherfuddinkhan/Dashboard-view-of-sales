@@ -75,7 +75,6 @@ const Sidebar = () => {
             <FiBarChart2 />
             <span>Sales Forecast</span>
           </NavLink>
-
           <NavLink to="/analytics/return-prediction" className="sidebar-link">
             <FiAlertTriangle />
             <span>Return Prediction</span>
@@ -135,6 +134,10 @@ const Sidebar = () => {
           <NavLink to="/pricing" className="sidebar-link">
             <FiDollarSign />
             <span>Pricing</span>
+          </NavLink>
+           <NavLink to="/inventory" className="sidebar-link">
+            <FiDollarSign />
+            <span>Inventory</span>
           </NavLink>
         </div>
       )}

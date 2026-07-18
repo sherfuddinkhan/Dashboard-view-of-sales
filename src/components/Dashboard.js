@@ -66,6 +66,7 @@ import IsolationForestAnomaly from "../Analytics/IsolationForestAnomaly";
 import ABCAnalysis from "../Analytics/ABCAnalysis";
 import RFMAnalysis from "../Analytics/RFMAnalysis";
 import ProductPricing  from "../components/Listings APIs/ProductPricing"
+import inventory  from "../components/Pricing APIs/Inventory";
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("amazon-dashboard");
@@ -149,6 +150,7 @@ const Dashboard = () => {
         { id: "catalogSearch", label: "Catalog Item Search", Component: CatalogSearch },
         { id: "catalog", label: "CatalogItemDetails", Component: CatalogItem },
         { id: "pricing", label: "Pricing", Component: Pricing },
+        { id: "inventory", label: "inventory", Component: inventory },
       ],
     },
     {
