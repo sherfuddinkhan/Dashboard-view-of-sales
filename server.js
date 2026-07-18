@@ -159,7 +159,7 @@ app.post("/api/catalog/search", async (req, res) => {
 
         const path =
             `/catalog/2022-04-01/items?${params.toString()}`;
-console.log("catlog items path",`https://${host}${path}`);
+         console.log("catlog items path",`https://${host}${path}`);
         const options = {
             host,
             path,
@@ -1370,16 +1370,6 @@ app.post("/api/pricing", async (req, res) => {
     });
   }
 });
-const express = require("express");
-const axios = require("axios");
-const aws4 = require("aws4");
-const cors = require("cors");
-require("dotenv").config();
-
-const app = express();
-
-app.use(cors());
-app.use(express.json());
 
 /*
 =====================================================
@@ -1562,18 +1552,7 @@ app.get("/api/inventory", async (req, res) => {
 
 });
 
-const PORT =
-    process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-
-    console.log(
-
-        `Server Running On Port ${PORT}`
-
-    );
-
-});
 
 // ==================== 8. FEEDS APIs ====================
 // Create Feed Document
@@ -1740,7 +1719,7 @@ app.post("/api/notifications/subscription", async (req, res) => {
 });
 
 // ===== SHIPPING =====
-app.post("/api/shipping/rates", async (req, res) => {
+  app.post("/api/shipping/rates", async (req, res) => {
   const { accessToken, awsAccessKey, awsSecretKey, region, environment, orderId, weight, dimensions } = req.body;
   const host = environment === "production" ? "sellingpartnerapi-na.amazon.com" : "sandbox.sellingpartnerapi-na.amazon.com";
   const path = "/shipping/v1/shipments/rates";
@@ -2080,7 +2059,6 @@ app.post('/api/feedback/topics', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => console.log(`🚀 Broker Backend processing dynamic structural requests on port ${PORT}`));
 app.post("/messaging/actions", async (req, res) => {
   try {
     const {

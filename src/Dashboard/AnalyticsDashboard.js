@@ -3,34 +3,6 @@ import axios from 'axios';
 
 const API_BASE_URL = "http://localhost:5000/api";
 
-// Styles for ABCAnalysis (your original styles)
-const styles = {
-  container: { padding: '24px', backgroundColor: '#f8fafc', minHeight: '100vh', fontFamily: 'Inter, sans-serif' },
-  header: { marginBottom: '24px' },
-  title: { fontSize: '24px', fontWeight: '700', color: '#0f172a', margin: 0 },
-  subtitle: { fontSize: '14px', color: '#64748b', marginTop: '4px' },
-  errorBox: { backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', padding: '12px', borderRadius: '8px', marginBottom: '16px' },
-  loadingArea: { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '60px 0' },
-  spinner: { width: '32px', height: '32px', border: '3px solid #e2e8f0', borderTopColor: '#6d28d9', borderRadius: '50%', animation: 'spin 1s linear infinite' },
-  loadingText: { marginTop: '12px', color: '#64748b', fontSize: '14px' },
-  metricsGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' },
-  card: { backgroundColor: 'white', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' },
-  cardLabel: { fontSize: '12px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 8px 0' },
-  cardValue: { fontSize: '24px', fontWeight: '700', margin: 0 },
-  unitText: { fontSize: '12px', fontWeight: '400', color: '#94a3b8' },
-  tableCard: { backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' },
-  table: { width: '100%', borderCollapse: 'collapse' },
-  th: { backgroundColor: '#f8fafc', padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' },
-  td: { padding: '14px 16px', fontSize: '14px', borderTop: '1px solid #f1f5f9' },
-  tableRow: { transition: 'background 0.2s' },
-  badgeBase: { padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600' }
-};
-
-import { useState, useEffect } from 'react';
-import axios from 'axios';
-
-const API_BASE_URL = "http://localhost:5000/api";
-
 const styles = {
   container: { padding: '24px', backgroundColor: '#f8fafc', minHeight: '100vh', fontFamily: 'Inter, sans-serif' },
   title: { fontSize: '24px', fontWeight: '700', color: '#0f172a', margin: 0 },
