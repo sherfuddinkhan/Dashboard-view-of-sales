@@ -1535,21 +1535,19 @@ app.get("/api/inventory", async (req, res) => {
         });
 
     }
+  catch (error) {
 
-    catch (error) {
+    console.error(error);
 
-        console.log(error.response?.data);
+    console.error(error.stack);
 
-        res.status(500).json({
+    res.status(500).json({
+        success: false,
+        message: error.message,
+        stack: error.stack
+    });
 
-            error:
-                error.response?.data ||
-                error.message
-
-        });
-
-    }
-
+}
 });
 
 
