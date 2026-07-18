@@ -1,11 +1,7 @@
 import React, { useState } from "react";
 import { NavLink } from "react-router-dom";
-import { 
-  FiKey, FiGlobe, FiBook, FiShoppingCart, FiFileText, 
-  FiDollarSign, FiUpload, FiList, FiSettings, FiGrid, 
-  FiChevronDown, FiChevronRight, FiMessageSquare, FiTruck,
-  FiBarChart2, FiUsers, FiTarget, FiAlertTriangle, FiPackage 
-} from "react-icons/fi";
+import { FiKey, FiGlobe, FiBook, FiShoppingCart, FiFileText,FiDollarSign, FiUpload, FiList, FiSettings, FiGrid,FiChevronDown, FiChevronRight, FiMessageSquare, FiTruck,
+FiBarChart2, FiUsers, FiTarget, FiAlertTriangle, FiPackage} from "react-icons/fi";
 
 const Sidebar = () => {
   const [open, setOpen] = useState({
@@ -169,6 +165,10 @@ const Sidebar = () => {
           <NavLink to="/listings/submission" className="sidebar-link">
             <FiList />
             <span>Listing Submission</span>
+          </NavLink>
+           <NavLink to="/listing/productprice" className="sidebar-link">
+            <FiList />
+            <span>product pricing</span>
           </NavLink>
         </div>
       )}

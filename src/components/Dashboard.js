@@ -65,6 +65,7 @@ import RandomForestPrediction from "../Analytics/RandomForestPrediction";
 import IsolationForestAnomaly from "../Analytics/IsolationForestAnomaly";
 import ABCAnalysis from "../Analytics/ABCAnalysis";
 import RFMAnalysis from "../Analytics/RFMAnalysis";
+import ProductPricing  from "../components/Listings APIs/ProductPricing"
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("amazon-dashboard");
@@ -168,6 +169,7 @@ const Dashboard = () => {
         { id: "update-listing", label: "Update Listing", Component: UpdateListing },
         { id: "delete-listing", label: "Delete Listing", Component: DeleteListing },
         { id: "listing-submission", label: "Listing Submission", Component: ListingSubmission },
+        { id: "product pricing", label: "productpricing", Component: ProductPricing },
       ],
     },
     {
