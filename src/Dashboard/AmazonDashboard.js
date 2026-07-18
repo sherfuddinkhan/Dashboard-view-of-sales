@@ -1,25 +1,53 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { RefreshCw, Package, ShoppingCart, TrendingUp, AlertTriangle, AlertCircle } from 'lucide-react';
 
-const API_BASE_URL = '/api'; // Node.js API
+const API_BASE_URL = "http://localhost:5000/api";
 
 const AmazonDashboard = () => {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [lastUpdated, setLastUpdated] = useState(null);
+  const [activeTab, setActiveTab] = useState("products");
+  const [productSales, setProductSales] = useState([]);
+  const [customerSales, setCustomerSales] = useState([]);
+  const [finance, setFinance] = useState([]);
+  const [shipping, setShipping] = useState([]);
+  const [listings, setListings] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const fetchDashboard = async () => {
-    setLoading(true);
-    setError(null);
-    
+  // Fetch according to 9 base tables -> 5 views
+  const fetchData = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/dashboard`);
-      setData(response.data);
-      setLastUpdated(new Date());
+      setLoading(true);
+
+      // vwProductSales -> Uses FactSales + DimProduct (TotalUnitsSold, TotalSales)
+      if (activeTab === "products") {
+        const res = await axios.get(`${API_BASE_URL}/vwProductSales`);
+        setProductSales(res.data.data || res.data || []);
+      }
+
+      // vwCustomerSales -> Uses FactSales + DimCustomer (TotalOrders, TotalRevenue, AverageOrderValue)
+      if (activeTab === "customers") {
+        const res = await axios.get(`${API_BASE_URL}/vwCustomerSales`);
+        setCustomerSales(res.data.data || res.data || []);
+      }
+
+      // vwFinance -> Uses FactFinance + DimSeller (Charges, Fees, Taxes, Settlement)
+      if (activeTab === "finance") {
+        const res = await axios.get(`${API_BASE_URL}/vwFinance`);
+        setFinance(res.data.data || res.data || []);
+      }
+
+      // vwShipping -> Uses FactShipping (ShipmentStatus, DeliveryDays, Returned)
+      if (activeTab === "shipping") {
+        const res = await axios.get(`${API_BASE_URL}/vwShipping`);
+        setShipping(res.data.data || res.data || []);
+      }
+
+      // vwListings -> Uses FactListings + FactInventory + DimProduct
+      if (activeTab === "listings") {
+        const res = await axios.get(`${API_BASE_URL}/vwListings`);
+        setListings(res.data.data || res.data || []);
+      }
+
     } catch (err) {
-      setError('Failed to load Amazon dashboard data');
       console.error(err);
     } finally {
       setLoading(false);
@@ -27,135 +55,75 @@ const AmazonDashboard = () => {
   };
 
   useEffect(() => {
-    fetchDashboard();
-  }, []);
+    fetchData();
+  }, [activeTab]);
 
-  if (loading && !data) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  // ML Algorithms mapping to your 9 base tables
+  const mlModels = {
+    products: { model: "Random Forest", func: "listing_prediction()", file: "random_forest.py" },
+    customers: { model: "KMeans", func: "CustomerSegmentation().perform_clustering()", file: "kmeans.py" },
+    finance: { model: "Isolation Forest", func: "detect_anomaly()", file: "isolation_forest.py" },
+    shipping: { model: "Decision Tree", func: "return_prediction()", file: "decision_tree.py" },
+    listings: { model: "ABC Analysis", func: "abc_analysis()", file: "abc_analysis.py" }
+  };
 
   return (
-    <div className="p-6 space-y-8">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-4xl font-bold text-gray-800">Amazon Dashboard</h1>
-          <p className="text-gray-600">Real-time operational data from Amazon Seller Account</p>
-        </div>
-        <button
-          onClick={fetchDashboard}
-          disabled={loading}
-          className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 disabled:opacity-50"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
+    <div style={{ padding: 20 }}>
+      <h1>AmazonSellerAnalytics - 19 Tables</h1>
+      <p>9 Base: DimCustomer, DimProduct, DimDate, DimSeller, FactSales, FactFinance, FactInventory, FactListings, FactShipping</p>
+      <p>10 SP-API: ProductPricing, Reports, Feeds, Notifications, MerchantShipments, AmazonShipping, RestrictedTokens, Uploads, MarketplaceParticipations, Authorizations</p>
+
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+        {["products", "customers", "finance", "shipping", "listings"].map(tab => (
+          <button key={tab} onClick={() => setActiveTab(tab)} style={{ fontWeight: activeTab === tab? "bold" : "normal" }}>
+            {tab}
+          </button>
+        ))}
       </div>
 
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 p-4 rounded-lg flex items-center gap-3">
-          <AlertCircle className="h-5 w-5" /> {error}
+      {loading? <p>Loading from {activeTab}...</p> : (
+        <div style={{ marginTop: 20 }}>
+          {activeTab === "products" && (
+            <table border="1">
+              <thead>
+                <tr>
+                  <th>ProductKey</th><th>ASIN</th><th>SKU</th><th>ProductName</th><th>Category</th><th>TotalUnitsSold</th><th>TotalSales</th>
+                </tr>
+              </thead>
+              <tbody>
+                {productSales.map((p, i) => (
+                  <tr key={i}>
+                    <td>{p.ProductKey}</td><td>{p.ASIN}</td><td>{p.SKU}</td><td>{p.ProductName}</td><td>{p.Category}</td><td>{p.TotalUnitsSold}</td><td>{p.TotalSales}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          {activeTab === "customers" && (
+            <table border="1">
+              <thead>
+                <tr>
+                  <th>CustomerName</th><th>TotalOrders</th><th>TotalQuantity</th><th>TotalRevenue</th><th>AverageOrderValue</th>
+                </tr>
+              </thead>
+              <tbody>
+                {customerSales.map((c, i) => (
+                  <tr key={i}>
+                    <td>{c.CustomerName}</td><td>{c.TotalOrders}</td><td>{c.TotalQuantity}</td><td>{c.TotalRevenue}</td><td>{c.AverageOrderValue}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          <div style={{ marginTop: 20, background: "#f5f5f5", padding: 10 }}>
+            <p>ML Model: {mlModels[activeTab].model}</p>
+            <code>{mlModels[activeTab].file} - {mlModels[activeTab].func}</code>
+          </div>
         </div>
       )}
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-xl shadow">
-          <div className="flex justify-between items-center">
-            <p className="text-gray-500">Total Products</p>
-            <Package className="h-6 w-6 text-gray-400" />
-          </div>
-          <p className="text-4xl font-bold mt-3">{data?.summary?.totalProducts?.toLocaleString() || 0}</p>
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow">
-          <div className="flex justify-between items-center">
-            <p className="text-gray-500">Total Orders</p>
-            <ShoppingCart className="h-6 w-6 text-gray-400" />
-          </div>
-          <p className="text-4xl font-bold mt-3">{data?.summary?.totalOrders?.toLocaleString() || 0}</p>
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow">
-          <div className="flex justify-between items-center">
-            <p className="text-gray-500">Revenue</p>
-            <TrendingUp className="h-6 w-6 text-emerald-600" />
-          </div>
-          <p className="text-4xl font-bold mt-3 text-emerald-600">
-            ₹{data?.summary?.revenue?.toLocaleString() || 0}
-          </p>
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow">
-          <div className="flex justify-between items-center">
-            <p className="text-gray-500">Returns</p>
-            <AlertTriangle className="h-6 w-6 text-red-500" />
-          </div>
-          <p className="text-4xl font-bold mt-3 text-red-600">
-            {data?.summary?.returns?.toLocaleString() || 0}
-          </p>
-        </div>
-      </div>
-
-      {/* Tables */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-        {/* Products Table */}
-        <div className="bg-white rounded-xl shadow">
-          <div className="p-6 border-b font-semibold">Products</div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="text-left p-4">ASIN</th>
-                  <th className="text-left p-4">Name</th>
-                  <th className="text-left p-4">Price</th>
-                  <th className="text-left p-4">Stock</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data?.products?.slice(0, 8).map((p, i) => (
-                  <tr key={i} className="border-t hover:bg-gray-50">
-                    <td className="p-4 font-mono text-sm">{p.asin}</td>
-                    <td className="p-4">{p.name}</td>
-                    <td className="p-4">₹{p.price}</td>
-                    <td className="p-4">{p.stock}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Recent Orders Table */}
-        <div className="bg-white rounded-xl shadow">
-          <div className="p-6 border-b font-semibold">Recent Orders</div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="text-left p-4">Order ID</th>
-                  <th className="text-left p-4">Amount</th>
-                  <th className="text-left p-4">Status</th>
-                  <th className="text-left p-4">Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data?.orders?.slice(0, 8).map((o, i) => (
-                  <tr key={i} className="border-t hover:bg-gray-50">
-                    <td className="p-4 font-mono">{o.orderId}</td>
-                    <td className="p-4">₹{o.amount}</td>
-                    <td className="p-4">{o.status}</td>
-                    <td className="p-4">{o.date}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };
