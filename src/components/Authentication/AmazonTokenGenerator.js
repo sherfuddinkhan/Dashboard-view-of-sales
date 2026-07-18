@@ -5,12 +5,12 @@ const AmazonTokenGenerator = () => {
 const [clientId, setClientId] = useState(process.env.REACT_APP_AMAZON_CLIENT_ID || "");
 const [clientSecret, setClientSecret] = useState(process.env.REACT_APP_AMAZON_CLIENT_SECRET || "");
 const [refreshToken, setRefreshToken] = useState(process.env.REACT_APP_AMAZON_REFRESH_TOKEN || "");
-
+  const [saveMessage, setSaveMessage] = useState('');
   const [accessToken, setAccessToken] = useState("");
   const [expiresIn, setExpiresIn] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-
+  const [saving, setSaving] = useState(false);
 
   const generateToken = async () => {
   setLoading(true);
@@ -46,6 +46,37 @@ const [refreshToken, setRefreshToken] = useState(process.env.REACT_APP_AMAZON_RE
     setLoading(false);
   }
 };
+// NEW FUNCTION - Save to DB on button click
+  const saveToDB = async () => {
+    if (!accessToken) {
+      alert('Generate token first!');
+      return;
+    }
+
+    setSaving(true);
+    setSaveMessage('');
+
+    try {
+      const payload = {
+        access_token: accessToken,
+        refresh_token: localStorage.getItem("amazonRefreshToken") || refreshToken,
+        token_type: "bearer",
+        expires_in: expiresIn || 3600
+      };
+
+      const response = await axios.post(
+        "http://localhost:5000/api/amazon/tokens/save",
+        payload
+      );
+
+      setSaveMessage(`✅ Saved! TokenID: ${response.data.tokenId} | ${response.data.message}`);
+
+    } catch (err) {
+      setSaveMessage(`❌ Failed to save to DB: ${err.response?.data?.message || err.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div
@@ -119,6 +150,20 @@ const [refreshToken, setRefreshToken] = useState(process.env.REACT_APP_AMAZON_RE
           >
             Copy Token
           </button>
+          {/* SAVE TO DB BUTTON - SHOWS AFTER GENERATE */}
+          <button
+            onClick={saveToDB}
+            disabled={saving}
+            style={{ padding: '10px 20px', background: '#FF9900', color: 'white', border: 'none', cursor: 'pointer', marginTop: '10px' }}
+          >
+            {saving? 'Saving to SQL Server...' : '💾 Save to DB'}
+          </button>
+
+          {saveMessage && (
+            <div style={{ marginTop: '10px', padding: '10px', background: saveMessage.includes('✅')? '#d4edda' : '#f8d7da' }}>
+              {saveMessage}
+            </div>
+          )}
         </>
       )}
 

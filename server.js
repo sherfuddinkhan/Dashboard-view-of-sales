@@ -1,16 +1,37 @@
 const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
-const aws4 = require("aws4");
+const dotenv = require('dotenv');
 
 
+dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-// Home Route
 app.get("/", (req, res) => {
   res.send("Amazon SP-API Backend Running...");
+});
+
+// ===== FIXED DB CONFIG FOR WINDOWS AUTH =====
+const sql = require("mssql/msnodesqlv8");
+
+const config = {
+    server: "DESKTOP-BUGKGO7",
+    database: "AmazonSellerAnalytics",
+    driver: "msnodesqlv8",
+
+    connectionString:
+        "Driver={ODBC Driver 18 for SQL Server};Server=DESKTOP-BUGKGO7;Database=AmazonSellerAnalytics;Trusted_Connection=Yes;TrustServerCertificate=Yes;"
+};
+const pool = new sql.ConnectionPool(config);
+const poolConnect = pool.connect();
+
+poolConnect.then(() => {
+  console.log('✅ Connected to SQL Server Successfully - Windows Auth');
+}).catch(err => {
+  console.log('DB Connection Failed', err);
+  console.log('Full Error:', err.originalError || err.message);
 });
 
 // ==================== 1. AUTHENTICATION ====================
@@ -2440,6 +2461,53 @@ app.patch('/easyShip/2022-03-23/package', (req, res) => {
 
   res.status(200).json(scheduledPackages[recordIndex]);
 });
+////////////////////////////Response Apis///////////////
+// POST - Save token to AmazonSPAuthTokens table
+// ====== YOUR TOKEN API WITH app.post ======
+app.post('/api/amazon/tokens/save', async (req, res) => {
+  console.log('Received body:', req.body);
+
+  try {
+    await poolConnect;
+    const { access_token, refresh_token, token_type, expires_in } = req.body;
+
+    if (!access_token) {
+      return res.status(400).json({ status: 'error', message: 'access_token required' });
+    }
+
+    const expiresAt = new Date(Date.now() + (expires_in || 3600) * 1000);
+
+    // Deactivate old tokens
+    await pool.request().query(`UPDATE AmazonSPAuthTokens SET IsActive = 0`);
+
+    // Insert new
+    const request = pool.request();
+    request.input('AccessToken', sql.NVarChar(sql.MAX), access_token);
+    request.input('RefreshToken', sql.NVarChar(sql.MAX), refresh_token);
+    request.input('TokenType', sql.NVarChar, token_type || 'bearer');
+    request.input('ExpiresIn', sql.Int, expires_in || 3600);
+    request.input('ExpiresAt', sql.DateTime, expiresAt);
+
+    const result = await request.query(`
+      INSERT INTO AmazonSPAuthTokens (AccessToken, RefreshToken, TokenType, ExpiresIn, ExpiresAt, IsActive)
+      OUTPUT INSERTED.TokenID
+      VALUES (@AccessToken, @RefreshToken, @TokenType, @ExpiresIn, @ExpiresAt, 1)
+    `);
+
+    res.status(201).json({
+      status: 'success',
+      message: 'Tokens saved to AmazonSPAuthTokens table',
+      tokenId: result.recordset[0].TokenID,
+      expiresAt: expiresAt
+    });
+
+  } catch (err) {
+    console.error('SQL Error:', err);
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+
 
 
 // Start Server

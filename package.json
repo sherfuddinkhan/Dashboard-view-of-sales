@@ -13,11 +13,13 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "lucide-react": "^1.25.0",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
+    "msnodesqlv8": "^5.2.2",
+    "mssql": "^12.7.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "react-icons": "^5.7.0",
     "react-router-dom": "^7.18.1",
-    "react-scripts": "5.0.1",
+    "react-scripts": "^5.0.1",
     "sonner": "^2.0.7",
     "tailwindcss": "^4.3.3",
     "web-vitals": "^2.1.4"
@@ -45,5 +47,20 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "description": "This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).",
+  "main": "server.js",
+  "devDependencies": {
+    "jest": "^27.5.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sherfuddinkhan/Dashboard-view-of-sales.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/sherfuddinkhan/Dashboard-view-of-sales/issues"
   }
 }
