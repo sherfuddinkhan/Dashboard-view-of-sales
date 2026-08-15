@@ -2,8 +2,6 @@ const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
 const dotenv = require('dotenv');
-
-
 dotenv.config();
 const app = express();
 app.use(cors());
@@ -14,26 +12,75 @@ app.get("/", (req, res) => {
 });
 
 // ===== FIXED DB CONFIG FOR WINDOWS AUTH =====
+// ======================================================
+// SQL SERVER - TWO DATABASE CONNECTIONS
+// Windows Authentication
+// ======================================================
+
 const sql = require("mssql/msnodesqlv8");
+const SERVER_NAME = "DESKTOP-BUGKGO7";
 
-const config = {
-    server: "DESKTOP-BUGKGO7",
-    database: "AmazonSellerAnalytics",
-    driver: "msnodesqlv8",
-
-    connectionString:
-        "Driver={ODBC Driver 18 for SQL Server};Server=DESKTOP-BUGKGO7;Database=AmazonSellerAnalytics;Trusted_Connection=Yes;TrustServerCertificate=Yes;"
+// AmazonSellerAnalytics
+const amazonConfig = {
+  server: SERVER_NAME,
+  database: "AmazonSellerAnalytics",
+  driver: "msnodesqlv8",
+  connectionString:
+    `Driver={ODBC Driver 18 for SQL Server};` +
+    `Server=${SERVER_NAME};` +
+    `Database=AmazonSellerAnalytics;` +
+    `Trusted_Connection=Yes;` +
+    `TrustServerCertificate=Yes;`
 };
-const pool = new sql.ConnectionPool(config);
-const poolConnect = pool.connect();
 
-poolConnect.then(() => {
-  console.log('✅ Connected to SQL Server Successfully - Windows Auth');
-}).catch(err => {
-  console.log('DB Connection Failed', err);
-  console.log('Full Error:', err.originalError || err.message);
-});
+// SellerPortalDB
+const sellerConfig = {
+  server: SERVER_NAME,
+  database: "SellerPortalDB",
+  driver: "msnodesqlv8",
+  connectionString:
+    `Driver={ODBC Driver 18 for SQL Server};` +
+    `Server=${SERVER_NAME};` +
+    `Database=SellerPortalDB;` +
+    `Trusted_Connection=Yes;` +
+    `TrustServerCertificate=Yes;`
+};
 
+// Amazon database
+const amazonPoolPromise = new sql.ConnectionPool(amazonConfig)
+  .connect()
+  .then((pool) => {
+    console.log("✅ Connected to AmazonSellerAnalytics");
+    return pool;
+  })
+  .catch((err) => {
+    console.error(
+      "❌ AmazonSellerAnalytics connection failed:",
+      err.message
+    );
+    throw err;
+  });
+
+// Seller Portal database
+const sellerPoolPromise = new sql.ConnectionPool(sellerConfig)
+  .connect()
+  .then((pool) => {
+    console.log("✅ Connected to SellerPortalDB");
+    return pool;
+  })
+  .catch((err) => {
+    console.error(
+      "❌ SellerPortalDB connection failed:",
+      err.message
+    );
+    throw err;
+  });
+
+module.exports = {
+  sql,
+  amazonPoolPromise,
+  sellerPoolPromise
+};
 // ==================== 1. AUTHENTICATION ====================
 // Generate Amazon Access Token
 app.post("/api/token", async (req, res) => {
@@ -42,7 +89,6 @@ app.post("/api/token", async (req, res) => {
     if (!clientId || !clientSecret || !refreshToken) {
       return res.status(400).json({ success: false, message: "Client ID, Client Secret and Refresh Token are required." });
     }
-
     const params = new URLSearchParams();
     params.append("grant_type", "refresh_token");
     params.append("client_id", clientId);
@@ -62,6 +108,145 @@ app.post("/api/token", async (req, res) => {
       return res.status(error.response.status).json(error.response.data);
     }
     return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+//POST /api/auth/login
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const {
+      userName,
+      password,
+    } = req.body;
+
+    // Validate request
+    if (!userName || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Username and password are required",
+      });
+    }
+
+    // Connect to database
+   const pool = await sellerPoolPromise;
+
+    // Find user
+    const result = await pool
+      .request()
+      .input("UserName", sql.NVarChar, userName)
+      .query(`
+        SELECT
+          UserId,
+          SellerId,
+          CustomerId,
+          FullName,
+          UserName,
+          Email,
+          PasswordHash,
+          Mobile,
+          Role,
+          IsActive,
+          EmailVerified,
+          MobileVerified,
+          IsLocked
+        FROM Users
+        WHERE UserName = @UserName
+      `);
+
+    const user = result.recordset[0];
+
+    // User doesn't exist
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid username or password",
+      });
+    }
+
+    // Check active
+    if (!user.IsActive) {
+      return res.status(403).json({
+        success: false,
+        message: "User account is inactive",
+      });
+    }
+
+    // Check locked
+    if (user.IsLocked) {
+      return res.status(403).json({
+        success: false,
+        message: "User account is locked",
+      });
+    }
+
+    /*
+     * Verify password
+     *
+     * Password entered:
+     * password
+     *
+     * Database:
+     * PasswordHash
+     */
+    const passwordValid = await bcrypt.compare(
+      password,
+      user.PasswordHash
+    );
+
+    if (!passwordValid) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid username or password",
+      });
+    }
+
+    /*
+     * Generate JWT
+     */
+    const token = jwt.sign(
+      {
+        userId: user.UserId,
+        sellerId: user.SellerId,
+        customerId: user.CustomerId,
+        userName: user.UserName,
+        role: user.Role,
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "8h",
+      }
+    );
+
+    /*
+     * Successful login
+     */
+    return res.status(200).json({
+      success: true,
+      message: "Login successful",
+
+      token,
+
+      user: {
+        userId: user.UserId,
+        sellerId: user.SellerId,
+        customerId: user.CustomerId,
+        fullName: user.FullName,
+        userName: user.UserName,
+        email: user.Email,
+        mobile: user.Mobile,
+        role: user.Role,
+      },
+    });
+
+  } catch (error) {
+
+    console.error("Login Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
   }
 });
 
@@ -485,7 +670,7 @@ app.get("/api/product-pricing", async (req, res) => {
 });
 
 
-// Create Listing - PUT
+// Create Listing - Post
 app.post("/api/listings/bulk-create", async (req, res) => {
   try {
     const {
