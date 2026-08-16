@@ -1,52 +1,60 @@
 const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
-const dotenv = require('dotenv');
+const dotenv = require("dotenv");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 dotenv.config();
+
 const app = express();
+
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: "10mb" }));
 
 app.get("/", (req, res) => {
   res.send("Amazon SP-API Backend Running...");
 });
 
-// ===== FIXED DB CONFIG FOR WINDOWS AUTH =====
-// ======================================================
-// SQL SERVER - TWO DATABASE CONNECTIONS
-// Windows Authentication
-// ======================================================
-
 const sql = require("mssql/msnodesqlv8");
-const SERVER_NAME = "DESKTOP-BUGKGO7";
 
-// AmazonSellerAnalytics
+const SERVER_NAME = process.env.DB_SERVER;
+
+// ======================================================
+// AMAZON DATABASE
+// ======================================================
+
 const amazonConfig = {
   server: SERVER_NAME,
-  database: "AmazonSellerAnalytics",
+  database: process.env.AMAZON_DB,
   driver: "msnodesqlv8",
   connectionString:
     `Driver={ODBC Driver 18 for SQL Server};` +
     `Server=${SERVER_NAME};` +
-    `Database=AmazonSellerAnalytics;` +
+    `Database=${process.env.AMAZON_DB};` +
     `Trusted_Connection=Yes;` +
     `TrustServerCertificate=Yes;`
 };
 
-// SellerPortalDB
+// ======================================================
+// SELLER PORTAL DATABASE
+// ======================================================
+
 const sellerConfig = {
   server: SERVER_NAME,
-  database: "SellerPortalDB",
+  database: process.env.SELLER_DB,
   driver: "msnodesqlv8",
   connectionString:
     `Driver={ODBC Driver 18 for SQL Server};` +
     `Server=${SERVER_NAME};` +
-    `Database=SellerPortalDB;` +
+    `Database=${process.env.SELLER_DB};` +
     `Trusted_Connection=Yes;` +
     `TrustServerCertificate=Yes;`
 };
 
-// Amazon database
+// ======================================================
+// AMAZON DATABASE CONNECTION
+// ======================================================
+
 const amazonPoolPromise = new sql.ConnectionPool(amazonConfig)
   .connect()
   .then((pool) => {
@@ -61,7 +69,10 @@ const amazonPoolPromise = new sql.ConnectionPool(amazonConfig)
     throw err;
   });
 
-// Seller Portal database
+// ======================================================
+// SELLER PORTAL DATABASE CONNECTION
+// ======================================================
+
 const sellerPoolPromise = new sql.ConnectionPool(sellerConfig)
   .connect()
   .then((pool) => {
@@ -75,12 +86,6 @@ const sellerPoolPromise = new sql.ConnectionPool(sellerConfig)
     );
     throw err;
   });
-
-module.exports = {
-  sql,
-  amazonPoolPromise,
-  sellerPoolPromise
-};
 // ==================== 1. AUTHENTICATION ====================
 // Generate Amazon Access Token
 app.post("/api/token", async (req, res) => {
@@ -129,7 +134,6 @@ app.post("/api/auth/login", async (req, res) => {
 
     // Connect to database
    const pool = await sellerPoolPromise;
-
     // Find user
     const result = await pool
       .request()

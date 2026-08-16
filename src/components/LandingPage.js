@@ -4,19 +4,11 @@ import { useNavigate } from "react-router-dom";
 
 const LandingPage = () => {
   const navigate = useNavigate();
-
-  const [formData, setFormData] = useState({
-    userName: "",
-    password: "",
-  });
-
+  const [formData, setFormData] = useState({userName: "priya.nair",password: "Priya@12345"});
   const [loading, setLoading] = useState(false);
-
   const [error, setError] = useState("");
-
   const handleChange = (e) => {
     const { name, value } = e.target;
-
     setFormData((previous) => ({
       ...previous,
       [name]: value,
@@ -25,10 +17,8 @@ const LandingPage = () => {
 
  const handleLogin = async (e) => {
   e.preventDefault();
-
   setLoading(true);
   setError("");
-
   try {
     const response = await axios.post(
       "http://localhost:5000/api/auth/login",
@@ -42,41 +32,17 @@ const LandingPage = () => {
     );
 
     console.log("Login Response:", response.data);
-
     if (response.data?.success) {
-
       // Save authentication
-      localStorage.setItem(
-        "authResponse",
-        JSON.stringify(response.data)
-      );
-
-      localStorage.setItem(
-        "isAuthenticated",
-        "true"
-      );
-
+      localStorage.setItem("authResponse",JSON.stringify(response.data));
+      localStorage.setItem("isAuthenticated","true");
       // Save token separately
-      localStorage.setItem(
-        "token",
-        response.data.token
-      );
-
+      localStorage.setItem("token",response.data.token);
       // Save seller/customer information
-      localStorage.setItem(
-        "sellerId",
-        response.data.user.sellerId
-      );
-
-      localStorage.setItem(
-        "customerId",
-        response.data.user.customerId
-      );
-
+      localStorage.setItem("sellerId",response.data.user.sellerId);
+      localStorage.setItem("customerId",response.data.user.customerId);
       // Redirect
-      navigate("/dashboard", {
-        replace: true,
-      });
+      navigate("/dashboard", {replace: true});
     }
 
   } catch (err) {
