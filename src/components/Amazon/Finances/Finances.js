@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 
 import AmazonTokenGenerator from "../Authentication/AmazonTokenGenerator";
-import ErrorDisplay from "../Common/ErrorDisplay";
+import ErrorDisplay from "../../Common/ErrorDisplay";
 
 /* ===========================================================
    Finance Tabs Configuration

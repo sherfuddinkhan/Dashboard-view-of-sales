@@ -42,13 +42,11 @@ const LandingPage = () => {
       localStorage.setItem("sellerId",response.data.user.sellerId);
       localStorage.setItem("customerId",response.data.user.customerId);
       // Redirect
-      navigate("/dashboard", {replace: true});
+      navigate("/marketplaces", {replace: true});
     }
 
   } catch (err) {
-
     console.error("Login Error:", err);
-
     setError(
       err.response?.data?.message ||
       err.message ||
@@ -66,7 +64,7 @@ const LandingPage = () => {
       <div style={styles.loginCard}>
 
         <h1 style={styles.title}>
-          Amazon SP-API
+           SP-API
         </h1>
 
         <p style={styles.subtitle}>

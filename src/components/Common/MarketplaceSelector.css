@@ -1,0 +1,342 @@
+.marketplace-selector {
+  width: 100%;
+  box-sizing: border-box;
+
+  background: #ffffff;
+
+  border-bottom: 1px solid #e5e7eb;
+
+  padding: 14px 20px 12px;
+
+  position: sticky;
+  top: 0;
+
+  z-index: 50;
+}
+
+/* ============================= */
+/* HEADER */
+/* ============================= */
+
+.marketplace-title {
+  margin-bottom: 12px;
+}
+
+.marketplace-title h2 {
+  margin: 0;
+
+  font-size: 18px;
+  font-weight: 700;
+
+  color: #111827;
+}
+
+.marketplace-title p {
+  margin: 3px 0 0;
+
+  font-size: 12px;
+
+  color: #6b7280;
+}
+
+/* ============================= */
+/* HORIZONTAL MARKETPLACE LIST */
+/* ============================= */
+
+.marketplace-list {
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 28px;
+
+  overflow-x: auto;
+
+  scrollbar-width: thin;
+
+  padding: 8px 20px;
+}
+
+/* Chrome / Edge / Firefox */
+
+.marketplace-list::-webkit-scrollbar {
+  height: 5px;
+}
+
+.marketplace-list::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+
+  border-radius: 10px;
+}
+
+/* ============================= */
+/* MARKETPLACE ITEM */
+/* ============================= */
+
+.marketplace-list {
+  display: flex;
+  align-items: center;
+
+  /* Centers cards horizontally when they don't overflow */
+  justify-content: center; 
+
+  /* Allows scrolling to reach edge items on smaller screens/overflow */
+  margin: 0 auto; 
+  
+  gap: 28px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding: 8px 20px;
+}
+
+/* Fix flex child clipping when content overflows horizontally in centered flex containers */
+.marketplace-list::before,
+.marketplace-list::after {
+  content: '';
+  margin: auto;
+}
+
+.marketplace-item:hover {
+  border-color: #cbd5e1;
+
+  background: #f8fafc;
+
+  transform: translateY(-1px);
+}
+
+/* ============================= */
+/* ICON */
+/* ============================= */
+
+.marketplace-item-icon {
+  width: 34px;
+
+  height: 34px;
+
+  border-radius: 8px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+}
+
+/* ============================= */
+/* TEXT */
+/* ============================= */
+
+.marketplace-item span {
+  font-size: 13px;
+
+  font-weight: 600;
+
+  color: #374151;
+
+  white-space: nowrap;
+}
+
+/* ============================= */
+/* ACTIVE MARKETPLACE */
+/* ============================= */
+
+.marketplace-active {
+  border-color: #2563eb;
+
+  background: #f8fbff;
+
+  box-shadow:
+    0 2px 8px rgba(37, 99, 235, 0.12);
+}
+
+.marketplace-active span {
+  color: #111827;
+}
+
+/* ============================= */
+/* ACTIVE LINE */
+/* ============================= */
+
+.marketplace-active-line {
+  position: absolute;
+
+  left: 15%;
+
+  right: 15%;
+
+  bottom: 0;
+
+  height: 3px;
+
+  border-radius: 3px 3px 0 0;
+}
+/* Update item alignment from row to column */
+.marketplace-item {
+  position: relative;
+  min-width: 120px;
+  /* Increase or adjust height to fit stacked layout */
+  height: auto; 
+
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #ffffff;
+
+  /* Stack icon on top of text and keep centered */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+/* Ensure the icon itself centers its content */
+.marketplace-item-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto; /* Extra safety for block elements */
+}
+
+/* Optional: ensure label centers underneath */
+.marketplace-item span {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Container Layout */
+.marketplace-wrapper {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 24px 20px;
+  background: #ffffff;
+}
+
+/* Header Text Alignment */
+.marketplace-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.marketplace-header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.marketplace-header p {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+/* Horizontal Scroll List - Centered Starting Point */
+.marketplace-scroll {
+  display: flex;
+  align-items: center;
+  justify-content: center; /* Centers items horizontally */
+  gap: 20px;
+  padding: 12px 20px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+/* Fix flex child scroll alignment when content overflows */
+.marketplace-scroll::before,
+.marketplace-scroll::after {
+  content: "";
+  margin: auto;
+}
+
+/* Custom Scrollbar Styles */
+.marketplace-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.marketplace-scroll::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 10px;
+}
+
+/* Individual Card Alignment */
+.marketplace-card {
+  position: relative;
+  min-width: 160px;
+  padding: 20px 16px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  
+  /* Flex Column to center icon, title, and link vertically */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.marketplace-card:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  transform: translateY(-2px);
+}
+
+.marketplace-card.active {
+  border-color: #2563eb;
+  background: #f8fbff;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12);
+}
+
+/* Center Icon Layout */
+.marketplace-icon {
+  width: 68px;
+  height: 68px;
+  border-radius: 16px;
+  
+  /* Center SVG inside icon box */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+/* Label Styling */
+.marketplace-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 4px;
+}
+
+.marketplace-dashboard-text {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* Active Bottom Line Indicator */
+.active-indicator {
+  position: absolute;
+  bottom: 0;
+  left: 20%;
+  right: 20%;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+}
