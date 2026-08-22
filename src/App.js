@@ -64,17 +64,21 @@ const App = () => {
         {/* =================================================
             AMAZON (Starts flush from the left screen edge)
         ================================================= */}
-        <Route
-          path="/marketplaces/amazon"
-          element={<AmazonDashboard />}
-        />
-        <Route
-  path="/marketplaces/amazon/customers"
-  element={<SellerCustomerlist />}
+{/* AMAZON */}
+
+<Route
+  path="/marketplaces/amazon"
+  element={<AmazonDashboard />}
 />
+
 <Route
   path="/marketplaces/amazon/sellers"
   element={<Sellerlist />}
+/>
+
+<Route
+  path="/marketplaces/amazon/customers/:sellerId/:customerId"
+  element={<SellerCustomerlist />}
 />
         {/* =================================================
             FLIPKART
