@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   BarChart3, Key, ShoppingBag, Layers, 
   Package, ShoppingCart, DollarSign, Bell, Truck, 
   MessageSquare, Globe, ChevronDown, ChevronRight, LayoutDashboard,
-  Menu, X, Search, LogOut 
+  Menu, X, Search, LogOut, CheckCircle2, Lock
 } from "lucide-react";
 
 import "./AmazonDashboard.css"; 
@@ -45,13 +45,12 @@ import ProductTypeSchema from "./ProductTypeDefinitions/ProductTypeSchema";
 import ProductPricing from "./Listings APIs/ProductPricing";
 import Inventory from "./Pricing APIs/Inventory";
 
-// Inline Overview Component
 const AmazonOverview = () => (
   <div className="amazon-overview-card">
     <h2>Amazon SP-API Overview</h2>
     <p>
       Manage your Amazon SP-API integrations, active listings, order reports, and analytics 
-      from a central operational console. Select any API module from the sidebar to begin.
+      from a central operational console.
     </p>
   </div>
 );
@@ -60,9 +59,19 @@ const AmazonDashboard = () => {
   const [activeTab, setActiveTab] = useState("amazon-dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   
+  // Global Authentication State
+  const [accessToken, setAccessToken] = useState("");
+  const [awsAccessKey, setAwsAccessKey] = useState("");
+  const [awsSecretKey, setAwsSecretKey] = useState("");
+  const [region, setRegion] = useState("us-east-1");
+  const [environment, setEnvironment] = useState("sandbox");
+  const [marketplaceIds, setMarketplaceIds] = useState("ATVPDKIKX0DER");
+
+  const isAuthenticated = Boolean(accessToken && accessToken.trim() !== "");
+
   const [expanded, setExpanded] = useState({
     dashboards: true,
-    auth: false,
+    auth: true,
     seller: false,
     product: false,
     listings: false,
@@ -74,13 +83,24 @@ const AmazonDashboard = () => {
     feeds: false,
   });
 
-  // Global State Props
-  const [accessToken, setAccessToken] = useState("");
-  const [awsAccessKey, setAwsAccessKey] = useState("");
-  const [awsSecretKey, setAwsSecretKey] = useState("");
-  const [region, setRegion] = useState("us-east-1");
-  const [environment, setEnvironment] = useState("sandbox");
-  const [marketplaceIds, setMarketplaceIds] = useState("ATVPDKIKX0DER");
+  // Automatically expand ALL sidebar categories when authentication succeeds
+  useEffect(() => {
+    if (isAuthenticated) {
+      setExpanded({
+        dashboards: true,
+        auth: true,
+        seller: true,
+        product: true,
+        listings: true,
+        orders: true,
+        finances: true,
+        notifications: true,
+        shipping: true,
+        messaging: true,
+        feeds: true,
+      });
+    }
+  }, [isAuthenticated]);
 
   const commonProps = {
     accessToken,
@@ -102,6 +122,7 @@ const AmazonDashboard = () => {
       key: "dashboards",
       title: "Main Dashboards",
       icon: LayoutDashboard,
+      requiresAuth: false,
       items: [
         { id: "amazon-dashboard", label: "Amazon Overview", Component: AmazonOverview },
       ],
@@ -110,12 +131,14 @@ const AmazonDashboard = () => {
       key: "auth",
       title: "Authentication",
       icon: Key,
+      requiresAuth: false,
       items: [{ id: "token", label: "Token Generator", Component: AmazonTokenGenerator }],
     },
     {
       key: "seller",
       title: "Seller & Catalog",
       icon: ShoppingBag,
+      requiresAuth: true,
       items: [
         { id: "marketplace", label: "Marketplace Participations", Component: MarketplaceParticipations },
         { id: "catalogSearch", label: "Catalog Item Search", Component: CatalogSearch },
@@ -128,6 +151,7 @@ const AmazonDashboard = () => {
       key: "product",
       title: "Product Types",
       icon: Layers,
+      requiresAuth: true,
       items: [
         { id: "product-types-home", label: "Product Type Definition", Component: ProductTypeDefinitions },
         { id: "search-product-types", label: "Search Product Types", Component: SearchProductTypes },
@@ -138,6 +162,7 @@ const AmazonDashboard = () => {
       key: "listings",
       title: "Listings",
       icon: Package,
+      requiresAuth: true,
       items: [
         { id: "create-listing", label: "Create Listing", Component: CreateListing },
         { id: "get-listing", label: "Get Listing", Component: GetListing },
@@ -151,6 +176,7 @@ const AmazonDashboard = () => {
       key: "orders",
       title: "Orders & Reports",
       icon: ShoppingCart,
+      requiresAuth: true,
       items: [
         { id: "get-orders", label: "Get Orders", Component: Orders },
         { id: "get-order", label: "Get Order Details", Component: GetOrder },
@@ -163,12 +189,14 @@ const AmazonDashboard = () => {
       key: "finances",
       title: "Finances",
       icon: DollarSign,
+      requiresAuth: true,
       items: [{ id: "finances", label: "Financial Events", Component: Finances }],
     },
     {
       key: "notifications",
       title: "Notifications",
       icon: Bell,
+      requiresAuth: true,
       items: [
         { id: "notifications", label: "Overview", Component: Notifications },
         { id: "create-destination", label: "Create Destination", Component: CreateDestination },
@@ -180,6 +208,7 @@ const AmazonDashboard = () => {
       key: "shipping",
       title: "Shipping",
       icon: Truck,
+      requiresAuth: true,
       items: [
         { id: "shipping-home", label: "Overview", Component: Shipping },
         { id: "get-rates", label: "Get Rates", Component: GetRates },
@@ -191,6 +220,7 @@ const AmazonDashboard = () => {
       key: "messaging",
       title: "Messaging",
       icon: MessageSquare,
+      requiresAuth: true,
       items: [
         { id: "messaging-home", label: "Overview", Component: Messaging },
         { id: "message-templates", label: "Message Templates", Component: MessageTemplates },
@@ -201,6 +231,7 @@ const AmazonDashboard = () => {
       key: "feeds",
       title: "Feeds & Uploads",
       icon: Globe,
+      requiresAuth: true,
       items: [
         { id: "create-feed-doc", label: "Create Feed Document", Component: CreateFeedDocument },
         { id: "create-feed", label: "Create Feed", Component: CreateFeed },
@@ -228,7 +259,7 @@ const AmazonDashboard = () => {
         />
       )}
 
-      {/* Styled Sidebar */}
+      {/* Sidebar Navigation */}
       <aside className={`sidebar ${sidebarOpen ? "open" : "collapsed"}`}>
         <div className="sidebar-header">
           <div className="brand-wrapper">
@@ -251,6 +282,23 @@ const AmazonDashboard = () => {
           </button>
         </div>
 
+        {/* Authentication Status Banner in Sidebar */}
+        {sidebarOpen && (
+          <div className={`auth-status-bar ${isAuthenticated ? "authed" : "unauthed"}`}>
+            {isAuthenticated ? (
+              <>
+                <CheckCircle2 size={15} />
+                <span>Authenticated & Active</span>
+              </>
+            ) : (
+              <>
+                <Lock size={15} />
+                <span>Auth Required</span>
+              </>
+            )}
+          </div>
+        )}
+
         <div className="sidebar-content">
           {categories.map((category) => {
             const Icon = category.icon;
@@ -266,7 +314,7 @@ const AmazonDashboard = () => {
                   <div className="category-info">
                     <Icon
                       size={18}
-                      className={isExpanded ? "icon-active" : "icon-muted"}
+                      className={isAuthenticated || !category.requiresAuth ? "icon-active" : "icon-muted"}
                     />
                     {sidebarOpen && (
                       <span className="category-title">{category.title}</span>
@@ -285,16 +333,23 @@ const AmazonDashboard = () => {
                   <div className="submenu">
                     {category.items.map((item) => {
                       const isActive = activeTab === item.id;
+                      const isDisabled = category.requiresAuth && !isAuthenticated;
+
                       return (
                         <button
                           key={item.id}
+                          disabled={isDisabled}
                           onClick={() => {
-                            setActiveTab(item.id);
-                            if (window.innerWidth < 1024) {
-                              setSidebarOpen(false);
+                            if (!isDisabled) {
+                              setActiveTab(item.id);
+                              if (window.innerWidth < 1024) {
+                                setSidebarOpen(false);
+                              }
                             }
                           }}
-                          className={`submenu-button ${isActive ? "active" : ""}`}
+                          className={`submenu-button ${isActive ? "active" : ""} ${
+                            isDisabled ? "disabled" : ""
+                          }`}
                         >
                           {item.label}
                         </button>
@@ -310,15 +365,16 @@ const AmazonDashboard = () => {
         <div className="sidebar-footer">
           <button
             className="logout-button"
+            onClick={() => setAccessToken("")}
             title={!sidebarOpen ? "Logout" : ""}
           >
             <LogOut size={19} />
-            {sidebarOpen && <span>Logout</span>}
+            {sidebarOpen && <span>{isAuthenticated ? "Clear Token" : "Logout"}</span>}
           </button>
         </div>
       </aside>
 
-      {/* Main Content Area */}
+      {/* Main Panel Area */}
       <main className="main-area">
         <header className="top-navbar">
           <div className="navbar-left">
