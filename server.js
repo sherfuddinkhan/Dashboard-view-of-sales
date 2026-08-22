@@ -2721,39 +2721,47 @@ const httpsAgent = new https.Agent({
 // Node:
 // GET https://localhost:7203/api/SellerCustomer
 // ============================================================
-
 app.get("/api/seller-customers", async (req, res) => {
   try {
+    console.log("======================================");
+    console.log("GET ALL SELLER CUSTOMERS");
+    console.log("Calling:", `${DOTNET_API_URL}/SellerCustomer`);
+
     const response = await axios.get(
-      "https://localhost:7203/api/SellerCustomer",
+      `${DOTNET_API_URL}/SellerCustomer`,
       {
         headers: {
-          Accept: "*/*",
+          Accept: "application/json",
         },
-        httpsAgent: new https.Agent({
-          rejectUnauthorized: false,
-        }),
+        httpsAgent: httpsAgent,
+        timeout: 30000,
       }
     );
 
-    res.status(200).json({
+    console.log(".NET Status:", response.status);
+    console.log("Seller Customers:", response.data);
+
+    return res.status(200).json({
       success: true,
       data: response.data,
     });
 
   } catch (error) {
-    console.error(
-      "SellerCustomer API Error:",
-      error.message
-    );
 
-    res.status(
-      error.response?.status || 500
-    ).json({
+    console.error("======================================");
+    console.error("SELLER CUSTOMER API ERROR");
+    console.error("Message:", error.message);
+    console.error("Code:", error.code);
+    console.error("Status:", error.response?.status);
+    console.error("Response:", error.response?.data);
+    console.error("======================================");
+
+    return res.status(error.response?.status || 500).json({
       success: false,
-      message:
-        error.response?.data?.message ||
-        "Failed to fetch seller customers",
+      message: "Failed to fetch seller customers",
+      error: error.message,
+      status: error.response?.status || 500,
+      details: error.response?.data || null,
     });
   }
 });
