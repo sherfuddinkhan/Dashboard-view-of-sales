@@ -1,0 +1,597 @@
+/* =========================================================
+   MAIN PAGE
+========================================================= */
+
+.seller-customer-list-page {
+  min-height: 100vh;
+  padding: 24px;
+  background: #f5f7fb;
+  box-sizing: border-box;
+}
+
+
+/* =========================================================
+   HEADER
+========================================================= */
+
+.seller-customer-header {
+  margin-bottom: 24px;
+}
+
+.seller-customer-header h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.seller-customer-header p {
+  margin: 7px 0 0;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+
+/* =========================================================
+   SEARCH CARD
+========================================================= */
+
+.seller-customer-search-card {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+
+  padding: 20px;
+
+  background: #ffffff;
+
+  border: 1px solid #e5e7eb;
+
+  border-radius: 12px;
+
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.05);
+
+  margin-bottom: 22px;
+}
+
+
+/* =========================================================
+   FORM GROUP
+========================================================= */
+
+.seller-customer-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.seller-customer-form-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.seller-customer-form-group input {
+  width: 180px;
+  height: 40px;
+
+  padding: 0 12px;
+
+  box-sizing: border-box;
+
+  border: 1px solid #d1d5db;
+
+  border-radius: 7px;
+
+  outline: none;
+
+  font-size: 14px;
+
+  color: #111827;
+}
+
+.seller-customer-form-group input:focus {
+  border-color: #2563eb;
+
+  box-shadow:
+    0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+
+/* =========================================================
+   GET CUSTOMER BUTTON
+========================================================= */
+
+.seller-customer-get-btn {
+  height: 40px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+
+  padding: 0 18px;
+
+  border: none;
+
+  border-radius: 7px;
+
+  background: #2563eb;
+
+  color: #ffffff;
+
+  font-size: 14px;
+
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.seller-customer-get-btn:hover {
+  background: #1d4ed8;
+}
+
+.seller-customer-get-btn:disabled {
+  opacity: 0.6;
+
+  cursor: not-allowed;
+}
+
+
+/* =========================================================
+   CLEAR BUTTON
+========================================================= */
+
+.seller-customer-clear-btn {
+  height: 40px;
+
+  padding: 0 18px;
+
+  border: 1px solid #d1d5db;
+
+  border-radius: 7px;
+
+  background: #ffffff;
+
+  color: #374151;
+
+  font-size: 14px;
+
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.seller-customer-clear-btn:hover {
+  background: #f9fafb;
+}
+
+
+/* =========================================================
+   ERROR
+========================================================= */
+
+.seller-customer-error {
+  padding: 13px 16px;
+
+  margin-bottom: 20px;
+
+  border-radius: 8px;
+
+  background: #fee2e2;
+
+  border: 1px solid #fecaca;
+
+  color: #991b1b;
+
+  font-size: 14px;
+}
+
+
+/* =========================================================
+   RESULT
+========================================================= */
+
+.seller-customer-result {
+  width: 100%;
+}
+
+
+/* =========================================================
+   RESULT HEADER
+========================================================= */
+
+.seller-customer-result-header {
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  padding: 20px;
+
+  margin-bottom: 18px;
+
+  background: #ffffff;
+
+  border: 1px solid #e5e7eb;
+
+  border-radius: 12px;
+
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.seller-customer-result-header h2 {
+  margin: 0;
+
+  font-size: 20px;
+
+  font-weight: 700;
+
+  color: #111827;
+}
+
+.seller-customer-result-header p {
+  margin: 5px 0 0;
+
+  color: #6b7280;
+
+  font-size: 14px;
+}
+
+
+/* =========================================================
+   STATUS
+========================================================= */
+
+.customer-status {
+  padding: 6px 12px;
+
+  border-radius: 20px;
+
+  font-size: 12px;
+
+  font-weight: 600;
+}
+
+.customer-status.active {
+  background: #dcfce7;
+
+  color: #166534;
+}
+
+.customer-status.inactive {
+  background: #fee2e2;
+
+  color: #991b1b;
+}
+
+
+/* =========================================================
+   SUMMARY GRID
+========================================================= */
+
+.seller-customer-summary-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(6, minmax(0, 1fr));
+
+  gap: 14px;
+
+  margin-bottom: 20px;
+}
+
+
+/* =========================================================
+   SUMMARY CARD
+========================================================= */
+
+.seller-customer-summary-card {
+  min-height: 88px;
+
+  padding: 16px;
+
+  box-sizing: border-box;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 12px;
+
+  background: #ffffff;
+
+  border: 1px solid #e5e7eb;
+
+  border-radius: 10px;
+
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+
+/* =========================================================
+   SUMMARY ICON
+========================================================= */
+
+.seller-customer-summary-icon {
+  width: 40px;
+
+  height: 40px;
+
+  flex-shrink: 0;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  border-radius: 8px;
+
+  background: #eff6ff;
+
+  color: #2563eb;
+}
+
+
+/* =========================================================
+   SUMMARY TEXT
+========================================================= */
+
+.seller-customer-summary-card > div:last-child {
+  min-width: 0;
+}
+
+.seller-customer-summary-card span {
+  display: block;
+
+  margin-bottom: 5px;
+
+  font-size: 12px;
+
+  color: #6b7280;
+}
+
+.seller-customer-summary-card strong {
+  display: block;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+
+  font-size: 14px;
+
+  color: #111827;
+}
+
+
+/* =========================================================
+   SECTION
+========================================================= */
+
+.seller-customer-section {
+  margin-bottom: 16px;
+
+  overflow: hidden;
+
+  background: #ffffff;
+
+  border: 1px solid #e5e7eb;
+
+  border-radius: 10px;
+
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+
+/* =========================================================
+   SECTION HEADER
+========================================================= */
+
+.seller-customer-section-header {
+  width: 100%;
+
+  min-height: 55px;
+
+  padding: 0 20px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  border: none;
+
+  background: #ffffff;
+
+  color: #111827;
+
+  font-size: 15px;
+
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.seller-customer-section-header:hover {
+  background: #f9fafb;
+}
+
+.seller-customer-section-header span {
+  display: flex;
+
+  align-items: center;
+
+  gap: 9px;
+}
+
+.seller-customer-section-header small {
+  min-width: 22px;
+
+  height: 22px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  padding: 0 6px;
+
+  box-sizing: border-box;
+
+  border-radius: 12px;
+
+  background: #eff6ff;
+
+  color: #2563eb;
+
+  font-size: 11px;
+}
+
+
+/* =========================================================
+   SECTION CONTENT
+========================================================= */
+
+.seller-customer-section-content {
+  border-top: 1px solid #e5e7eb;
+}
+
+
+/* =========================================================
+   DETAIL ROW
+========================================================= */
+
+.seller-customer-detail-row {
+  min-height: 60px;
+
+  padding: 14px 20px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  gap: 20px;
+
+  box-sizing: border-box;
+
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.seller-customer-detail-row:last-child {
+  border-bottom: none;
+}
+
+.seller-customer-detail-row > div {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 4px;
+}
+
+.seller-customer-detail-row strong {
+  font-size: 14px;
+
+  color: #111827;
+}
+
+.seller-customer-detail-row span {
+  font-size: 13px;
+
+  color: #6b7280;
+}
+
+
+/* =========================================================
+   EMPTY
+========================================================= */
+
+.seller-customer-empty {
+  padding: 20px;
+
+  margin: 0;
+
+  color: #6b7280;
+
+  font-size: 14px;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 1200px) {
+
+  .seller-customer-summary-grid {
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr));
+  }
+
+}
+
+
+@media (max-width: 800px) {
+
+  .seller-customer-search-card {
+    flex-direction: column;
+
+    align-items: stretch;
+  }
+
+  .seller-customer-form-group input {
+    width: 100%;
+  }
+
+  .seller-customer-get-btn,
+  .seller-customer-clear-btn {
+    width: 100%;
+
+    justify-content: center;
+  }
+
+  .seller-customer-summary-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .seller-customer-detail-row {
+    flex-direction: column;
+
+    align-items: flex-start;
+  }
+
+}
+
+
+@media (max-width: 500px) {
+
+  .seller-customer-list-page {
+    padding: 16px;
+  }
+
+  .seller-customer-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .seller-customer-result-header {
+    align-items: flex-start;
+
+    gap: 12px;
+
+    flex-direction: column;
+  }
+
+}

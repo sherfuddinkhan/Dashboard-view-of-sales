@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 const AmazonTokenGenerator = () => {
 const [clientId, setClientId] = useState(process.env.REACT_APP_AMAZON_CLIENT_ID || "");
@@ -11,8 +12,9 @@ const [refreshToken, setRefreshToken] = useState(process.env.REACT_APP_AMAZON_RE
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const navigate = useNavigate();
 
-  const generateToken = async () => {
+const generateToken = async () => {
   setLoading(true);
   setError("");
   setAccessToken("");
@@ -26,24 +28,60 @@ const [refreshToken, setRefreshToken] = useState(process.env.REACT_APP_AMAZON_RE
         refreshToken,
       }
     );
-      const token = response.data.access_token;
-      const expiry = response.data.expires_in;
 
-      setAccessToken(token);
-      setExpiresIn(expiry);
+    const token = response.data.access_token;
+    const expiry = response.data.expires_in;
 
-      // Save to localStorage
-      localStorage.setItem("amazonAccessToken", token);
-      localStorage.setItem("amazonTokenExpiry", expiry.toString());
-      localStorage.setItem("amazonTokenGeneratedAt",Date.now().toString())
+    setAccessToken(token);
+    setExpiresIn(expiry);
+
+    // =====================================================
+    // SAVE AMAZON TOKEN
+    // =====================================================
+
+    localStorage.setItem(
+      "amazonAccessToken",
+      token
+    );
+
+    localStorage.setItem(
+      "amazonTokenExpiry",
+      expiry.toString()
+    );
+
+    localStorage.setItem(
+      "amazonTokenGeneratedAt",
+      Date.now().toString()
+    );
+
+    // =====================================================
+    // REDIRECT TO SELLER CUSTOMER LIST
+    // =====================================================
+
+    navigate("/marketplaces/amazon/sellers");
+
   } catch (err) {
+
     if (err.response) {
-      setError(JSON.stringify(err.response.data, null, 2));
+
+      setError(
+        JSON.stringify(
+          err.response.data,
+          null,
+          2
+        )
+      );
+
     } else {
+
       setError(err.message);
+
     }
+
   } finally {
+
     setLoading(false);
+
   }
 };
 // NEW FUNCTION - Save to DB on button click

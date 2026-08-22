@@ -4,6 +4,7 @@ const axios = require("axios");
 const dotenv = require("dotenv");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const https = require("https");
 dotenv.config();
 
 const app = express();
@@ -2696,7 +2697,131 @@ app.post('/api/amazon/tokens/save', async (req, res) => {
   }
 });
 
+/////////////////////// Seller APIS      /////////////////
 
+// ============================================================
+// GET SELLER CUSTOMER
+// GET /api/seller-customer/6/customers/3
+// ============================================================
+
+
+const DOTNET_API_URL =
+  "https://localhost:7203/api";
+
+const httpsAgent = new https.Agent({
+  rejectUnauthorized: false,
+});
+
+// ============================================================
+// GET ALL SELLER CUSTOMERS
+//
+// React:
+// GET http://localhost:5000/api/seller-customers
+//
+// Node:
+// GET https://localhost:7203/api/SellerCustomer
+// ============================================================
+
+app.get("/api/seller-customers", async (req, res) => {
+  try {
+    const response = await axios.get(
+      "https://localhost:7203/api/SellerCustomer",
+      {
+        headers: {
+          Accept: "*/*",
+        },
+        httpsAgent: new https.Agent({
+          rejectUnauthorized: false,
+        }),
+      }
+    );
+
+    res.status(200).json({
+      success: true,
+      data: response.data,
+    });
+
+  } catch (error) {
+    console.error(
+      "SellerCustomer API Error:",
+      error.message
+    );
+
+    res.status(
+      error.response?.status || 500
+    ).json({
+      success: false,
+      message:
+        error.response?.data?.message ||
+        "Failed to fetch seller customers",
+    });
+  }
+});
+
+
+app.get(
+  "/api/seller-customer/:sellerId/customers/:customerId",
+  async (req, res) => {
+
+    const { sellerId, customerId } = req.params;
+
+    try {
+
+      if (!sellerId || !customerId) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Seller ID and Customer ID are required.",
+        });
+      }
+
+      const response = await axios.get(
+        `${DOTNET_API_URL}/SellerCustomer/${sellerId}/customers/${customerId}`,
+        {
+          headers: {
+            Accept: "*/*",
+          },
+          httpsAgent,
+        }
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: response.data,
+      });
+
+    } catch (error) {
+
+      console.error(
+        "SellerCustomer API Error:",
+        error.message
+      );
+
+      if (error.response) {
+
+        return res.status(error.response.status).json({
+          success: false,
+          message:
+            error.response.data?.message ||
+            "Customer API request failed.",
+          data: error.response.data,
+        });
+
+      }
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Unable to connect to the .NET backend.",
+        error: error.message,
+      });
+    }
+  }
+);
+
+// ============================================================
+// START SERVER
+// ============================================================
 
 
 // Start Server

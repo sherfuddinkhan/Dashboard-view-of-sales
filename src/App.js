@@ -1,5 +1,6 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import Sellerlist from "./components/Amazon/Sellerlist";
 
 // =========================================================
 // COMMON COMPONENTS
@@ -7,7 +8,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import LandingPage from "./components/Common/LandingPage";
 import MarketplaceSelector from "./components/Common/MarketplaceSelector";
-
+import SellerCustomerlist from "./components/Amazon/SellerCustomerlist";
 // =========================================================
 // MARKETPLACE DASHBOARDS
 // =========================================================
@@ -67,7 +68,14 @@ const App = () => {
           path="/marketplaces/amazon"
           element={<AmazonDashboard />}
         />
-
+        <Route
+  path="/marketplaces/amazon/customers"
+  element={<SellerCustomerlist />}
+/>
+<Route
+  path="/marketplaces/amazon/sellers"
+  element={<Sellerlist />}
+/>
         {/* =================================================
             FLIPKART
         ================================================= */}

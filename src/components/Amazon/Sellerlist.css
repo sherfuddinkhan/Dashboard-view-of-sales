@@ -1,0 +1,488 @@
+.seller-list-page {
+  min-height: 100vh;
+  padding: 24px;
+  background: #f5f7fb;
+}
+
+
+/* HEADER */
+
+.seller-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+
+.seller-list-header h1 {
+  margin: 0;
+  font-size: 28px;
+  color: #111827;
+}
+
+.seller-list-header p {
+  margin: 6px 0 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+
+/* REFRESH */
+
+.seller-refresh-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 10px 15px;
+
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+
+  background: white;
+  color: #374151;
+
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.seller-refresh-btn:hover {
+  background: #f9fafb;
+}
+
+
+/* SUMMARY */
+
+.seller-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+
+  margin-bottom: 20px;
+}
+
+.seller-summary-card {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+
+  padding: 16px;
+
+  background: white;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+.seller-summary-icon {
+  width: 42px;
+  height: 42px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 9px;
+
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.seller-summary-card span {
+  display: block;
+
+  font-size: 12px;
+  color: #6b7280;
+
+  margin-bottom: 4px;
+}
+
+.seller-summary-card strong {
+  font-size: 21px;
+  color: #111827;
+}
+
+
+/* SEARCH */
+
+.seller-toolbar {
+  margin-bottom: 16px;
+}
+
+.seller-search {
+  width: 420px;
+  height: 42px;
+
+  display: flex;
+  align-items: center;
+  gap: 9px;
+
+  padding: 0 13px;
+
+  background: white;
+
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+
+  color: #6b7280;
+}
+
+.seller-search input {
+  width: 100%;
+  height: 100%;
+
+  border: none;
+  outline: none;
+
+  font-size: 14px;
+}
+
+
+/* ERROR */
+
+.seller-error {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  padding: 14px;
+
+  margin-bottom: 15px;
+
+  border-radius: 8px;
+
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+
+  color: #991b1b;
+}
+
+.seller-error button {
+  padding: 7px 12px;
+
+  border: 1px solid #fca5a5;
+  border-radius: 6px;
+
+  background: white;
+
+  color: #991b1b;
+
+  cursor: pointer;
+}
+
+
+/* LOADING */
+
+.seller-loading {
+  height: 250px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+
+  background: white;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+
+  color: #6b7280;
+}
+
+.seller-spin {
+  animation: sellerSpin 1s linear infinite;
+}
+
+@keyframes sellerSpin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+
+/* TABLE */
+
+.seller-table-container {
+  width: 100%;
+  overflow-x: auto;
+
+  background: white;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+.seller-table {
+  width: 100%;
+  min-width: 900px;
+
+  border-collapse: collapse;
+}
+
+.seller-table thead {
+  background: #f8fafc;
+}
+
+.seller-table th {
+  padding: 14px 16px;
+
+  text-align: left;
+
+  font-size: 12px;
+
+  color: #6b7280;
+
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.seller-table td {
+  padding: 15px 16px;
+
+  font-size: 13px;
+
+  color: #374151;
+
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.seller-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+
+/* IDs */
+
+.id-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  font-weight: 600;
+}
+
+.id-cell svg {
+  color: #2563eb;
+}
+
+
+/* CUSTOMER CODE */
+
+.customer-code {
+  padding: 5px 8px;
+
+  border-radius: 5px;
+
+  background: #f3f4f6;
+
+  font-size: 12px;
+  font-weight: 600;
+}
+
+
+/* STATUS */
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+
+  padding: 5px 9px;
+
+  border-radius: 20px;
+
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.status.active {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status.inactive {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+
+/* VIEW */
+
+.view-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  padding: 7px 11px;
+
+  border: 1px solid #dbeafe;
+  border-radius: 6px;
+
+  background: #eff6ff;
+
+  color: #2563eb;
+
+  font-size: 12px;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.view-btn:hover {
+  background: #dbeafe;
+}
+
+
+/* NO DATA */
+
+.no-data {
+  height: 160px;
+
+  text-align: center !important;
+
+  color: #6b7280 !important;
+}
+
+
+/* MODAL */
+
+.seller-modal-overlay {
+  position: fixed;
+
+  inset: 0;
+
+  z-index: 1000;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 20px;
+
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.seller-modal {
+  width: 720px;
+  max-width: 100%;
+  max-height: 85vh;
+
+  overflow-y: auto;
+
+  background: white;
+
+  border-radius: 12px;
+}
+
+
+/* MODAL HEADER */
+
+.seller-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 20px;
+
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.seller-modal-header h2 {
+  margin: 0;
+
+  font-size: 20px;
+}
+
+.seller-modal-header p {
+  margin: 5px 0 0;
+
+  color: #6b7280;
+
+  font-size: 13px;
+}
+
+.close-btn {
+  width: 32px;
+  height: 32px;
+
+  border: none;
+  border-radius: 6px;
+
+  background: #f3f4f6;
+
+  font-size: 22px;
+
+  cursor: pointer;
+}
+
+
+/* DETAILS */
+
+.seller-details-grid {
+  display: grid;
+
+  grid-template-columns: repeat(2, 1fr);
+
+  gap: 1px;
+
+  background: #e5e7eb;
+}
+
+.seller-details-grid > div {
+  padding: 16px;
+
+  background: white;
+}
+
+.seller-details-grid span {
+  display: block;
+
+  margin-bottom: 5px;
+
+  font-size: 11px;
+
+  color: #6b7280;
+
+  text-transform: uppercase;
+}
+
+.seller-details-grid strong {
+  font-size: 14px;
+
+  color: #111827;
+}
+
+
+/* RESPONSIVE */
+
+@media (max-width: 900px) {
+
+  .seller-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .seller-search {
+    width: 100%;
+  }
+}
+
+@media (max-width: 600px) {
+
+  .seller-list-page {
+    padding: 16px;
+  }
+
+  .seller-list-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .seller-details-grid {
+    grid-template-columns: 1fr;
+  }
+}
