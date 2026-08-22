@@ -1,91 +1,56 @@
 import React, { useState } from "react";
+import { 
+  BarChart3, BrainCircuit, Key, ShoppingBag, Layers, 
+  Package, ShoppingCart, DollarSign, Bell, Truck, 
+  MessageSquare, RSS, ChevronDown, ChevronRight, LayoutDashboard,
+  Menu, X, Search, LogOut 
+} from "lucide-react";
 
-// Auth
+import "./Dashboard.css"; // Pure CSS Import
+
 import AmazonTokenGenerator from "./Authentication/AmazonTokenGenerator";
-// Seller & Catalog
 import MarketplaceParticipations from "./Seller APIs/MarketplaceParticipations";
 import CatalogItem from "./Catalog APIs/CatalogItem";
 import Pricing from "./Pricing APIs/Pricing";
 import CatalogSearch from "./Catalog APIs/CatalogSearch";
-// Listings
 import CreateListing from "./Listings APIs/CreateListing";
 import GetListing from "./Listings APIs/GetListing";
 import UpdateListing from "./Listings APIs/UpdateListing";
 import DeleteListing from "./Listings APIs/DeleteListing";
 import ListingSubmission from "./Listings APIs/ListingSubmission";
-// Orders
 import Orders from "./Orders APIs/Orders";
 import GetOrder from "./Orders APIs/GetOrder";
 import GetOrderItems from "./Orders APIs/GetOrderItems";
 import CreateReport from "./Orders APIs/CreateReport";
 import GetReport from "./Orders APIs/GetReport";
 import GetReportDocument from "./Orders APIs/GetReportDocument";
-// Feeds
 import CreateFeedDocument from "./Feeds APIs/CreateFeedDocument";
 import CreateFeed from "./Feeds APIs/CreateFeed";
 import GetFeed from "./Feeds APIs/GetFeed";
-// Uploads
 import Uploads from "./Uploads APIs/Uploads";
-// Finances
 import Finances from "./Finances/Finances";
-// Shipping
 import Shipping from "./Shipping/Shipping";
 import GetRates from "./Shipping/GetRates";
 import PurchaseLabel from "./Shipping/PurchaseLabel";
 import TrackingDetails from "./Shipping/TrackingDetails";
-// Messaging
 import Messaging from "./Messaging/Messaging";
 import MessageTemplates from "./Messaging/MessageTemplates";
 import SendMessage from "./Messaging/SendMessage";
-// Notifications
 import Notifications from "./Notifications/Notifications";
 import CreateDestination from "./Notifications/CreateDestination";
 import CreateSubscription from "./Notifications/CreateSubscription";
 import NotificationResult from "./Notifications/NotificationResult";
-// ProductTypeDefinitions
 import ProductTypeDefinitions from "./ProductTypeDefinitions/ProductTypeDefinitions";
 import SearchProductTypes from "./ProductTypeDefinitions/SearchProductTypes";
 import ProductTypeSchema from "./ProductTypeDefinitions/ProductTypeSchema";
-
-// Dashboard Components
 import AmazonDashboard from "../Dashboard/AmazonDashboard";
-import AnalyticsDashboard from "../Dashboard/AnalyticsDashboard";
-
-
-// Individual ML Components (inside Analytics folder)
-//ML Analytics Components (from Analytics folder)
-import CustomerSegmentation from "../Analytics/CustomerSegmentation";
-import ProductRecommendation from "../Analytics/ProductRecommendation";
-import SalesForecast from "../Analytics/SalesForecast";
-import ReturnPrediction from "../Analytics/ReturnPrediction";
-import FraudDetection from "../Analytics/FraudDetection";
-import InventoryAnalysis from "../Analytics/InventoryAnalysis";
-import RecommendationSystem from "../Analytics/RecommendationSystem";
-import RandomForestPrediction from "../Analytics/RandomForestPrediction";
-import IsolationForestAnomaly from "../Analytics/IsolationForestAnomaly";
-import ABCAnalysis from "../Analytics/ABCAnalysis";
-import RFMAnalysis from "../Analytics/RFMAnalysis";
-import ProductPricing  from "../components/Listings APIs/ProductPricing"
-import inventory  from "../components/Pricing APIs/Inventory";
+import ProductPricing from "../components/Listings APIs/ProductPricing";
+import Inventory from "../components/Pricing APIs/Inventory";
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("amazon-dashboard");
-
-  const [expanded, setExpanded] = useState({
-    dashboards: true,
-    analytics: true,
-    auth: true,
-    seller: true,
-    product: true,
-    listings: true,
-    orders: false,
-    finances: false,
-    notifications: false,
-    shipping: false,
-    messaging: false,
-    feeds: false,
-  });
-
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [expanded, setExpanded] = useState({dashboards: true,analytics: true,auth: false,seller: false,product: false,listings: false,orders: false,finances: false,notifications: false,shipping: false,messaging: false,feeds: false,});
   // Global state
   const [accessToken, setAccessToken] = useState("");
   const [awsAccessKey, setAwsAccessKey] = useState("");
@@ -112,50 +77,34 @@ const Dashboard = () => {
   const categories = [
     {
       key: "dashboards",
-      title: "📊 Main Dashboards",
+      title: "Main Dashboards",
+      icon: LayoutDashboard,
       items: [
-        { id: "amazon-dashboard", label: "Amazon Dashboard", Component: AmazonDashboard },
-        { id: "analytics-dashboard", label: "Analytics Dashboard", Component: AnalyticsDashboard },
-      ],
-    },
-    {
-      key: "analytics",
-      title: "🤖 ML Analytics Components",
-      items: [
-        { id: "customer-segmentation", label: "Customer Segmentation (K-Means)", Component: CustomerSegmentation },
-        { id: "product-recommendation", label: "Product Recommendation (Apriori)", Component: ProductRecommendation },
-        { id: "Random Forest", label: "Sales/Product Prediction", Component: RandomForestPrediction},
-        { id: "sales-forecast", label: "Sales Forecast (XGBoost)", Component: SalesForecast },
-        { id: "return-prediction", label: "Return Prediction (Decision Tree)", Component: ReturnPrediction },
-        { id: "fraud-detection", label: "Fraud Detection (Isolation Forest)", Component: FraudDetection },
-        { id: "inventory-analysis", label: "Inventory Analysis (ABC)", Component: InventoryAnalysis },
-        { id: "recommendation-system", label: "Recommendation System", Component: RecommendationSystem },
-        { id: "rfm-analysis", label: "RFM Analysis", Component: RFMAnalysis },
-        { id:"finance-anomaly",label:"Finance Anomaly Detection",Component:IsolationForestAnomaly},
-        { id: "abc-analysis", label: "abc Analysis (ABC)", Component:ABCAnalysis },
+        { id: "amazon-dashboard", label: "Amazon Overview", Component: AmazonDashboard },
       ],
     },
     {
       key: "auth",
-      title: "1. Authentication",
-      items: [
-        { id: "token", label: "Token Generator", Component: AmazonTokenGenerator },
-      ],
+      title: "Authentication",
+      icon: Key,
+      items: [{ id: "token", label: "Token Generator", Component: AmazonTokenGenerator }],
     },
     {
       key: "seller",
-      title: "2. Seller & Catalog",
+      title: "Seller & Catalog",
+      icon: ShoppingBag,
       items: [
         { id: "marketplace", label: "Marketplace Participations", Component: MarketplaceParticipations },
         { id: "catalogSearch", label: "Catalog Item Search", Component: CatalogSearch },
-        { id: "catalog", label: "CatalogItemDetails", Component: CatalogItem },
+        { id: "catalog", label: "Catalog Item Details", Component: CatalogItem },
         { id: "pricing", label: "Pricing", Component: Pricing },
-        { id: "inventory", label: "inventory", Component: inventory },
+        { id: "inventory", label: "Inventory", Component: Inventory },
       ],
     },
     {
       key: "product",
-      title: "3. Product Types",
+      title: "Product Types",
+      icon: Layers,
       items: [
         { id: "product-types-home", label: "Product Type Definition", Component: ProductTypeDefinitions },
         { id: "search-product-types", label: "Search Product Types", Component: SearchProductTypes },
@@ -164,22 +113,24 @@ const Dashboard = () => {
     },
     {
       key: "listings",
-      title: "4. Listings",
+      title: "Listings",
+      icon: Package,
       items: [
         { id: "create-listing", label: "Create Listing", Component: CreateListing },
         { id: "get-listing", label: "Get Listing", Component: GetListing },
         { id: "update-listing", label: "Update Listing", Component: UpdateListing },
         { id: "delete-listing", label: "Delete Listing", Component: DeleteListing },
         { id: "listing-submission", label: "Listing Submission", Component: ListingSubmission },
-        { id: "product pricing", label: "productpricing", Component: ProductPricing },
+        { id: "product-pricing", label: "Product Pricing", Component: ProductPricing },
       ],
     },
     {
       key: "orders",
-      title: "5. Orders and Reports",
+      title: "Orders & Reports",
+      icon: ShoppingCart,
       items: [
         { id: "get-orders", label: "Get Orders", Component: Orders },
-        { id: "get-order", label: "Get Order", Component: GetOrder },
+        { id: "get-order", label: "Get Order Details", Component: GetOrder },
         { id: "get-order-items", label: "Get Order Items", Component: GetOrderItems },
         { id: "create-report", label: "Create Report", Component: CreateReport },
         { id: "get-report-doc", label: "Get Report Document", Component: GetReportDocument },
@@ -187,14 +138,16 @@ const Dashboard = () => {
     },
     {
       key: "finances",
-      title: "6. Finances",
+      title: "Finances",
+      icon: DollarSign,
       items: [{ id: "finances", label: "Financial Events", Component: Finances }],
     },
     {
       key: "notifications",
-      title: "7. Notifications",
+      title: "Notifications",
+      icon: Bell,
       items: [
-        { id: "notifications", label: "Notifications", Component: Notifications },
+        { id: "notifications", label: "Overview", Component: Notifications },
         { id: "create-destination", label: "Create Destination", Component: CreateDestination },
         { id: "create-subscription", label: "Create Subscription", Component: CreateSubscription },
         { id: "notification-result", label: "Notification Result", Component: NotificationResult },
@@ -202,7 +155,8 @@ const Dashboard = () => {
     },
     {
       key: "shipping",
-      title: "8. Shipping",
+      title: "Shipping",
+      icon: Truck,
       items: [
         { id: "shipping-home", label: "Overview", Component: Shipping },
         { id: "get-rates", label: "Get Rates", Component: GetRates },
@@ -212,136 +166,232 @@ const Dashboard = () => {
     },
     {
       key: "messaging",
-      title: "9. Messaging",
+      title: "Messaging",
+      icon: MessageSquare,
       items: [
-        { id: "messaging-home", label: "Messaging", Component: Messaging },
+        { id: "messaging-home", label: "Overview", Component: Messaging },
         { id: "message-templates", label: "Message Templates", Component: MessageTemplates },
         { id: "send-message", label: "Send Message", Component: SendMessage },
       ],
     },
     {
       key: "feeds",
-      title: "10. Feeds & Uploads",
+      title: "Feeds & Uploads",
+      icon: RSS,
       items: [
         { id: "create-feed-doc", label: "Create Feed Document", Component: CreateFeedDocument },
         { id: "create-feed", label: "Create Feed", Component: CreateFeed },
-        { id: "get-feed", label: "Get Feed", Component: GetFeed },
-        { id: "uploads", label: "Uploads", Component: Uploads },
+        { id: "get-feed", label: "Get Feed Status", Component: GetFeed },
+        { id: "uploads", label: "Uploads Center", Component: Uploads },
       ],
     },
   ];
 
-  const ActiveComponent = categories
+  const activeItem = categories
     .flatMap((c) => c.items)
-    .find((i) => i.id === activeTab)?.Component;
+    .find((i) => i.id === activeTab);
+
+  const ActiveComponent = activeItem?.Component;
 
   const toggleCategory = (key) => {
     setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "#0f172a" }}>
-      {/* Sidebar */}
-      <div
-        style={{
-          width: "340px",
-          background: "#1e293b",
-          color: "#e2e8f0",
-          padding: "20px",
-          overflowY: "auto",
-          borderRight: "1px solid #334155",
-        }}
-      >
-        <h2
-          style={{
-            textAlign: "center",
-            marginBottom: "24px",
-            color: "#60a5fa",
-            fontSize: "1.5rem",
-          }}
-        >
-          Amazon SP-API
-        </h2>
-
-        {categories.map((category) => (
-          <div key={category.key} style={{ marginBottom: "16px" }}>
-            <button
-              onClick={() => toggleCategory(category.key)}
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                background: "#334155",
-                color: "#e2e8f0",
-                border: "none",
-                borderRadius: "6px",
-                textAlign: "left",
-                fontWeight: "600",
-                cursor: "pointer",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              {category.title}
-              <span>{expanded[category.key] ? "▼" : "▶"}</span>
-            </button>
-
-            {expanded[category.key] && (
-              <div style={{ marginTop: "6px" }}>
-                {category.items.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => setActiveTab(item.id)}
-                    style={{
-                      width: "100%",
-                      padding: "10px 14px",
-                      marginBottom: "4px",
-                      background: activeTab === item.id ? "#3b82f6" : "transparent",
-                      color: activeTab === item.id ? "white" : "#cbd5e1",
-                      border: "none",
-                      borderRadius: "6px",
-                      textAlign: "left",
-                      cursor: "pointer",
-                      fontSize: "14px",
-                      transition: "all 0.2s",
-                    }}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Main Content */}
-      <div
-        style={{
-          flex: 1,
-          padding: "30px",
-          overflowY: "auto",
-          background: "#f8fafc",
-        }}
-      >
+    <div className="dashboard-container">
+      {/* Mobile Overlay */}
+      {sidebarOpen && (
         <div
-          style={{
-            background: "white",
-            padding: "32px",
-            borderRadius: "12px",
-            boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-            minHeight: "90vh",
-          }}
-        >
-          {ActiveComponent ? (
-            <ActiveComponent {...commonProps} />
+          className="mobile-overlay mobile-only"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
+        {/* Sidebar Header */}
+        <div className="sidebar-header">
+          {sidebarOpen ? (
+            <div className="brand-wrapper">
+              <div className="icon-badge">
+                <BarChart3 size={20} color="#ffffff" />
+              </div>
+              <div>
+                <h1 className="brand-title">Amazon SP-API</h1>
+                <p className="brand-subtitle">Control Panel & ML Insights</p>
+              </div>
+            </div>
           ) : (
-            <div style={{ textAlign: "center", color: "#64748b", padding: "60px 20px" }}>
-              <h3>Select a tool from the sidebar</h3>
+            <div className="icon-badge">
+              <BarChart3 size={20} color="#ffffff" />
             </div>
           )}
+
+          {sidebarOpen && (
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="icon-button desktop-only"
+              title="Collapse sidebar"
+            >
+              <X size={20} />
+            </button>
+          )}
+
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="icon-button mobile-only"
+          >
+            <X size={20} />
+          </button>
         </div>
-      </div>
+
+        {/* Sidebar Categories */}
+        <div className="sidebar-content">
+          {categories.map((category) => {
+            const Icon = category.icon;
+            const isExpanded = expanded[category.key];
+
+            return (
+              <div key={category.key} className="category-wrapper">
+                <button
+                  onClick={() => toggleCategory(category.key)}
+                  className={`category-button ${isExpanded ? "expanded" : ""}`}
+                  title={!sidebarOpen ? category.title : ""}
+                >
+                  <div className="category-info">
+                    <Icon
+                      size={18}
+                      className={isExpanded ? "icon-active" : "icon-muted"}
+                    />
+                    {sidebarOpen && (
+                      <span className="category-title">{category.title}</span>
+                    )}
+                  </div>
+
+                  {sidebarOpen &&
+                    (isExpanded ? (
+                      <ChevronDown size={16} className="icon-muted" />
+                    ) : (
+                      <ChevronRight size={16} className="icon-muted" />
+                    ))}
+                </button>
+
+                {/* Submenu Items */}
+                {isExpanded && sidebarOpen && (
+                  <div className="submenu">
+                    {category.items.map((item) => {
+                      const isActive = activeTab === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            setActiveTab(item.id);
+                            if (window.innerWidth < 1024) {
+                              setSidebarOpen(false);
+                            }
+                          }}
+                          className={`submenu-button ${isActive ? "active" : ""}`}
+                        >
+                          {item.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Sidebar Footer */}
+        <div className="sidebar-footer">
+          <button
+            className="logout-button"
+            title={!sidebarOpen ? "Logout" : ""}
+          >
+            <LogOut size={19} />
+            {sidebarOpen && <span>Logout</span>}
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Area */}
+      <main className="main-area">
+        {/* Top Navbar */}
+        <header className="top-navbar">
+          <div className="navbar-left">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="toggle-btn"
+              title={sidebarOpen ? "Collapse sidebar" : "Open sidebar"}
+            >
+              {sidebarOpen ? <ChevronRight size={20} /> : <Menu size={20} />}
+            </button>
+
+            <div>
+              <div className="page-title-group">
+                <span className="breadcrumb">Dashboard</span>
+                <ChevronRight size={14} color="#cbd5e1" />
+                <h2 className="active-page-name">
+                  {activeItem?.label || "Select Module"}
+                </h2>
+              </div>
+              <p className="page-subheading">
+                Amazon Seller Partner API Management
+              </p>
+            </div>
+          </div>
+
+          <div className="navbar-right">
+            <button className="toggle-btn">
+              <Search size={16} />
+            </button>
+
+            <span
+              className={`badge ${
+                environment === "sandbox" ? "badge-sandbox" : "badge-production"
+              }`}
+            >
+              {environment.toUpperCase()}
+            </span>
+
+            <span className="badge badge-region">{region}</span>
+          </div>
+        </header>
+
+        {/* Main Content Area */}
+        <section className="content-section">
+          <div className="content-max-width">
+            <div className="section-header">
+              <h1 className="section-title">
+                {activeItem?.label || "Dashboard"}
+              </h1>
+              <p className="section-desc">
+                Manage and monitor your Amazon Seller Partner API operations.
+              </p>
+            </div>
+
+            <div className="main-card">
+              {ActiveComponent ? (
+                <div className="card-content">
+                  <ActiveComponent {...commonProps} />
+                </div>
+              ) : (
+                <div className="empty-state">
+                  <div className="empty-icon-wrapper">
+                    <LayoutDashboard size={32} />
+                  </div>
+                  <h3 className="empty-title">No Tool Selected</h3>
+                  <p className="empty-desc">
+                    Select an API endpoint or analytics module from the sidebar
+                    to get started.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      </main>
     </div>
   );
 };

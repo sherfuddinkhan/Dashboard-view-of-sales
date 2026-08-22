@@ -1,16 +1,22 @@
 import React, { useState } from "react";
 import { NavLink } from "react-router-dom";
-import { FiKey, FiGlobe, FiBook, FiShoppingCart, FiFileText,FiDollarSign, FiUpload, FiList, FiSettings, FiGrid,FiChevronDown, FiChevronRight, FiMessageSquare, FiTruck,
-FiBarChart2, FiUsers, FiTarget, FiAlertTriangle, FiPackage} from "react-icons/fi";
+import { 
+  FiKey, FiGlobe, FiBook, FiShoppingCart, FiFileText, 
+  FiDollarSign, FiUpload, FiList, FiSettings, FiGrid, 
+  FiChevronDown, FiChevronRight, FiMessageSquare, FiTruck, 
+  FiBarChart2, FiUsers, FiTarget, FiAlertTriangle, FiPackage,
+  FiLogOut
+} from "react-icons/fi";
+
+import "./Sidebar.css";
 
 const Sidebar = () => {
-  const [open, setOpen] = useState({
+  const [openSections, setOpenSections] = useState({
     dashboards: true,
     analytics: true,
-    auth: true,
-    seller: true,
-    catalog: true,
-    listings: true,
+    auth: false,
+    catalog: false,
+    listings: false,
     orders: false,
     shipping: false,
     messaging: false,
@@ -18,282 +24,171 @@ const Sidebar = () => {
     settings: false,
   });
 
-  const toggle = (key) => {
-    setOpen((prev) => ({ ...prev, [key]: !prev[key] }));
+  const toggleSection = (key) => {
+    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const menuData = [
+    {
+      key: "dashboards",
+      title: "Dashboards",
+      items: [
+        { path: "/dashboard/amazon", label: "Amazon Dashboard", icon: FiGrid },
+        { path: "/dashboard/analytics", label: "Analytics Dashboard", icon: FiBarChart2 },
+      ],
+    },
+    {
+      key: "analytics",
+      title: "ML Analytics",
+      items: [
+        { path: "/analytics/customer-segmentation", label: "Customer Segmentation", icon: FiUsers },
+        { path: "/Analytics/RandomForestPrediction", label: "Sales/Product Prediction", icon: FiTarget },
+        { path: "/Analytics/IsolationForestAnomaly", label: "Finance Anomaly Detection", icon: FiAlertTriangle },
+        { path: "/analytics/product-recommendation", label: "Product Recommendation", icon: FiTarget },
+        { path: "/analytics/abc-analysis", label: "ABC Analysis", icon: FiBarChart2 },
+        { path: "/analytics/sales-forecast", label: "Sales Forecast", icon: FiBarChart2 },
+        { path: "/analytics/return-prediction", label: "Return Prediction", icon: FiAlertTriangle },
+        { path: "/analytics/fraud-detection", label: "Fraud Detection", icon: FiAlertTriangle },
+        { path: "/analytics/inventory-analysis", label: "Inventory Analysis", icon: FiPackage },
+        { path: "/analytics/recommendation-system", label: "Recommendation System", icon: FiTarget },
+        { path: "/analytics/rfm-analysis", label: "RFM Analysis", icon: FiUsers },
+      ],
+    },
+    {
+      key: "auth",
+      title: "Authentication",
+      items: [
+        { path: "/generate-token", label: "Token Generator", icon: FiKey },
+      ],
+    },
+    {
+      key: "catalog",
+      title: "Seller & Catalog",
+      items: [
+        { path: "/marketplace", label: "Marketplace Participations", icon: FiGlobe },
+        { path: "/catalog/search", label: "Catalog Item Search", icon: FiBook },
+        { path: "/catalog/item", label: "Catalog Item Details", icon: FiBook },
+        { path: "/pricing", label: "Pricing", icon: FiDollarSign },
+        { path: "/inventory", label: "Inventory", icon: FiPackage },
+      ],
+    },
+    {
+      key: "listings",
+      title: "Listings",
+      items: [
+        { path: "/listings/create", label: "Create Listing", icon: FiList },
+        { path: "/listings/get", label: "Get Listing", icon: FiList },
+        { path: "/listings/update", label: "Update Listing", icon: FiList },
+        { path: "/listings/delete", label: "Delete Listing", icon: FiList },
+        { path: "/listings/submission", label: "Listing Submission", icon: FiList },
+        { path: "/listing/productprice", label: "Product Pricing", icon: FiDollarSign },
+      ],
+    },
+    {
+      key: "orders",
+      title: "Orders & Reports",
+      items: [
+        { path: "/orders", label: "Get Orders", icon: FiShoppingCart },
+        { path: "/order", label: "Get Order Details", icon: FiShoppingCart },
+        { path: "/order-items", label: "Get Order Items", icon: FiShoppingCart },
+        { path: "/reports/create", label: "Create Report", icon: FiFileText },
+        { path: "/reports/get", label: "Get Report", icon: FiFileText },
+        { path: "/reports/document", label: "Get Report Document", icon: FiFileText },
+      ],
+    },
+    {
+      key: "shipping",
+      title: "Shipping",
+      items: [
+        { path: "/shipping", label: "Overview", icon: FiTruck },
+        { path: "/shipping/get-rates", label: "Get Rates", icon: FiTruck },
+        { path: "/shipping/purchase-label", label: "Purchase Label", icon: FiTruck },
+        { path: "/shipping/tracking", label: "Tracking Details", icon: FiTruck },
+      ],
+    },
+    {
+      key: "messaging",
+      title: "Messaging",
+      items: [
+        { path: "/messaging", label: "Overview", icon: FiMessageSquare },
+        { path: "/messaging/templates", label: "Message Templates", icon: FiMessageSquare },
+        { path: "/messaging/send", label: "Send Message", icon: FiMessageSquare },
+      ],
+    },
+    {
+      key: "feeds",
+      title: "Feeds & Uploads",
+      items: [
+        { path: "/feeds/create-document", label: "Create Feed Document", icon: FiUpload },
+        { path: "/feeds/create", label: "Create Feed", icon: FiUpload },
+        { path: "/feeds/get", label: "Get Feed Status", icon: FiUpload },
+      ],
+    },
+    {
+      key: "settings",
+      title: "Settings",
+      items: [
+        { path: "/settings", label: "Global Settings", icon: FiSettings },
+      ],
+    },
+  ];
+
   return (
-    <div className="sidebar">
-      <h2 className="sidebar-title">Amazon SP-API</h2>
-
-      {/* Main Dashboards */}
-      <div className="sidebar-section" onClick={() => toggle("dashboards")}>
-        <span>📊 Dashboards</span>
-        {open.dashboards ? <FiChevronDown /> : <FiChevronRight />}
+    <aside className="sidebar-container">
+      {/* Brand Header */}
+      <div className="sidebar-header">
+        <h2 className="sidebar-title">Amazon SP-API</h2>
+        <span className="sidebar-subtitle">Control Panel</span>
       </div>
-      {open.dashboards && (
-        <div className="submenu">
-          <NavLink to="/dashboard/amazon" className="sidebar-link">
-            <FiGrid />
-            <span>Amazon Dashboard</span>
-          </NavLink>
-          <NavLink to="/dashboard/analytics" className="sidebar-link">
-            <FiBarChart2 />
-            <span>Analytics Dashboard</span>
-          </NavLink>
-        </div>
-      )}
 
-      {/* ML Analytics Components */}
-      <div className="sidebar-section" onClick={() => toggle("analytics")}>
-        <span>🤖 ML Analytics</span>
-        {open.analytics ? <FiChevronDown /> : <FiChevronRight />}
-      </div>
-      {open.analytics && (
-        <div className="submenu">
-          <NavLink to="/analytics/customer-segmentation" className="sidebar-link">
-            <FiUsers />
-            <span>Customer Segmentation</span>
-          </NavLink>
-          <NavLink to="/Analytics/RandomForestPrediction" className="sidebar-link">
-            <FiTarget />
-            <span>Sales/Product Prediction</span>
-          </NavLink>
-            <NavLink  to="/Analytics/IsolationForestAnomaly" className="sidebar-link">
-             <FiAlertTriangle />
-            <span>Finance Anomaly Detection</span>
-           </NavLink>
-            <NavLink to="/analytics/product-recommendation" className="sidebar-link">
-            <FiTarget />
-            <span>Product Recommendation</span>
-          </NavLink>
-          <NavLink to="/analytics/abc-analysis" className="sidebar-link">
-            <FiBarChart2 />
-            <span>ABC Analysis</span>
-          </NavLink>
-          <NavLink to="/analytics/sales-forecast" className="sidebar-link">
-            <FiBarChart2 />
-            <span>Sales Forecast</span>
-          </NavLink>
-          <NavLink to="/analytics/return-prediction" className="sidebar-link">
-            <FiAlertTriangle />
-            <span>Return Prediction</span>
-          </NavLink>
-          <NavLink to="/analytics/fraud-detection" className="sidebar-link">
-            <FiAlertTriangle />
-            <span>Fraud Detection</span>
-          </NavLink>
-          <NavLink to="/analytics/inventory-analysis" className="sidebar-link">
-            <FiPackage />
-            <span>Inventory Analysis</span>
-          </NavLink>
-          <NavLink to="/analytics/recommendation-system" className="sidebar-link">
-            <FiTarget />
-            <span>Recommendation System</span>
-          </NavLink>
-          <NavLink to="/analytics/rfm-analysis" className="sidebar-link">
-            <FiUsers />
-            <span>RFM Analysis</span>
-          </NavLink>
-        </div>
-      )}
+      {/* Navigation Groups */}
+      <div className="sidebar-scroll-content">
+        {menuData.map((section) => {
+          const isOpen = openSections[section.key];
+          return (
+            <div key={section.key} className="sidebar-group">
+              <button
+                className={`sidebar-section-btn ${isOpen ? "active-group" : ""}`}
+                onClick={() => toggleSection(section.key)}
+              >
+                <span className="section-title">{section.title}</span>
+                <span className="chevron-icon">
+                  {isOpen ? <FiChevronDown size={18} /> : <FiChevronRight size={18} />}
+                </span>
+              </button>
 
-      {/* Authentication */}
-      <div className="sidebar-section" onClick={() => toggle("auth")}>
-        <span>Authentication</span>
-        {open.auth ? <FiChevronDown /> : <FiChevronRight />}
+              {isOpen && (
+                <div className="submenu-container">
+                  {section.items.map((item) => {
+                    const ItemIcon = item.icon;
+                    return (
+                      <NavLink
+                        key={item.path}
+                        to={item.path}
+                        className={({ isActive }) =>
+                          `sidebar-link ${isActive ? "active" : ""}`
+                        }
+                      >
+                        <ItemIcon className="link-icon" size={16} />
+                        <span className="link-text">{item.label}</span>
+                      </NavLink>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
-      {open.auth && (
-        <div className="submenu">
-          <NavLink to="/generate-token" className="sidebar-link">
-            <FiKey />
-            <span>Token Generator</span>
-          </NavLink>
-        </div>
-      )}
 
-      {/* Seller & Catalog */}
-      <div className="sidebar-section" onClick={() => toggle("catalog")}>
-        <span>Seller & Catalog</span>
-        {open.catalog ? <FiChevronDown /> : <FiChevronRight />}
+      {/* Footer Action */}
+      <div className="sidebar-footer">
+        <button className="logout-btn">
+          <FiLogOut size={18} />
+          <span>Logout</span>
+        </button>
       </div>
-      {open.catalog && (
-        <div className="submenu">
-          <NavLink to="/marketplace" className="sidebar-link">
-            <FiGlobe />
-            <span>Marketplace Participations</span>
-          </NavLink>
-          <NavLink to="/catalog/search" className="sidebar-link">
-            <FiBook />
-            <span>Catalog Item Search</span>
-          </NavLink>
-          <NavLink to="/catalog/item" className="sidebar-link">
-            <FiBook />
-            <span>CatalogItemDetails</span>
-          </NavLink>
-          <NavLink to="/pricing" className="sidebar-link">
-            <FiDollarSign />
-            <span>Pricing</span>
-          </NavLink>
-           <NavLink to="/inventory" className="sidebar-link">
-            <FiDollarSign />
-            <span>Inventory</span>
-          </NavLink>
-        </div>
-      )}
-
-      {/* Listings */}
-      <div className="sidebar-section" onClick={() => toggle("listings")}>
-        <span>Listings</span>
-        {open.listings ? <FiChevronDown /> : <FiChevronRight />}
-      </div>
-      {open.listings && (
-        <div className="submenu">
-          <NavLink to="/listings/create" className="sidebar-link">
-            <FiList />
-            <span>Create Listing</span>
-          </NavLink>
-          <NavLink to="/listings/get" className="sidebar-link">
-            <FiList />
-            <span>Get Listing</span>
-          </NavLink>
-          <NavLink to="/listings/update" className="sidebar-link">
-            <FiList />
-            <span>Update Listing</span>
-          </NavLink>
-          <NavLink to="/listings/delete" className="sidebar-link">
-            <FiList />
-            <span>Delete Listing</span>
-          </NavLink>
-          <NavLink to="/listings/submission" className="sidebar-link">
-            <FiList />
-            <span>Listing Submission</span>
-          </NavLink>
-           <NavLink to="/listing/productprice" className="sidebar-link">
-            <FiList />
-            <span>product pricing</span>
-          </NavLink>
-        </div>
-      )}
-
-      {/* Orders */}
-      <div className="sidebar-section" onClick={() => toggle("orders")}>
-        <span>Orders</span>
-        {open.orders ? <FiChevronDown /> : <FiChevronRight />}
-      </div>
-      {open.orders && (
-        <div className="submenu">
-          <NavLink to="/orders" className="sidebar-link">
-            <FiShoppingCart />
-            <span>Get Orders</span>
-          </NavLink>
-          <NavLink to="/order" className="sidebar-link">
-            <FiShoppingCart />
-            <span>Get Order</span>
-          </NavLink>
-          <NavLink to="/order-items" className="sidebar-link">
-            <FiShoppingCart />
-            <span>Get Order Items</span>
-          </NavLink>
-          <NavLink to="/reports/create" className="sidebar-link">
-            <FiFileText />
-            <span>Create Report</span>
-          </NavLink>
-          <NavLink to="/reports/get" className="sidebar-link">
-            <FiFileText />
-            <span>Get Report</span>
-          </NavLink>
-          <NavLink to="/reports/document" className="sidebar-link">
-            <FiFileText />
-            <span>Get Report Document</span>
-          </NavLink>
-        </div>
-      )}
-
-      {/* Shipping */}
-      <div className="sidebar-section" onClick={() => toggle("shipping")}>
-        <span>Shipping</span>
-        {open.shipping ? <FiChevronDown /> : <FiChevronRight />}
-      </div>
-      {open.shipping && (
-        <div className="submenu">
-          <NavLink to="/shipping" className="sidebar-link">
-            <FiTruck />
-            <span>Overview</span>
-          </NavLink>
-          <NavLink to="/shipping/get-rates" className="sidebar-link">
-            <FiTruck />
-            <span>Get Rates</span>
-          </NavLink>
-          <NavLink to="/shipping/purchase-label" className="sidebar-link">
-            <FiTruck />
-            <span>Purchase Label</span>
-          </NavLink>
-          <NavLink to="/shipping/tracking" className="sidebar-link">
-            <FiTruck />
-            <span>Tracking Details</span>
-          </NavLink>
-        </div>
-      )}
-
-      {/* Messaging */}
-      <div className="sidebar-section" onClick={() => toggle("messaging")}>
-        <span>Messaging</span>
-        {open.messaging ? <FiChevronDown /> : <FiChevronRight />}
-      </div>
-      {open.messaging && (
-        <div className="submenu">
-          <NavLink to="/messaging" className="sidebar-link">
-            <FiMessageSquare />
-            <span>Overview</span>
-          </NavLink>
-          <NavLink to="/messaging/templates" className="sidebar-link">
-            <FiMessageSquare />
-            <span>Message Templates</span>
-          </NavLink>
-          <NavLink to="/messaging/send" className="sidebar-link">
-            <FiMessageSquare />
-            <span>Send Message</span>
-          </NavLink>
-        </div>
-      )}
-
-      {/* Feeds & Uploads */}
-      <div className="sidebar-section" onClick={() => toggle("feeds")}>
-        <span>Feeds & Uploads</span>
-        {open.feeds ? <FiChevronDown /> : <FiChevronRight />}
-      </div>
-      {open.feeds && (
-        <div className="submenu">
-          <NavLink to="/feeds/create-document" className="sidebar-link">
-            <FiUpload />
-            <span>Create Feed Document</span>
-          </NavLink>
-          <NavLink to="/feeds/create" className="sidebar-link">
-            <FiUpload />
-            <span>Create Feed</span>
-          </NavLink>
-          <NavLink to="/feeds/get" className="sidebar-link">
-            <FiUpload />
-            <span>Get Feed</span>
-          </NavLink>
-        </div>
-      )}
-
-      {/* Settings */}
-      <div className="sidebar-section" onClick={() => toggle("settings")}>
-        <span>Settings</span>
-        {open.settings ? <FiChevronDown /> : <FiChevronRight />}
-      </div>
-      {open.settings && (
-        <div className="submenu">
-          <NavLink to="/settings" className="sidebar-link">
-            <FiSettings />
-            <span>Global Settings</span>
-          </NavLink>
-        </div>
-      )}
-    </div>
+    </aside>
   );
 };
 
