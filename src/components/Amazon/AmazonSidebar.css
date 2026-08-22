@@ -1,0 +1,67 @@
+/* 1. Ensure the container starts flush at the top-left edge */
+body, html {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.dashboard-container {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  background-color: #f8fafc;
+  margin: 0;
+  padding: 0;
+  justify-content: flex-start; /* Keeps everything aligned to the left */
+}
+
+/* 2. Slide-in Animation from Left (for mobile or toggle transition) */
+.sidebar {
+  width: 260px;
+  background-color: var(--sb-bg);
+  border-right: 1px solid var(--sb-border);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.2s ease-in-out;
+  z-index: 50;
+  transform: translateX(0); /* Default visible position */
+}
+
+/* Optional: Slide hidden sidebar fully off-screen to the left on small screens */
+@media (max-width: 1024px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    transform: translateX(-100%); /* Hidden off the left edge */
+  }
+  
+  .sidebar.open {
+    transform: translateX(0); /* Slides in from the left */
+  }
+}
+
+/* 3. Main Area takes up the rest of the left-to-right space */
+.main-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+
+/* Ensure section content aligns neatly from the left margin */
+.content-section {
+  padding: 24px;
+  flex: 1;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.content-max-width {
+  width: 100%;
+  margin: 0; /* Align content directly to the left instead of centering */
+}

@@ -1,18 +1,12 @@
 import React from "react";
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 // =========================================================
 // COMMON COMPONENTS
 // =========================================================
 
-import LandingPage from "./components/LandingPage";
+import LandingPage from "./components/Common/LandingPage";
 import MarketplaceSelector from "./components/Common/MarketplaceSelector";
-import AmazonSidebar from "./components/Amazon/AmazonSidebar";
 
 // =========================================================
 // MARKETPLACE DASHBOARDS
@@ -28,32 +22,12 @@ import ShopifyDashboard from "./components/Shopify/ShopifyDashboard";
 
 // =========================================================
 // MARKETPLACE SELECTION LAYOUT
-// NO SIDEBAR HERE
 // =========================================================
 
 const MarketplaceLayout = ({ children }) => {
   return (
     <div style={marketplaceLayoutStyles}>
       <main style={marketplaceLayoutStyles.main}>
-        {children}
-      </main>
-    </div>
-  );
-};
-
-// =========================================================
-// AMAZON LAYOUT
-// AMAZON SIDEBAR ONLY
-// =========================================================
-
-const AmazonLayout = ({ children }) => {
-  return (
-    <div style={amazonLayoutStyles}>
-      {/* AMAZON SIDEBAR */}
-      <AmazonSidebar />
-
-      {/* AMAZON CONTENT */}
-      <main style={amazonLayoutStyles.content}>
         {children}
       </main>
     </div>
@@ -76,7 +50,6 @@ const App = () => {
 
         {/* =================================================
             MARKETPLACE SELECTION
-            AFTER LOGIN
         ================================================= */}
         <Route
           path="/marketplaces"
@@ -88,16 +61,11 @@ const App = () => {
         />
 
         {/* =================================================
-            AMAZON
-            AMAZON SIDEBAR APPEARS HERE
+            AMAZON (Starts flush from the left screen edge)
         ================================================= */}
         <Route
           path="/marketplaces/amazon"
-          element={
-            <AmazonLayout>
-              <AmazonDashboard />
-            </AmazonLayout>
-          }
+          element={<AmazonDashboard />}
         />
 
         {/* =================================================
@@ -173,7 +141,7 @@ const App = () => {
         />
 
         {/* =================================================
-            OLD DASHBOARD URL
+            OLD DASHBOARD URL REDIRECT
         ================================================= */}
         <Route
           path="/dashboard"
@@ -181,7 +149,7 @@ const App = () => {
         />
 
         {/* =================================================
-            DEFAULT
+            DEFAULT FALLBACK
         ================================================= */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
@@ -198,32 +166,11 @@ const marketplaceLayoutStyles = {
   width: "100%",
   backgroundColor: "#f8fafc",
   boxSizing: "border-box",
-};
-
-marketplaceLayoutStyles.main = {
-  width: "100%",
-  minHeight: "100vh",
-  boxSizing: "border-box",
-};
-
-// =========================================================
-// AMAZON LAYOUT STYLES
-// =========================================================
-
-const amazonLayoutStyles = {
-  display: "flex",
-  minHeight: "100vh",
-  width: "100%",
-  backgroundColor: "#f8fafc",
-};
-
-amazonLayoutStyles.content = {
-  flex: 1,
-  marginLeft: "260px",
-  minHeight: "100vh",
-  width: "calc(100% - 260px)",
-  boxSizing: "border-box",
-  overflowX: "hidden",
+  main: {
+    width: "100%",
+    minHeight: "100vh",
+    boxSizing: "border-box",
+  },
 };
 
 export default App;

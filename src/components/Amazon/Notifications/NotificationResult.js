@@ -1,5 +1,5 @@
 import React from "react";
-import ErrorDisplay from "../Common/ErrorDisplay";
+import ErrorDisplay from "../../Common/ErrorDisplay";
 
 const NotificationResult = ({ result, error, setError, loading }) => {
   // Safely extract Amazon's nested error structure if it exists

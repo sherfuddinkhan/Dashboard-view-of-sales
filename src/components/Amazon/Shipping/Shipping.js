@@ -1,7 +1,7 @@
 import React, { useState,useEffect } from "react";
 import axios from "axios";
 import  AmazonTokenGenerator from "../Authentication/AmazonTokenGenerator";
-import ErrorDisplay from "../Common/ErrorDisplay";
+import ErrorDisplay from "../../Common/ErrorDisplay";
 
 const Shipping = () => {
   const [accessToken, setAccessToken] = useState("");
