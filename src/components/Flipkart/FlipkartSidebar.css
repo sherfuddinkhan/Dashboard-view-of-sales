@@ -1,0 +1,35 @@
+.flipkart-sidebar{
+  width: 280px;
+  min-height: 100vh;
+  background: #0f172a;
+  color: #94a3b8;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 100;
+  overflow-y: auto;
+}
+.sidebar-header{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 16px;
+  border-bottom: 1px solid #1e293b;
+}
+.logo-box{ display: flex; gap: 10px; align-items: center; }
+.logo-icon{ background: #146eb4; color: #fff; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; }
+.logo-title{ color: #fff; font-weight: 700; font-size: 14px; }
+.logo-sub{ font-size: 11px; }
+.close-btn{ background: #fff; border: none; width: 28px; height: 28px; border-radius: 4px; cursor: pointer; }
+.sidebar-section{ padding: 12px 16px; font-size: 12px; }
+.section-label{ background: #1e293b; padding: 6px 10px; border-radius: 6px; color: #f59e0b; }
+.menu-group{ border-bottom: 1px solid #1e293b; }
+.menu-title{ display: flex; justify-content: space-between; padding: 12px 16px; cursor: pointer; font-size: 13px; color: #cbd5e1; }
+.menu-title:hover{ background: #1e293b; color: #fff; }
+.submenu{ background: #0b1220; }
+.submenu-item{ padding: 10px 16px 10px 40px; font-size: 13px; cursor: pointer; }
+.submenu-item:hover{ background: #1e293b; color: #fff; }
+.submenu-item.active{ background: #2563eb; color: #fff; border-radius: 6px; margin: 4px 8px; }
+.sidebar-footer{ margin-top: auto; padding: 16px; border-top: 1px solid #1e293b; color: #f87171; cursor: pointer; }

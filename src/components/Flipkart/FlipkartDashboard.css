@@ -1,0 +1,14 @@
+.flipkart-dashboard-layout { display: flex; min-height: 100vh; background: #f8fafc; }
+.flipkart-main-content { margin-left: 280px; flex: 1; padding: 24px; }
+.flipkart-overview-header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px; }
+.flipkart-overview-header h1 { margin: 0; font-size: 22px; font-weight: 700; }
+.flipkart-overview-header p { margin: 4px 0 0; color: #64748b; }
+.fk-btn { padding: 8px 16px; border-radius: 8px; border: 1px solid #e2e8f0; cursor: pointer; background: white; }
+.fk-btn.primary { background: #2874F0; color: white; border-color: #2874F0; }
+.flipkart-stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+.fk-stat-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; cursor: pointer; }
+.fk-stat-card h3 { margin: 0 0 6px; }
+.fk-stat-card p { margin: 0; color: #64748b; font-size: 13px; }
+.fk-stat-card span { display: inline-block; margin-top: 10px; color: #2874F0; font-weight: 600; font-size: 13px; }
+.flipkart-api-section h2 { font-size: 16px; margin-bottom: 12px; }
+.flipkart-api-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; }
