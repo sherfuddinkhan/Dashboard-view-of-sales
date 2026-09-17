@@ -21,7 +21,7 @@ import GetQuery from "./components/Amazon/Data Kiosk/GetQuery";
 import CreateQuery from "./components/Amazon/Data Kiosk/CreateQuery";
 
 // FBA Outbound - you have this file
-import FBAOutbound from "./components/Amazon/FBA Outbound/FBAOutbound";
+import FBAOutbound from "./components/Amazon/Fulfillment APIs/FBAOutbound";
 
 // ============ DUMMY COMPONENTS FOR MISSING FILES ============
 // To prevent Module not found errors, we define them here inline

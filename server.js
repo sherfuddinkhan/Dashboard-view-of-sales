@@ -3331,10 +3331,7 @@ app.get("/api/flipkart/orders", (req, res) => res.json({ orders: [] }));
 app.get("/api/flipkart/shipments", (req, res) => res.json({ shipments: [] }));
 app.get("/api/flipkart/returns", (req, res) => res.json({ returns: [] }));
 
-app.listen(PORT, () => {
-  console.log(`Node server running on http://localhost:${PORT}`);
-  console.log(`Test: http://localhost:${PORT}/api/SellerCustomer/1/customers/101`);
-});
+
 
 
 
