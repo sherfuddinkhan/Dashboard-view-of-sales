@@ -22,6 +22,21 @@ import MyntraDashboard from "./components/Myntra/MyntraDashboard";
 import JioMartDashboard from "./components/JioMart/JioMartDashboard";
 import ShopifyDashboard from "./components/Shopify/ShopifyDashboard";
 
+
+import ListAllOrders from "./components/MyStore/ListAllOrders";
+import GetOrder from "./components/MyStore/GetOrder";
+import CancelOrder from "./components/MyStore/CancelOrder";
+import UpdateFulfillment from "./components/MyStore/UpdateFulfillment";
+import ListProducts from "./components/MyStore/ListProducts";
+import FilterProducts from "./components/MyStore/FilterProducts";
+import GetProduct from "./components/MyStore/GetProduct";
+import AddProduct from "./components/MyStore/AddProduct";
+import EditProduct from "./components/MyStore/EditProduct";
+import DeleteProduct from "./components/MyStore/DeleteProduct";
+import AdjustInventoryByProductId from "./components/MyStore/AdjustInventoryByProductId";
+import AdjustInventoryBySku from "./components/MyStore/AdjustInventoryBySku";
+import MyStoreDashboard from "./components/MyStore/MyStoreDashboard";
+
 const App = () => {
   return (
     <BrowserRouter>
@@ -48,6 +63,28 @@ const App = () => {
         <Route path="/marketplaces/shopify" element={<ShopifyDashboard />} />
 
         <Route path="*" element={<Navigate to="/marketplaces" replace />} />
+        <Route path="/mystore" element={<MyStoreDashboard />} />
+        <Route path="/mystore/orders" element={<ListAllOrders />} />
+<Route path="/mystore/orders/get" element={<GetOrder />} />
+<Route path="/mystore/orders/cancel" element={<CancelOrder />} />
+<Route path="/mystore/orders/fulfillment" element={<UpdateFulfillment />} />
+
+<Route path="/mystore/products" element={<ListProducts />} />
+<Route path="/mystore/products/filter" element={<FilterProducts />} />
+<Route path="/mystore/products/get" element={<GetProduct />} />
+<Route path="/mystore/products/create" element={<AddProduct />} />
+<Route path="/mystore/products/edit" element={<EditProduct />} />
+<Route path="/mystore/products/delete" element={<DeleteProduct />} />
+
+<Route
+  path="/mystore/inventory/product"
+  element={<AdjustInventoryByProductId />}
+/>
+
+<Route
+  path="/mystore/inventory/sku"
+  element={<AdjustInventoryBySku />}
+/>
       </Routes>
     </BrowserRouter>
   );

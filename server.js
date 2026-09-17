@@ -2826,6 +2826,402 @@ app.get(
     }
   }
 );
+const MYSTORE_BASE_URL =
+    "https://mystore3.storehippo.com/api";
+
+const MYSTORE_ACCESS_KEY =
+    process.env.MYSTORE_ACCESS_KEY;
+// ============================================================
+// MyStore Axios Client
+// ============================================================
+
+const myStoreClient = axios.create({
+    baseURL: MYSTORE_BASE_URL,
+    httpsAgent,
+    headers: {
+        "Content-Type": "application/json"
+    }
+});
+
+// Add access-key to every MyStore request
+myStoreClient.interceptors.request.use((config) => {
+    config.headers["access-key"] = MYSTORE_ACCESS_KEY;
+
+    return config;
+});
+
+// ============================================================
+// Helper
+// ============================================================
+
+const handleMyStoreError = (res, error) => {
+    console.error(
+        "MyStore API Error:",
+        error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+        success: false,
+        message:
+            error.response?.data?.message ||
+            error.response?.data?.messages ||
+            error.message ||
+            "MyStore API request failed",
+        data: error.response?.data || null
+    });
+};
+
+// ============================================================
+// 1. List All Orders
+// GET
+// /api/mystore/orders
+// ============================================================
+
+app.get("/api/mystore/orders", async (req, res) => {
+    try {
+        const response = await myStoreClient.get(
+            "/1.1/entity/ms.orders/"
+        );
+
+        res.status(response.status).json(response.data);
+
+    } catch (error) {
+        handleMyStoreError(res, error);
+    }
+});
+
+// ============================================================
+// 2. Get Individual Order
+// GET
+// /api/mystore/orders/:id
+// ============================================================
+
+app.get("/api/mystore/orders/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const response = await myStoreClient.get(
+            `/1.1/entity/ms.orders/${encodeURIComponent(id)}`
+        );
+
+        res.status(response.status).json(response.data);
+
+    } catch (error) {
+        handleMyStoreError(res, error);
+    }
+});
+
+// ============================================================
+// 3. Cancel Order
+// PUT
+// /api/mystore/orders/:id/cancel
+// ============================================================
+
+app.put("/api/mystore/orders/:id/cancel", async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const body = {
+            reason: req.body.reason,
+            orderId: id
+        };
+
+        const response = await myStoreClient.put(
+            `/1.1/entity/ms.orders/${encodeURIComponent(id)}/_/cancelOrder`,
+            body
+        );
+
+        const messages =
+            response.headers["ms-messages-old"];
+
+        res.status(response.status).json({
+            success: true,
+            message: "Order cancellation request completed",
+            headerMessage: messages || null,
+            data: response.data
+        });
+
+    } catch (error) {
+        handleMyStoreError(res, error);
+    }
+});
+
+// ============================================================
+// 4. Update Fulfillment
+// PUT
+// /api/mystore/orders/:id/fulfillment
+// ============================================================
+
+app.put(
+    "/api/mystore/orders/:id/fulfillment",
+    async (req, res) => {
+        try {
+            const { id } = req.params;
+
+            const body = {
+                tracking_status: req.body.tracking_status,
+                tracking_number: req.body.tracking_number,
+                tracking_company: req.body.tracking_company
+            };
+
+            const response = await myStoreClient.put(
+                `/1.1/entity/ms.orders/${encodeURIComponent(id)}/_/updateFulfillment`,
+                body
+            );
+
+            const messages =
+                response.headers["ms-messages-old"];
+
+            res.status(response.status).json({
+                success: true,
+                message: "Fulfillment update completed",
+                headerMessage: messages || null,
+                data: response.data
+            });
+
+        } catch (error) {
+            handleMyStoreError(res, error);
+        }
+    }
+);
+
+// ============================================================
+// 5. List Products
+// GET
+// /api/mystore/products
+// ============================================================
+
+app.get("/api/mystore/products", async (req, res) => {
+    try {
+        const response = await myStoreClient.get(
+            "/1/entity/ms.products"
+        );
+
+        res.status(response.status).json(response.data);
+
+    } catch (error) {
+        handleMyStoreError(res, error);
+    }
+});
+
+// ============================================================
+// 6. Filter Products
+// GET
+// /api/mystore/products/filter
+// ============================================================
+
+app.get(
+    "/api/mystore/products/filter",
+    async (req, res) => {
+        try {
+            let filters = req.query.filters;
+
+            if (!filters) {
+                return res.status(400).json({
+                    success: false,
+                    message: "filters query parameter is required"
+                });
+            }
+
+            // React can send filters either as JSON string
+            // or as an already parsed object.
+
+            if (typeof filters === "string") {
+                try {
+                    filters = JSON.parse(filters);
+                } catch {
+                    return res.status(400).json({
+                        success: false,
+                        message: "filters must be valid JSON"
+                    });
+                }
+            }
+
+            const response = await myStoreClient.get(
+                "/1/entity/ms.products",
+                {
+                    params: {
+                        filters: JSON.stringify(filters)
+                    }
+                }
+            );
+
+            res.status(response.status).json(
+                response.data
+            );
+
+        } catch (error) {
+            handleMyStoreError(res, error);
+        }
+    }
+);
+
+// ============================================================
+// 7. Get Particular Product
+// GET
+// /api/mystore/products/:id
+// ============================================================
+
+app.get("/api/mystore/products/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const response = await myStoreClient.get(
+            `/1/entity/ms.products/${encodeURIComponent(id)}`
+        );
+
+        res.status(response.status).json(response.data);
+
+    } catch (error) {
+        handleMyStoreError(res, error);
+    }
+});
+
+// ============================================================
+// 8. Add Product With Variants
+// POST
+// /api/mystore/products
+// ============================================================
+
+app.post("/api/mystore/products", async (req, res) => {
+    try {
+        const response = await myStoreClient.post(
+            "/1.1/entity/ms.products",
+            req.body
+        );
+
+        res.status(response.status).json(
+            response.data
+        );
+
+    } catch (error) {
+        handleMyStoreError(res, error);
+    }
+});
+
+// ============================================================
+// 9. Edit Product
+// PUT
+// /api/mystore/products/:id
+// ============================================================
+
+app.put("/api/mystore/products/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const response = await myStoreClient.put(
+            `/1.1/entity/ms.products/${encodeURIComponent(id)}`,
+            req.body
+        );
+
+        const messages =
+            response.headers["ms-messages-old"];
+
+        res.status(response.status).json({
+            success: true,
+            headerMessage: messages || null,
+            data: response.data
+        });
+
+    } catch (error) {
+        handleMyStoreError(res, error);
+    }
+});
+
+// ============================================================
+// 10. Delete Product
+// DELETE
+// /api/mystore/products/:id
+// ============================================================
+
+app.delete(
+    "/api/mystore/products/:id",
+    async (req, res) => {
+        try {
+            const { id } = req.params;
+
+            const response = await myStoreClient.delete(
+                `/1.1/entity/ms.products/${encodeURIComponent(id)}`
+            );
+
+            res.status(response.status).json(
+                response.data
+            );
+
+        } catch (error) {
+            handleMyStoreError(res, error);
+        }
+    }
+);
+
+// ============================================================
+// 11. Adjust Inventory By Product ID
+// POST
+// /api/mystore/inventory/product
+// ============================================================
+
+app.post(
+    "/api/mystore/inventory/product",
+    async (req, res) => {
+        try {
+            const body = {
+                product_id: req.body.product_id,
+                inventory_quantity:
+                    req.body.inventory_quantity,
+                compare_price:
+                    req.body.compare_price,
+                price: req.body.price
+            };
+
+            const response = await myStoreClient.post(
+                "/1.1/entity/ms.products/_/adjustInventory",
+                body
+            );
+
+            res.status(response.status).json(
+                response.data
+            );
+
+        } catch (error) {
+            handleMyStoreError(res, error);
+        }
+    }
+);
+
+// ============================================================
+// 12. Adjust Inventory By SKU
+// POST
+// /api/mystore/inventory/sku
+// ============================================================
+
+app.post(
+    "/api/mystore/inventory/sku",
+    async (req, res) => {
+        try {
+            const body = {
+                sku: req.body.sku,
+                inventory_quantity:
+                    req.body.inventory_quantity,
+                compare_price:
+                    req.body.compare_price,
+                price: req.body.price
+            };
+
+            const response = await myStoreClient.post(
+                "/1.1/entity/ms.products/_/adjustInventory",
+                body
+            );
+
+            res.status(response.status).json(
+                response.data
+            );
+
+        } catch (error) {
+            handleMyStoreError(res, error);
+        }
+    }
+);
+
 
 // ============================================================
 // START SERVER

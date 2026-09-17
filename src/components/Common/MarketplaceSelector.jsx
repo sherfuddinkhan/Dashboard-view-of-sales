@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+
 import {
   ShoppingBag,
   Store,
@@ -55,6 +56,17 @@ const marketplaces = [
     color: "#96BF48",
     path: "/marketplaces/shopify",
   },
+
+  // ============================================================
+  // MYSTORE
+  // ============================================================
+
+  {
+    name: "MyStore",
+    icon: Store,
+    color: "#673AB7",
+    path: "/mystore",
+  },
 ];
 
 const MarketplaceSelector = () => {
@@ -64,16 +76,24 @@ const MarketplaceSelector = () => {
   return (
     <div className="marketplace-wrapper">
 
-      {/* HEADER */}
+      {/* ========================================================
+          HEADER
+      ========================================================= */}
+
       <div className="marketplace-header">
+
         <h1>Marketplaces</h1>
 
         <p>
           Select a marketplace to manage your business
         </p>
+
       </div>
 
-      {/* MARKETPLACE CARDS */}
+      {/* ========================================================
+          MARKETPLACE CARDS
+      ========================================================= */}
+
       <div className="marketplace-scroll">
 
         {marketplaces.map((marketplace) => {
@@ -93,44 +113,64 @@ const MarketplaceSelector = () => {
               className={`marketplace-card ${
                 isActive ? "active" : ""
               }`}
-              onClick={() => navigate(marketplace.path)}
+              onClick={() =>
+                navigate(marketplace.path)
+              }
             >
 
-              {/* ICON */}
+              {/* ==================================================
+                  ICON
+              ================================================== */}
+
               <div
                 className="marketplace-icon"
                 style={{
-                  backgroundColor: `${marketplace.color}18`,
-                  color: marketplace.color,
+                  backgroundColor:
+                    `${marketplace.color}18`,
+                  color:
+                    marketplace.color,
                 }}
               >
+
                 <Icon
                   size={42}
                   strokeWidth={1.8}
                 />
+
               </div>
 
-              {/* NAME */}
+              {/* ==================================================
+                  NAME
+              ================================================== */}
+
               <div className="marketplace-name">
                 {marketplace.name}
               </div>
 
-              {/* DASHBOARD */}
+              {/* ==================================================
+                  DASHBOARD
+              ================================================== */}
+
               <div
                 className="marketplace-dashboard-text"
                 style={{
-                  color: marketplace.color,
+                  color:
+                    marketplace.color,
                 }}
               >
                 Open Dashboard →
               </div>
 
-              {/* ACTIVE INDICATOR */}
+              {/* ==================================================
+                  ACTIVE INDICATOR
+              ================================================== */}
+
               {isActive && (
                 <div
                   className="active-indicator"
                   style={{
-                    backgroundColor: marketplace.color,
+                    backgroundColor:
+                      marketplace.color,
                   }}
                 />
               )}
