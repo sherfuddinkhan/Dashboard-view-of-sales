@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from "react";
 import FlipkartSidebar from "./FlipkartSidebar";
-import FlipkartSellerlist from "./sellers/FlipkartSellerlist";
+import Sellerlist from "../Common/Sellerlist"; // <-- Changed to Common
 import "./FlipkartDashboard.css";
 
 const FlipkartDashboard = () => {
   const [loading, setLoading] = useState(true);
 
-  // Loading page effect
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 800);
     return () => clearTimeout(timer);
@@ -29,10 +28,9 @@ const FlipkartDashboard = () => {
   return (
     <div className="flipkart-dashboard-layout">
       <FlipkartSidebar />
-      
       <div className="flipkart-main-content">
-        {/* Only Sellers - No other things */}
-        <FlipkartSellerlist />
+        {/* Now using Common Sellerlist */}
+        <Sellerlist marketplace="flipkart" />
       </div>
     </div>
   );

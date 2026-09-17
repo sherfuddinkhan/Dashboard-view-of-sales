@@ -66,20 +66,15 @@ localStorage.setItem("amazonMarketplaceResponse", JSON.stringify(result.data));
             <h2>
                 Amazon SP-API Marketplace Participations
             </h2>
-
-
             <label>
                 Access Token
             </label>
-
             <textarea
                 rows="5"
                 value={accessToken}
                 onChange={(e)=>setAccessToken(e.target.value)}
                 style={styles.textarea}
             />
-
-
             <label>
                 AWS Access Key
             </label>
@@ -90,9 +85,6 @@ localStorage.setItem("amazonMarketplaceResponse", JSON.stringify(result.data));
                 onChange={(e)=>setAwsAccessKey(e.target.value)}
                 style={styles.input}
             />
-
-
-
             <label>
                 AWS Secret Key
             </label>
