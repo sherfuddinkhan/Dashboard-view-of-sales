@@ -8,7 +8,7 @@ const MARKETPLACES = [
   { id: "A1PA6795UKMFR9", name: "Germany (DE)" }
 ];
 
-const Inventory = () => {
+const FBAInventory = () => {
   // Group configuration settings
   const [settings, setSettings] = useState({
     marketplaceId: "A21TJRUUN4KGV",
@@ -205,4 +205,4 @@ const Inventory = () => {
   );
 };
 
-export default Inventory;
+export default FBAInventory;

@@ -6,9 +6,10 @@ import LandingPage from "./components/Common/LandingPage";
 import Sellerlist from "./components/Common/Sellerlist";
 import SellerCustomerlist from "./components/Common/SellerCustomerlist";
 
-import AmazonDashboard from "./components/Amazon/AmazonDashboard";
-import FlipkartDashboard from "./components/Flipkart/FlipkartDashboard";
+import AmazonLayout from "./components/Amazon/AmazonLayout";
+import FlipkartLayout from "./components/Flipkart/FlipkartLayout";
 import ListingsCommonV3Api from "./components/Flipkart/Catalog APIs/ListingsCommonV3Api";
+
 import MeeshoDashboard from "./components/Meesho/MeeshoDashboard";
 import BlinkitDashboard from "./components/Blinkit/BlinkitDashboard";
 import MyntraDashboard from "./components/Myntra/MyntraDashboard";
@@ -38,20 +39,33 @@ const App = () => {
         <Route path="/" element={<LandingPage />} />
         <Route path="/marketplaces" element={<MarketplaceSelector />} />
 
-        {/* MARKETPLACE DASHBOARDS */}
-        <Route path="/marketplaces/amazon" element={<AmazonDashboard />} />
-        <Route path="/marketplaces/flipkart" element={<FlipkartDashboard />} />
-        <Route path="/marketplaces/meesho" element={<MeeshoDashboard />} />
-        <Route path="/marketplaces/blinkit" element={<BlinkitDashboard />} />
-        <Route path="/marketplaces/myntra" element={<MyntraDashboard />} />
-        <Route path="/marketplaces/jiomart" element={<JioMartDashboard />} />
-        <Route path="/marketplaces/shopify" element={<ShopifyDashboard />} />
+        {/* AMAZON - WITH LEFT SIDEBAR - ALWAYS VISIBLE */}
+        <Route path="/marketplaces/amazon" element={<AmazonLayout />}>
+          <Route index element={<Navigate to="sellers" replace />} />
+          <Route path="dashboard" element={<div className="amazon-overview-card"><h2>Amazon SP-API Overview</h2><p>Manage SP-API</p></div>} />
+          <Route path="sellers" element={<Sellerlist />} />
+          <Route path="customers/:sellerId/:customerId" element={<SellerCustomerlist />} />
+          {/* Add your Amazon API routes here - they will keep sidebar */}
+          <Route path="auth/token" element={<div>Token Generator</div>} />
+          <Route path="listings/create" element={<div>Create Listing - SKU, ASIN, Price, Qty</div>} />
+          <Route path="orders/list" element={<div>Amazon Orders</div>} />
+        </Route>
 
-        {/* GENERALIZED SELLER ROUTES */}
-        <Route path="/marketplaces/:marketplace/sellers" element={<Sellerlist />} />
-        <Route path="/marketplaces/:marketplace/customers/:sellerId/:customerId" element={<SellerCustomerlist />} />
+        {/* FLIPKART - WITH LEFT SIDEBAR - ALWAYS VISIBLE */}
+        <Route path="/marketplaces/flipkart" element={<FlipkartLayout />}>
+          <Route index element={<Navigate to="sellers" replace />} />
+          <Route path="dashboard" element={<div><h2>Flipkart Overview</h2></div>} />
+          <Route path="sellers" element={<Sellerlist />} />
+          <Route path="customers/:sellerId/:customerId" element={<SellerCustomerlist />} />
+          <Route path="listings" element={<ListingsCommonV3Api />} />
+          <Route path="listings/:sellerId/:customerId" element={<ListingsCommonV3Api />} />
+          <Route path="products" element={<ListProducts />} />
+          <Route path="orders" element={<ListAllOrders />} />
+          <Route path="inventory/product" element={<AdjustInventoryByProductId />} />
+          <Route path="inventory/sku" element={<AdjustInventoryBySku />} />
+        </Route>
 
-        {/* MYSTORE - WITH LEFT SIDEBAR LAYOUT */}
+        {/* MYSTORE - WITH LEFT SIDEBAR */}
         <Route path="/mystore" element={<MyStoreLayout />}>
           <Route index element={<Navigate to="sellers" replace />} />
           <Route path="dashboard" element={<MyStoreDashboard />} />
@@ -71,7 +85,13 @@ const App = () => {
           <Route path="inventory/sku" element={<AdjustInventoryBySku />} />
         </Route>
 
-        <Route path="/marketplaces/flipkart/listings" element={<ListingsCommonV3Api />} />
+        {/* OTHER MARKETPLACES */}
+        <Route path="/marketplaces/meesho" element={<MeeshoDashboard />} />
+        <Route path="/marketplaces/blinkit" element={<BlinkitDashboard />} />
+        <Route path="/marketplaces/myntra" element={<MyntraDashboard />} />
+        <Route path="/marketplaces/jiomart" element={<JioMartDashboard />} />
+        <Route path="/marketplaces/shopify" element={<ShopifyDashboard />} />
+
         <Route path="*" element={<Navigate to="/marketplaces" replace />} />
       </Routes>
     </BrowserRouter>
