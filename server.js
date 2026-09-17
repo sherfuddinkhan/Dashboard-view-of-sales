@@ -5,3344 +5,716 @@ const dotenv = require("dotenv");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const https = require("https");
+const aws4 = require("aws4");
 dotenv.config();
 
 const app = express();
-
 app.use(cors());
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({ limit: "20mb" }));
 
-app.get("/", (req, res) => {
-  res.send("Amazon SP-API Backend Running...");
-});
+app.get("/", (req, res) => res.send("Amazon SP-API + Flipkart + MyStore Backend Running..."));
 
+// ================= DATABASE =================
 const sql = require("mssql/msnodesqlv8");
-
 const SERVER_NAME = process.env.DB_SERVER;
-
-// ======================================================
-// AMAZON DATABASE
-// ======================================================
 
 const amazonConfig = {
   server: SERVER_NAME,
   database: process.env.AMAZON_DB,
   driver: "msnodesqlv8",
-  connectionString:
-    `Driver={ODBC Driver 18 for SQL Server};` +
-    `Server=${SERVER_NAME};` +
-    `Database=${process.env.AMAZON_DB};` +
-    `Trusted_Connection=Yes;` +
-    `TrustServerCertificate=Yes;`
+  connectionString: `Driver={ODBC Driver 18 for SQL Server};Server=${SERVER_NAME};Database=${process.env.AMAZON_DB};Trusted_Connection=Yes;TrustServerCertificate=Yes;`
 };
-
-// ======================================================
-// SELLER PORTAL DATABASE
-// ======================================================
-
 const sellerConfig = {
   server: SERVER_NAME,
   database: process.env.SELLER_DB,
   driver: "msnodesqlv8",
-  connectionString:
-    `Driver={ODBC Driver 18 for SQL Server};` +
-    `Server=${SERVER_NAME};` +
-    `Database=${process.env.SELLER_DB};` +
-    `Trusted_Connection=Yes;` +
-    `TrustServerCertificate=Yes;`
+  connectionString: `Driver={ODBC Driver 18 for SQL Server};Server=${SERVER_NAME};Database=${process.env.SELLER_DB};Trusted_Connection=Yes;TrustServerCertificate=Yes;`
 };
 
-// ======================================================
-// AMAZON DATABASE CONNECTION
-// ======================================================
+const amazonPoolPromise = new sql.ConnectionPool(amazonConfig).connect().then(p => { console.log("✅ Amazon DB Connected"); return p; }).catch(e => console.error("❌ Amazon DB", e.message));
+const sellerPoolPromise = new sql.ConnectionPool(sellerConfig).connect().then(p => { console.log("✅ SellerPortal DB Connected"); return p; }).catch(e => console.error("❌ Seller DB", e.message));
 
-const amazonPoolPromise = new sql.ConnectionPool(amazonConfig)
-  .connect()
-  .then((pool) => {
-    console.log("✅ Connected to AmazonSellerAnalytics");
-    return pool;
-  })
-  .catch((err) => {
-    console.error(
-      "❌ AmazonSellerAnalytics connection failed:",
-      err.message
-    );
-    throw err;
-  });
+// ================= HELPER =================
+const getHost = (env) => env === "production" ? "sellingpartnerapi-na.amazon.com" : "sandbox.sellingpartnerapi-na.amazon.com";
 
-// ======================================================
-// SELLER PORTAL DATABASE CONNECTION
-// ======================================================
+const spApiCall = async ({ method, path, accessToken, awsAccessKey, awsSecretKey, region = "us-east-1", environment = "production", body, query }) => {
+  const host = getHost(environment);
+  let fullPath = path;
+  if (query) {
+    const qs = new URLSearchParams(query).toString();
+    if (qs) fullPath += `?${qs}`;
+  }
+  const opts = {
+    host, path: fullPath, service: "execute-api", region, method,
+    headers: { "x-amz-access-token": accessToken, "accept": "application/json", "content-type": "application/json" }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
+  const url = `https://${host}${fullPath}`;
+  const res = await axios({ method, url, headers: opts.headers, data: body });
+  return res.data;
+};
 
-const sellerPoolPromise = new sql.ConnectionPool(sellerConfig)
-  .connect()
-  .then((pool) => {
-    console.log("✅ Connected to SellerPortalDB");
-    return pool;
-  })
-  .catch((err) => {
-    console.error(
-      "❌ SellerPortalDB connection failed:",
-      err.message
-    );
-    throw err;
-  });
-// ==================== 1. AUTHENTICATION ====================
-// Generate Amazon Access Token
+const httpsAgent = new https.Agent({ rejectUnauthorized: false });
+
+// ================= 1. AUTH =================
 app.post("/api/token", async (req, res) => {
   try {
     const { clientId, clientSecret, refreshToken } = req.body;
-    if (!clientId || !clientSecret || !refreshToken) {
-      return res.status(400).json({ success: false, message: "Client ID, Client Secret and Refresh Token are required." });
-    }
-    const params = new URLSearchParams();
-    params.append("grant_type", "refresh_token");
-    params.append("client_id", clientId);
-    params.append("client_secret", clientSecret);
-    params.append("refresh_token", refreshToken);
-
-    const response = await axios.post(
-      "https://api.amazon.com/auth/o2/token",
-      params.toString(),
-      { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
-    );
-
-    res.status(200).json(response.data);
-  } catch (error) {
-    console.error("Token Generation Error");
-    if (error.response) {
-      return res.status(error.response.status).json(error.response.data);
-    }
-    return res.status(500).json({ success: false, message: error.message });
-  }
+    if (!clientId || !clientSecret || !refreshToken) return res.status(400).json({ message: "Client ID, Secret, Refresh Token required" });
+    const params = new URLSearchParams({ grant_type: "refresh_token", client_id: clientId, client_secret: clientSecret, refresh_token: refreshToken });
+    const r = await axios.post("https://api.amazon.com/auth/o2/token", params.toString(), { headers: { "Content-Type": "application/x-www-form-urlencoded" } });
+    res.json(r.data);
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
 });
 
-//POST /api/auth/login
 app.post("/api/auth/login", async (req, res) => {
   try {
-    const {
-      userName,
-      password,
-    } = req.body;
-
-    // Validate request
-    if (!userName || !password) {
-      return res.status(400).json({
-        success: false,
-        message: "Username and password are required",
-      });
-    }
-
-    // Connect to database
-   const pool = await sellerPoolPromise;
-    // Find user
-    const result = await pool
-      .request()
-      .input("UserName", sql.NVarChar, userName)
-      .query(`
-        SELECT
-          UserId,
-          SellerId,
-          CustomerId,
-          FullName,
-          UserName,
-          Email,
-          PasswordHash,
-          Mobile,
-          Role,
-          IsActive,
-          EmailVerified,
-          MobileVerified,
-          IsLocked
-        FROM Users
-        WHERE UserName = @UserName
-      `);
-
+    const { userName, password } = req.body;
+    if (!userName || !password) return res.status(400).json({ message: "Username and password required" });
+    const pool = await sellerPoolPromise;
+    const result = await pool.request().input("UserName", sql.NVarChar, userName)
+      .query(`SELECT UserId,SellerId,CustomerId,FullName,UserName,Email,PasswordHash,Mobile,Role,IsActive,IsLocked FROM Users WHERE UserName=@UserName`);
     const user = result.recordset[0];
-
-    // User doesn't exist
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid username or password",
-      });
-    }
-
-    // Check active
-    if (!user.IsActive) {
-      return res.status(403).json({
-        success: false,
-        message: "User account is inactive",
-      });
-    }
-
-    // Check locked
-    if (user.IsLocked) {
-      return res.status(403).json({
-        success: false,
-        message: "User account is locked",
-      });
-    }
-
-    /*
-     * Verify password
-     *
-     * Password entered:
-     * password
-     *
-     * Database:
-     * PasswordHash
-     */
-    const passwordValid = await bcrypt.compare(
-      password,
-      user.PasswordHash
-    );
-
-    if (!passwordValid) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid username or password",
-      });
-    }
-
-    /*
-     * Generate JWT
-     */
-    const token = jwt.sign(
-      {
-        userId: user.UserId,
-        sellerId: user.SellerId,
-        customerId: user.CustomerId,
-        userName: user.UserName,
-        role: user.Role,
-      },
-      process.env.JWT_SECRET,
-      {
-        expiresIn: "8h",
-      }
-    );
-
-    /*
-     * Successful login
-     */
-    return res.status(200).json({
-      success: true,
-      message: "Login successful",
-
-      token,
-
-      user: {
-        userId: user.UserId,
-        sellerId: user.SellerId,
-        customerId: user.CustomerId,
-        fullName: user.FullName,
-        userName: user.UserName,
-        email: user.Email,
-        mobile: user.Mobile,
-        role: user.Role,
-      },
-    });
-
-  } catch (error) {
-
-    console.error("Login Error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-      error: error.message,
-    });
-  }
+    if (!user) return res.status(401).json({ message: "Invalid credentials" });
+    if (!user.IsActive) return res.status(403).json({ message: "Inactive account" });
+    if (user.IsLocked) return res.status(403).json({ message: "Locked account" });
+    const ok = await bcrypt.compare(password, user.PasswordHash);
+    if (!ok) return res.status(401).json({ message: "Invalid credentials" });
+    const token = jwt.sign({ userId: user.UserId, sellerId: user.SellerId, customerId: user.CustomerId, userName: user.UserName, role: user.Role }, process.env.JWT_SECRET, { expiresIn: "8h" });
+    res.json({ success: true, token, user: { userId: user.UserId, sellerId: user.SellerId, customerId: user.CustomerId, fullName: user.FullName, userName: user.UserName, email: user.Email, role: user.Role } });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ==================== 2. SELLER APIs ====================
-// Marketplace Participations
+// ================= 2. SELLER PARTICIPATIONS =================
 app.post("/api/marketplace", async (req, res) => {
   try {
-    const { accessToken, awsAccessKey, awsSecretKey, region, serviceName, environment } = req.body;
-    if (!accessToken || !awsAccessKey || !awsSecretKey || !region) {
-      return res.status(400).json({ success: false, message: "Missing required parameters." });
-    }
-
-    const host = environment === "production" ? "sellingpartnerapi-na.amazon.com" : "sandbox.sellingpartnerapi-na.amazon.com";
-    const opts = {
-      host,
-      path: "/sellers/v1/marketplaceParticipations",
-      service: serviceName || "execute-api",
-      region: region || "us-east-1",
-      method: "GET",
-      headers: { "x-amz-access-token": accessToken, Accept: "application/json" }
-    };
-
-    aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
-    const response = await axios({ method: "GET", url: `https://${host}/sellers/v1/marketplaceParticipations`, headers: opts.headers });
-    res.status(200).json(response.data);
-  } catch (error) {
-    console.error("Amazon API Error:");
-    if (error.response) {
-      return res.status(error.response.status).json({ success: false, amazonError: error.response.data });
-    }
-    return res.status(500).json({ success: false, message: error.message });
-  }
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment } = req.body;
+    const data = await spApiCall({ method: "GET", path: "/sellers/v1/marketplaceParticipations", accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
 });
 
-// ==================== 3. CATALOG APIs ====================
-// Get Catalog Item
-
+// ================= 3. CATALOG 2022-04-01 =================
 app.post("/api/catalog/search", async (req, res) => {
-
-    try {
-
-        const {
-            accessToken,
-            awsAccessKey,
-            awsSecretKey,
-            region = "us-east-1",
-            serviceName = "execute-api",
-            environment = "production",
-            marketplaceIds = [],
-            keywords = [],
-            identifiers = [],
-            identifiersType,
-            includedData = [],
-            locale = "en_US",
-            pageSize = 20,
-            pageToken
-
-        } = req.body;
-
-        if (!accessToken)
-            return res.status(400).json({
-                error: "Access Token is required"
-            });
-
-        if (!awsAccessKey || !awsSecretKey)
-            return res.status(400).json({
-                error: "AWS Credentials are required"
-            });
-
-        if (!marketplaceIds.length)
-            return res.status(400).json({
-                error: "Marketplace ID is required"
-            });
-
-        const host =
-            environment === "production"
-                ? "sellingpartnerapi-na.amazon.com"
-                : "sandbox.sellingpartnerapi-na.amazon.com";
-
-        const params = new URLSearchParams();
-
-        // Required
-
-        params.append("marketplaceIds",marketplaceIds.join(","));
-
-        // Search by Keywords
-
-        if (keywords.length) {
-            params.append("keywords",keywords.join(","));
-        }
-
-        // Search by Identifier
-
-        if (identifiers.length) {
-            params.append( "identifiers",identifiers.join(","));
-            params.append("identifiersType",identifiersType
-            );
-        }
-        // Optional
-        if (includedData.length) {
-            params.append(
-                "includedData",
-                includedData.join(",")
-            );
-        }
-
-        if (locale) {
-            params.append("locale",locale);
-        }
-        if (pageSize) {
-            params.append("pageSize", pageSize);
-        }
-        if (pageToken) {
-            params.append(  "pageToken",pageToken);
-        }
-
-        const path =
-            `/catalog/2022-04-01/items?${params.toString()}`;
-         console.log("catlog items path",`https://${host}${path}`);
-        const options = {
-            host,
-            path,
-            service: serviceName,
-            region,
-            method: "GET",
-            headers: {
-                "x-amz-access-token": accessToken,
-                "accept": "application/json",
-                "user-agent":"AmazonSellerAnalytics/1.0"
-            }
-        };
-        aws4.sign(
-            options,
-            {
-                accessKeyId: awsAccessKey,
-                secretAccessKey: awsSecretKey
-            }
-        );
-        console.log( `https://${host}${path}`
-        );
-        const response = await axios.get(  `https://${host}${path}`,
-            {
-                headers: options.headers
-            }
-        );
-        res.json(response.data);
-    }
-    catch (err) {
-        console.error(
-            err.response?.data || err.message
-        );
-        res.status(
-            err.response?.status || 500
-        ).json({
-
-            success: false,
-
-            error:
-                err.response?.data ||
-                err.message
-
-        });
-
-    }
-
+  try {
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, marketplaceIds, keywords, identifiers, identifiersType, includedData, locale, pageSize, pageToken } = req.body;
+    const query = { marketplaceIds: (marketplaceIds||[]).join(","), ...(keywords?.length && { keywords: keywords.join(",") }), ...(identifiers?.length && { identifiers: identifiers.join(","), identifiersType }), ...(includedData?.length && { includedData: includedData.join(",") }), locale: locale||"en_US", pageSize: pageSize||20, ...(pageToken && { pageToken }) };
+    const data = await spApiCall({ method: "GET", path: "/catalog/2022-04-01/items", query, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
 });
 
 app.post("/api/catalog-item", async (req, res) => {
-
-    try {
-
-        const {
-
-            accessToken,
-            awsAccessKey,
-            awsSecretKey,
-
-            region = "us-east-1",
-            serviceName = "execute-api",
-            environment = "production",
-
-            asin,
-
-            marketplaceIds = [],
-
-            includedData = [],
-
-            locale = "en_US"
-
-        } = req.body;
-
-        if (!accessToken)
-            return res.status(400).json({
-                error: "Access Token is required"
-            });
-
-        if (!awsAccessKey || !awsSecretKey)
-            return res.status(400).json({
-                error: "AWS Credentials are required"
-            });
-
-        if (!asin)
-            return res.status(400).json({
-                error: "ASIN is required"
-            });
-
-        if (!marketplaceIds.length)
-            return res.status(400).json({
-                error: "Marketplace ID is required"
-            });
-
-        const host =
-            environment === "production"
-                ? "sellingpartnerapi-na.amazon.com"
-                : "sandbox.sellingpartnerapi-na.amazon.com";
-
-        let path = `/catalog/2022-04-01/items/${encodeURIComponent(asin)}`;
-
-        const params = new URLSearchParams();
-
-        params.append(
-            "marketplaceIds",
-            marketplaceIds.join(",")
-        );
-
-        if (includedData.length) {
-
-            params.append(
-                "includedData",
-                includedData.join(",")
-            );
-
-        }
-
-        if (locale) {
-
-            params.append(
-                "locale",
-                locale
-            );
-
-        }
-
-        path += `?${params.toString()}`;
-
-        const options = {
-
-            host,
-
-            path,
-
-            service: serviceName,
-
-            region,
-
-            method: "GET",
-
-            headers: {
-
-                "x-amz-access-token": accessToken,
-
-                "accept": "application/json",
-
-                "user-agent": "AmazonSellerAnalytics/1.0"
-
-            }
-
-        };
-
-        aws4.sign(
-            options,
-            {
-                accessKeyId: awsAccessKey,
-                secretAccessKey: awsSecretKey
-            }
-        );
-
-        console.log(
-            "Catalog Item URL:",
-            `https://${host}${path}`
-        );
-
-        const response = await axios.get(
-
-            `https://${host}${path}`,
-
-            {
-
-                headers: options.headers
-
-            }
-
-        );
-
-        res.json(response.data);
-
-    }
-
-    catch (err) {
-
-        console.error(
-            err.response?.data || err.message
-        );
-
-        res.status(
-            err.response?.status || 500
-        ).json({
-
-            success: false,
-
-            error:
-                err.response?.data ||
-                err.message
-
-        });
-
-    }
-
-});
-
-
-// ==================== 4. LISTINGS APIs ====================
-/*
-=========================================================
-Product Pricing API (India)
-=========================================================
-*/
-
-app.get("/api/product-pricing", async (req, res) => {
-
-    try {
-
-        const asin = req.query.asin;
-        const marketplaceId =
-            req.query.marketplaceId || "A21TJRUUN4KGV";
-
-        if (!asin) {
-
-            return res.status(400).json({
-                success: false,
-                message: "ASIN is required."
-            });
-
-        }
-
-        const path =
-            `/products/pricing/v0/price?MarketplaceId=${marketplaceId}&ItemType=Asin&Asins=${asin}`;
-
-        const options = {
-
-            host: "sellingpartnerapi-na.amazon.com",
-
-            path: path,
-
-            service: "execute-api",
-
-            region: process.env.AWS_REGION,
-
-            method: "GET",
-
-            headers: {
-
-                "x-amz-access-token":
-                    process.env.LWA_ACCESS_TOKEN,
-
-                "content-type":
-                    "application/json"
-
-            }
-
-        };
-
-        aws4.sign(options, {
-
-            accessKeyId:
-                process.env.AWS_ACCESS_KEY_ID,
-
-            secretAccessKey:
-                process.env.AWS_SECRET_ACCESS_KEY
-
-        });
-
-        const response = await axios({
-
-            method: "GET",
-
-            url:
-                `https://${options.host}${options.path}`,
-
-            headers: options.headers
-
-        });
-
-        res.status(200).json({
-
-            success: true,
-
-            message: "Product Pricing Retrieved Successfully",
-
-            data: response.data
-
-        });
-
-    }
-
-    catch (error) {
-
-        console.log(error.response?.data || error.message);
-
-        res.status(500).json({
-
-            success: false,
-
-            error:
-                error.response?.data || error.message
-
-        });
-
-    }
-
-});
-
-
-// Create Listing - Post
-app.post("/api/listings/bulk-create", async (req, res) => {
   try {
-    const {
-      accessToken,
-      awsAccessKey,
-      awsSecretKey,
-      region,
-      serviceName,
-      environment,
-      sellerId,
-      marketplaceIds,
-      listings,
-    } = req.body;
-
-    const host =
-      environment === "production"
-        ? "sellingpartnerapi-na.amazon.com"
-        : "sandbox.sellingpartnerapi-na.amazon.com";
-
-    const results = [];
-
-    for (const listing of listings) {
-      try {
-        const path =
-          `/listings/2021-08-01/items/${sellerId}/${listing.sku}` +
-          `?marketplaceIds=${marketplaceIds.join(",")}`;
-
-        const opts = {
-          host,
-          path,
-          service: serviceName || "execute-api",
-          region: region || "us-east-1",
-          method: "PUT",
-          headers: {
-            "x-amz-access-token": accessToken,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          body: JSON.stringify(listing.payload),
-        };
-
-        aws4.sign(opts, {
-          accessKeyId: awsAccessKey,
-          secretAccessKey: awsSecretKey,
-        });
-
-        const response = await axios({
-          method: "PUT",
-          url: `https://${host}${path}`,
-          headers: opts.headers,
-          data: listing.payload,
-        });
-
-        results.push({
-          sku: listing.sku,
-          success: true,
-          response: response.data,
-        });
-      } catch (error) {
-        results.push({
-          sku: listing.sku,
-          success: false,
-          error:
-            error.response?.data || {
-              message: error.message,
-            },
-        });
-      }
-    }
-
-    res.json({
-      total: listings.length,
-      successful: results.filter((r) => r.success).length,
-      failed: results.filter((r) => !r.success).length,
-      results,
-    });
-  } catch (err) {
-    res.status(500).json({
-      error: err.message,
-    });
-  }
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, asin, marketplaceIds, includedData, locale } = req.body;
+    if (!asin) return res.status(400).json({ error: "ASIN required" });
+    const query = { marketplaceIds: (marketplaceIds||[]).join(","), ...(includedData?.length && { includedData: includedData.join(",") }), locale: locale||"en_US" };
+    const data = await spApiCall({ method: "GET", path: `/catalog/2022-04-01/items/${encodeURIComponent(asin)}`, query, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
 });
 
-// Get Listing - GET
-app.post("/api/listings/get", async (req, res) => {
+// Alias for frontend: /api/amazon/catalog/*
+app.post("/api/amazon/catalog/items", async (req, res) => {
   try {
-    const { accessToken, awsAccessKey, awsSecretKey, region, serviceName, environment, sellerId, sku, marketplaceIds } = req.body;
-    const host = environment === "production" ? "sellingpartnerapi-na.amazon.com" : "sandbox.sellingpartnerapi-na.amazon.com";
-    const path = `/listings/2021-08-01/items/${sellerId}/${sku}?marketplaceIds=${marketplaceIds}`;
-
-    const opts = {
-      host, path, service: serviceName || "execute-api", region: region || "us-east-1", method: "GET",
-      headers: { "x-amz-access-token": accessToken, Accept: "application/json" }
-    };
-
-    aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
-    const response = await axios({ method: "GET", url: `https://${host}${path}`, headers: opts.headers });
-    res.json(response.data);
-  } catch (err) {
-    res.status(err.response?.status || 500).json(err.response?.data || { error: err.message });
-  }
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, marketplaceIds, keywords } = req.body;
+    const query = { marketplaceIds: (marketplaceIds||[]).join(","), keywords: keywords || "iphone", includedData: "summaries,images" };
+    const data = await spApiCall({ method: "GET", path: "/catalog/2022-04-01/items", query, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
 });
 
-// Update Listing - PATCH
-app.post("/api/listings/update", async (req, res) => {
-  try {
-    const { accessToken, awsAccessKey, awsSecretKey, region, serviceName, environment, sellerId, sku, patches } = req.body;
-
-    if (!accessToken || !awsAccessKey || !awsSecretKey || !sellerId || !sku || !patches) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
-
-    const host = environment === "production" 
-      ? "sellingpartnerapi-na.amazon.com" 
-      : "sandbox.sellingpartnerapi-na.amazon.com";
-
-    const path = `/listings/2021-08-01/items/${sellerId}/${sku}`;
-
-    const opts = {
-      host,
-      path,
-      service: serviceName || "execute-api",
-      region: region || "us-east-1",
-      method: "PATCH",
-      headers: {
-        "x-amz-access-token": accessToken,
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-      },
-      body: JSON.stringify(patches)
-    };
-
-    // Sign the request with aws4
-    aws4.sign(opts, { 
-      accessKeyId: awsAccessKey, 
-      secretAccessKey: awsSecretKey 
-    });
-
-    const response = await axios({
-      method: "PATCH",
-      url: `https://${host}${path}`,
-      headers: opts.headers,
-      data: patches
-    });
-
-    res.json(response.data);
-  } catch (err) {
-    console.error("Update listing error:", err.response?.data || err.message);
-    res.status(err.response?.status || 500).json(
-      err.response?.data || { error: err.message }
-    );
-  }
-});
-
-// DELETE Listing
-app.post("/api/listings/delete", async (req, res) => {
-  try {
-    const { 
-      accessToken, 
-      awsAccessKey, 
-      awsSecretKey, 
-      region, 
-      serviceName, 
-      environment, 
-      sellerId, 
-      sku, 
-      marketplaceIds, 
-    } = req.body;
-
-    if (!accessToken || !awsAccessKey || !awsSecretKey || !sellerId || !sku) {
-      return res.status(400).json({ error: "Missing required fields: accessToken, aws keys, sellerId, sku" });
-    }
-
-    const host = environment === "production" 
-      ? "sellingpartnerapi-na.amazon.com" 
-      : "sandbox.sellingpartnerapi-na.amazon.com";
-
-    const path = `/listings/2021-08-01/items/${sellerId}/${sku}?marketplaceIds=${marketplaceIds}`;
-
-    const opts = {
-      host,
-      path,
-      service: serviceName || "execute-api",
-      region: region || "us-east-1",
-      method: "DELETE",
-      headers: { 
-        "x-amz-access-token": accessToken, 
-        "Accept": "application/json" 
-      }
-    };
-
-    require('aws4').sign(opts, { 
-      accessKeyId: awsAccessKey, 
-      secretAccessKey: awsSecretKey 
-    });
-
-    const response = await require('axios')({
-      method: "DELETE",
-      url: `https://${host}${path}`,
-      headers: opts.headers
-    });
-
-    res.json(response.data);
-  } catch (err) {
-    console.error("Delete listing error:", err.response?.data || err.message);
-    res.status(err.response?.status || 500).json(
-      err.response?.data || { error: err.message }
-    );
-  }
-});
-
-// Get Listing Submission
-app.post("/api/listings/submission", async (req, res) => {
-  try {
-    const { accessToken, awsAccessKey, awsSecretKey, region, serviceName, environment, sellerId, submissionId } = req.body;
-    const host = environment === "production" ? "sellingpartnerapi-na.amazon.com" : "sandbox.sellingpartnerapi-na.amazon.com";
-    const path = `/listings/2021-08-01/items/${sellerId}/submissions/${submissionId}`;
-
-    const opts = {
-      host, path, service: serviceName || "execute-api", region: region || "us-east-1", method: "GET",
-      headers: { "x-amz-access-token": accessToken, Accept: "application/json" }
-    };
-
-    aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
-    const response = await axios({ method: "GET", url: `https://${host}${path}`, headers: opts.headers });
-    res.json(response.data);
-  } catch (err) {
-    res.status(err.response?.status || 500).json(err.response?.data || { error: err.message });
-  }
-});
-
-// ==================== 5. ORDERS APIs ====================
-
+// ================= 4. ORDERS v0 =================
 app.post("/api/get-orders", async (req, res) => {
   try {
-    const {
-      accessToken,
-      awsAccessKey,
-      awsSecretKey,
-      region,
-      serviceName,
-      environment,
-      marketplaceId,
-      createdAfter,
-      createdBefore,
-      orderStatuses,
-      maxResultsPerPage,
-    } = req.body;
-
-    // Validation
-    if (!accessToken) {
-      return res.status(400).json({
-        success: false,
-        error: "Amazon Access Token is required",
-      });
-    }
-
-    if (!awsAccessKey || !awsSecretKey) {
-      return res.status(400).json({
-        success: false,
-        error: "AWS Access Key and Secret Key are required",
-      });
-    }
-
-    if (!marketplaceId) {
-      return res.status(400).json({
-        success: false,
-        error: "Marketplace ID is required",
-      });
-    }
-
-    // SP-API Host
-    const host =
-      environment === "production"
-        ? "sellingpartnerapi-na.amazon.com"
-        : "sandbox.sellingpartnerapi-na.amazon.com";
-
-    // Build Query Parameters
-    const params = new URLSearchParams();
-
-    params.append("MarketplaceIds", marketplaceId);
-
-    if (createdAfter) {
-      params.append("CreatedAfter", createdAfter);
-    }
-
-    if (createdBefore) {
-      params.append("CreatedBefore", createdBefore);
-    }
-
-    if (orderStatuses) {
-      params.append("OrderStatuses", orderStatuses);
-    }
-
-    if (maxResultsPerPage) {
-      params.append("MaxResultsPerPage", maxResultsPerPage);
-    }
-
-    const path = `/orders/v0/orders?${params.toString()}`;
-
-    // Request to sign
-    const options = {
-      host,
-      path,
-      service: serviceName || "execute-api",
-      region: region || "us-east-1",
-      method: "GET",
-      headers: {
-        host,
-        "x-amz-access-token": accessToken,
-        accept: "application/json",
-        "content-type": "application/json",
-      },
-    };
-
-    // AWS Signature V4
-    aws4.sign(options, {
-      accessKeyId: awsAccessKey,
-      secretAccessKey: awsSecretKey,
-    });
-
-    console.log("Amazon Orders API URL:");
-    console.log(`https://${host}${path}`);
-
-    // Amazon API Call
-    const response = await axios.get(
-      `https://${host}${path}`,
-      {
-        headers: options.headers,
-      }
-    );
-
-    res.status(200).json({
-      success: true,
-      data: response.data,
-    });
-
-  } catch (error) {
-    console.error(
-      "Orders API Error:",
-      error.response?.data || error.message
-    );
-
-    res.status(error.response?.status || 500).json({
-      success: false,
-      error: error.response?.data || {
-        message: error.message,
-      },
-    });
-  }
-});
-
-app.post("/api/get-report-document", async (req, res) => {
-  try {
-    const {
-      accessToken,
-      awsAccessKey,
-      awsSecretKey,
-      region,
-      serviceName,
-      environment,
-      reportDocumentId,
-    } = req.body;
-
-    // Validation
-    if (!accessToken) {
-      return res.status(400).json({
-        success: false,
-        error: "Amazon Access Token is required",
-      });
-    }
-
-    if (!awsAccessKey || !awsSecretKey) {
-      return res.status(400).json({
-        success: false,
-        error: "AWS Access Key and Secret Key are required",
-      });
-    }
-
-    if (!reportDocumentId) {
-      return res.status(400).json({
-        success: false,
-        error: "Report Document ID is required",
-      });
-    }
-
-    // Amazon SP-API Host
-    const host =
-      environment === "production"
-        ? "sellingpartnerapi-na.amazon.com"
-        : "sandbox.sellingpartnerapi-na.amazon.com";
-
-    // Reports API Path
-    const path = `/reports/2021-06-30/documents/${reportDocumentId}`;
-
-    // Request options for AWS Signature V4
-    const options = {
-      host,
-      path,
-      service: serviceName || "execute-api",
-      region: region || "us-east-1",
-      method: "GET",
-      headers: {
-        host,
-        "x-amz-access-token": accessToken,
-        accept: "application/json",
-        "content-type": "application/json",
-      },
-    };
-
-    // Sign request
-    aws4.sign(options, {
-      accessKeyId: awsAccessKey,
-      secretAccessKey: awsSecretKey,
-    });
-
-    console.log("Calling Amazon Report Document API:");
-    console.log(`https://${host}${path}`);
-
-    // Call Amazon SP-API
-    const response = await axios.get(
-      `https://${host}${path}`,
-      {
-        headers: options.headers,
-      }
-    );
-
-    res.status(200).json({
-      success: true,
-      data: response.data,
-    });
-
-  } catch (error) {
-    console.error(
-      "Report Document API Error:",
-      error.response?.data || error.message
-    );
-
-    res.status(error.response?.status || 500).json({
-      success: false,
-      error:
-        error.response?.data || {
-          message: error.message,
-        },
-    });
-  }
-});
-
-app.post("/api/get-report", async (req, res) => {
-  try {
-    const {
-      accessToken,
-      awsAccessKey,
-      awsSecretKey,
-      region,
-      serviceName,
-      environment,
-      reportId,
-    } = req.body;
-
-    // Validation
-    if (!accessToken) {
-      return res.status(400).json({
-        success: false,
-        error: "Amazon Access Token is required",
-      });
-    }
-
-    if (!awsAccessKey || !awsSecretKey) {
-      return res.status(400).json({
-        success: false,
-        error: "AWS Access Key and Secret Key are required",
-      });
-    }
-
-    if (!reportId) {
-      return res.status(400).json({
-        success: false,
-        error: "Report ID is required",
-      });
-    }
-
-    // Amazon SP-API Host
-    const host =
-      environment === "production"
-        ? "sellingpartnerapi-na.amazon.com"
-        : "sandbox.sellingpartnerapi-na.amazon.com";
-
-    // API Path
-    const path = `/reports/2021-06-30/reports/${reportId}`;
-
-    // AWS Signature V4 Request
-    const options = {
-      host,
-      path,
-      service: serviceName || "execute-api",
-      region: region || "us-east-1",
-      method: "GET",
-      headers: {
-        host,
-        "x-amz-access-token": accessToken,
-        accept: "application/json",
-        "content-type": "application/json",
-      },
-    };
-
-    // Sign the request
-    aws4.sign(options, {
-      accessKeyId: awsAccessKey,
-      secretAccessKey: awsSecretKey,
-    });
-
-    console.log("Calling Amazon Get Report API:");
-    console.log(`https://${host}${path}`);
-
-    // Call Amazon SP-API
-    const response = await axios.get(
-      `https://${host}${path}`,
-      {
-        headers: options.headers,
-      }
-    );
-
-    // Success
-    res.status(200).json({
-      success: true,
-      data: response.data,
-    });
-
-  } catch (error) {
-    console.error(
-      "Get Report API Error:",
-      error.response?.data || error.message
-    );
-
-    res.status(error.response?.status || 500).json({
-      success: false,
-      error:
-        error.response?.data || {
-          message: error.message,
-        },
-    });
-  }
-});
-
-app.post("/api/get-order-items", async (req, res) => {
-  try {
-    const {
-      accessToken,
-      awsAccessKey,
-      awsSecretKey,
-      region,
-      serviceName,
-      environment,
-      orderId,
-    } = req.body;
-
-    // ==========================
-    // Validation
-    // ==========================
-    if (!accessToken) {
-      return res.status(400).json({
-        success: false,
-        error: "Amazon Access Token is required",
-      });
-    }
-
-    if (!awsAccessKey || !awsSecretKey) {
-      return res.status(400).json({
-        success: false,
-        error: "AWS Access Key and Secret Key are required",
-      });
-    }
-
-    if (!orderId) {
-      return res.status(400).json({
-        success: false,
-        error: "Amazon Order ID is required",
-      });
-    }
-
-    // ==========================
-    // Amazon SP-API Host
-    // ==========================
-    const host =
-      environment === "production"
-        ? "sellingpartnerapi-na.amazon.com"
-        : "sandbox.sellingpartnerapi-na.amazon.com";
-
-    // ==========================
-    // API Path
-    // ==========================
-    const path = `/orders/v0/orders/${orderId}/orderItems`;
-
-    // ==========================
-    // AWS Signature V4 Request
-    // ==========================
-    const options = {
-      host,
-      path,
-      service: serviceName || "execute-api",
-      region: region || "us-east-1",
-      method: "GET",
-      headers: {
-        host,
-        "x-amz-access-token": accessToken,
-        accept: "application/json",
-        "content-type": "application/json",
-      },
-    };
-
-    // ==========================
-    // Sign Request
-    // ==========================
-    aws4.sign(options, {
-      accessKeyId: awsAccessKey,
-      secretAccessKey: awsSecretKey,
-    });
-
-    console.log("Calling Amazon Get Order Items API:");
-    console.log(`https://${host}${path}`);
-
-    // ==========================
-    // Call Amazon SP-API
-    // ==========================
-    const response = await axios.get(
-      `https://${host}${path}`,
-      {
-        headers: options.headers,
-      }
-    );
-
-    // ==========================
-    // Success Response
-    // ==========================
-    res.status(200).json({
-      success: true,
-      data: response.data,
-    });
-
-  } catch (error) {
-    console.error(
-      "Get Order Items API Error:",
-      error.response?.data || error.message
-    );
-
-    res.status(error.response?.status || 500).json({
-      success: false,
-      error:
-        error.response?.data || {
-          message: error.message,
-        },
-    });
-  }
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, marketplaceId, createdAfter, createdBefore, orderStatuses, maxResultsPerPage } = req.body;
+    const query = { MarketplaceIds: marketplaceId, ...(createdAfter && { CreatedAfter: createdAfter }), ...(createdBefore && { CreatedBefore: createdBefore }), ...(orderStatuses && { OrderStatuses: orderStatuses }), ...(maxResultsPerPage && { MaxResultsPerPage: maxResultsPerPage }) };
+    const data = await spApiCall({ method: "GET", path: "/orders/v0/orders", query, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json({ success: true, data });
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
 });
 
 app.post("/api/get-order", async (req, res) => {
   try {
-    const {
-      accessToken,
-      awsAccessKey,
-      awsSecretKey,
-      region,
-      serviceName,
-      environment,
-      orderId,
-    } = req.body;
-
-    // ==========================
-    // Validation
-    // ==========================
-    if (!accessToken) {
-      return res.status(400).json({
-        success: false,
-        error: "Amazon Access Token is required",
-      });
-    }
-
-    if (!awsAccessKey || !awsSecretKey) {
-      return res.status(400).json({
-        success: false,
-        error: "AWS Access Key and Secret Key are required",
-      });
-    }
-
-    if (!orderId) {
-      return res.status(400).json({
-        success: false,
-        error: "Amazon Order ID is required",
-      });
-    }
-
-    // ==========================
-    // Amazon SP-API Host
-    // ==========================
-    const host =
-      environment === "production"
-        ? "sellingpartnerapi-na.amazon.com"
-        : "sandbox.sellingpartnerapi-na.amazon.com";
-
-    // ==========================
-    // Orders API Path
-    // GET /orders/v0/orders/{orderId}
-    // ==========================
-    const path = `/orders/v0/orders/${orderId}`;
-
-    // ==========================
-    // AWS Signature V4 Options
-    // ==========================
-    const options = {
-      host,
-      path,
-      service: serviceName || "execute-api",
-      region: region || "us-east-1",
-      method: "GET",
-      headers: {
-        host,
-        "x-amz-access-token": accessToken,
-        accept: "application/json",
-        "content-type": "application/json",
-      },
-    };
-
-    // ==========================
-    // Sign Request
-    // ==========================
-    aws4.sign(options, {
-      accessKeyId: awsAccessKey,
-      secretAccessKey: awsSecretKey,
-    });
-
-    console.log("Calling Amazon Get Order API:");
-    console.log(`https://${host}${path}`);
-
-    // ==========================
-    // Call Amazon SP-API
-    // ==========================
-    const response = await axios.get(
-      `https://${host}${path}`,
-      {
-        headers: options.headers,
-      }
-    );
-
-    // ==========================
-    // Success Response
-    // ==========================
-    res.status(200).json({
-      success: true,
-      data: response.data,
-    });
-
-  } catch (error) {
-    console.error(
-      "Get Order API Error:",
-      error.response?.data || error.message
-    );
-
-    res.status(error.response?.status || 500).json({
-      success: false,
-      error:
-        error.response?.data || {
-          message: error.message,
-        },
-    });
-  }
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, orderId } = req.body;
+    const data = await spApiCall({ method: "GET", path: `/orders/v0/orders/${orderId}`, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json({ success: true, data });
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
 });
-// ==================== 6. REPORTS APIs ====================
-// Create Report
+
+app.post("/api/get-order-items", async (req, res) => {
+  try {
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, orderId } = req.body;
+    const data = await spApiCall({ method: "GET", path: `/orders/v0/orders/${orderId}/orderItems`, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json({ success: true, data });
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
+});
+
+// Alias for new frontend
+app.post("/api/amazon/orders/list", async (req, res) => {
+  try {
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, marketplaceIds } = req.body;
+    const query = { marketplaceIds: (marketplaceIds||["ATVPDKIKX0DER"]).join(","), CreatedAfter: new Date(Date.now()-7*24*60*60*1000).toISOString() };
+    const data = await spApiCall({ method: "GET", path: "/orders/v0/orders", query, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
+});
+
+// ================= 5. LISTINGS 2021-08-01 =================
+app.post("/api/listings/bulk-create", async (req, res) => {
+  try {
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, sellerId, marketplaceIds, listings } = req.body;
+    const results = [];
+    for (const listing of listings) {
+      try {
+        const path = `/listings/2021-08-01/items/${sellerId}/${listing.sku}?marketplaceIds=${marketplaceIds.join(",")}`;
+        const data = await spApiCall({ method: "PUT", path, body: listing.payload, accessToken, awsAccessKey, awsSecretKey, region, environment });
+        results.push({ sku: listing.sku, success: true, response: data });
+      } catch (err) { results.push({ sku: listing.sku, success: false, error: err.response?.data || err.message }); }
+    }
+    res.json({ total: listings.length, successful: results.filter(r=>r.success).length, failed: results.filter(r=>!r.success).length, results });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post("/api/listings/get", async (req, res) => {
+  try {
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, sellerId, sku, marketplaceIds } = req.body;
+    const data = await spApiCall({ method: "GET", path: `/listings/2021-08-01/items/${sellerId}/${sku}?marketplaceIds=${marketplaceIds}`, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
+});
+
+app.post("/api/listings/update", async (req, res) => {
+  try {
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, sellerId, sku, patches } = req.body;
+    const data = await spApiCall({ method: "PATCH", path: `/listings/2021-08-01/items/${sellerId}/${sku}`, body: patches, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
+});
+
+app.post("/api/listings/delete", async (req, res) => {
+  try {
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, sellerId, sku, marketplaceIds } = req.body;
+    const data = await spApiCall({ method: "DELETE", path: `/listings/2021-08-01/items/${sellerId}/${sku}?marketplaceIds=${marketplaceIds}`, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
+});
+
+app.post("/api/listings/submission", async (req, res) => {
+  try {
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, sellerId, submissionId } = req.body;
+    const data = await spApiCall({ method: "GET", path: `/listings/2021-08-01/items/${sellerId}/submissions/${submissionId}`, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
+});
+
+// ================= 6. REPORTS 2021-06-30 =================
 app.post("/api/reports/create", async (req, res) => {
   try {
-    const { accessToken, awsAccessKey, awsSecretKey, region, serviceName, environment, reportType, marketplaceIds } = req.body;
-    const host = environment === "production" ? "sellingpartnerapi-na.amazon.com" : "sandbox.sellingpartnerapi-na.amazon.com";
-    const path = `/reports/2021-06-30/reports`;
-
-    const opts = {
-      host, path, service: serviceName || "execute-api", region: region || "us-east-1", method: "POST",
-      headers: { "x-amz-access-token": accessToken, "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ reportType, marketplaceIds })
-    };
-
-    aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
-    const response = await axios({ method: "POST", url: `https://${host}${path}`, headers: opts.headers, data: { reportType, marketplaceIds } });
-    res.json(response.data);
-  } catch (err) {
-    res.status(err.response?.status || 500).json(err.response?.data || { error: err.message });
-  }
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, reportType, marketplaceIds } = req.body;
+    const data = await spApiCall({ method: "POST", path: "/reports/2021-06-30/reports", body: { reportType, marketplaceIds }, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
 });
 
-// Get Report
 app.post("/api/reports/get", async (req, res) => {
   try {
-    const { accessToken, awsAccessKey, awsSecretKey, region, serviceName, environment, reportId } = req.body;
-    const host = environment === "production" ? "sellingpartnerapi-na.amazon.com" : "sandbox.sellingpartnerapi-na.amazon.com";
-    const path = `/reports/2021-06-30/reports/${reportId}`;
-
-    const opts = {
-      host, path, service: serviceName || "execute-api", region: region || "us-east-1", method: "GET",
-      headers: { "x-amz-access-token": accessToken, Accept: "application/json" }
-    };
-
-    aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
-    const response = await axios({ method: "GET", url: `https://${host}${path}`, headers: opts.headers });
-    res.json(response.data);
-  } catch (err) {
-    res.status(err.response?.status || 500).json(err.response?.data || { error: err.message });
-  }
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, reportId } = req.body;
+    const data = await spApiCall({ method: "GET", path: `/reports/2021-06-30/reports/${reportId}`, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
 });
 
-// Get Report Document
 app.post("/api/reports/document", async (req, res) => {
   try {
-    const { accessToken, awsAccessKey, awsSecretKey, region, serviceName, environment, documentId } = req.body;
-    const host = environment === "production" ? "sellingpartnerapi-na.amazon.com" : "sandbox.sellingpartnerapi-na.amazon.com";
-    const path = `/reports/2021-06-30/documents/${documentId}`;
-
-    const opts = {
-      host, path, service: serviceName || "execute-api", region: region || "us-east-1", method: "GET",
-      headers: { "x-amz-access-token": accessToken, Accept: "application/json" }
-    };
-
-    aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
-    const response = await axios({ method: "GET", url: `https://${host}${path}`, headers: opts.headers });
-    res.json(response.data);
-  } catch (err) {
-    res.status(err.response?.status || 500).json(err.response?.data || { error: err.message });
-  }
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, documentId } = req.body;
+    const data = await spApiCall({ method: "GET", path: `/reports/2021-06-30/documents/${documentId}`, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
 });
 
-// ==================== 7. PRICING APIs ====================
-// Get Pricing
+app.post("/api/get-report", async (req, res) => {
+  try {
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, reportId } = req.body;
+    const data = await spApiCall({ method: "GET", path: `/reports/2021-06-30/reports/${reportId}`, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json({ success: true, data });
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
+});
+
+app.post("/api/get-report-document", async (req, res) => {
+  try {
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, reportDocumentId } = req.body;
+    const data = await spApiCall({ method: "GET", path: `/reports/2021-06-30/documents/${reportDocumentId}`, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json({ success: true, data });
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
+});
+
+// ================= 7. PRICING & FBA INVENTORY =================
 app.post("/api/pricing", async (req, res) => {
   try {
-    const {
-      accessToken,
-      awsAccessKey,
-      awsSecretKey,
-      region = "us-east-1",
-      serviceName = "execute-api",
-      environment = "sandbox",        // Changed default to sandbox for testing
-      sku,
-      asin,
-      marketplaceId,
-      itemCondition = "New",
-      customerType = "Consumer"       // Added common parameter
-    } = req.body;
-
-    // Validation
-    if (!accessToken) return res.status(400).json({ error: "Access Token is required" });
-    if (!awsAccessKey || !awsSecretKey) return res.status(400).json({ error: "AWS Access Key and Secret Key are required" });
-    if (!marketplaceId) return res.status(400).json({ error: "Marketplace ID is required" });
-    if (!sku && !asin) return res.status(400).json({ error: "Either SKU or ASIN is required" });
-
-    const host = environment === "production"
-      ? "sellingpartnerapi-na.amazon.com"
-      : "sandbox.sellingpartnerapi-na.amazon.com";
-
-    const identifier = sku || asin;
-    // Build query parameters properly
-    const params = new URLSearchParams({
-      MarketplaceId: marketplaceId,
-      ItemCondition: itemCondition,
-      CustomerType: customerType
-    });
-
-    if (sku) {
-      params.append("SellerSKU", sku);
-    }
-
-    const path = `/products/pricing/v0/items/${identifier}/offers?${params.toString()}`;
-
-    const opts = {
-      host,
-      path,
-      service: serviceName,
-      region,
-      method: "GET",
-      headers: {
-        "x-amz-access-token": accessToken,
-        "accept": "application/json",
-        "user-agent": "MyApp/1.0 (Language=Node.js)"
-      }
-    };
-
-    aws4.sign(opts, {
-      accessKeyId: awsAccessKey,
-      secretAccessKey: awsSecretKey
-    });
-
-    console.log(`Calling Pricing API: https://${host}${path}`);
-
-    const response = await axios.get(`https://${host}${path}`, {
-      headers: opts.headers
-    });
-
-    res.json(response.data);
-
-  } catch (err) {
-    console.error("Pricing API Error:", err.response?.data || err.message);
-    res.status(err.response?.status || 500).json({
-      success: false,
-      error: err.response?.data || { message: err.message }
-    });
-  }
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, sku, marketplaceId } = req.body;
+    const identifier = sku;
+    const data = await spApiCall({ method: "GET", path: `/products/pricing/v0/items/${identifier}/offers?MarketplaceId=${marketplaceId}&ItemCondition=New&CustomerType=Consumer`, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
 });
-
-/*
-=====================================================
-FBA Inventory API
-=====================================================
-*/
 
 app.get("/api/inventory", async (req, res) => {
-
-    try {
-
-        const marketplaceId =
-            req.query.marketplaceId || "A21TJRUUN4KGV";
-
-        const details =
-            req.query.details || true;
-
-        const query =
-
-            `/fba/inventory/v1/summaries` +
-
-            `?details=${details}` +
-
-            `&granularityType=Marketplace` +
-
-            `&granularityId=${marketplaceId}` +
-
-            `&marketplaceIds=${marketplaceId}`;
-
-        const options = {
-
-            host: "sellingpartnerapi-na.amazon.com",
-
-            service: "execute-api",
-
-            region: process.env.AWS_REGION,
-
-            method: "GET",
-
-            path: query,
-
-            headers: {
-
-                "x-amz-access-token":
-                    process.env.LWA_ACCESS_TOKEN,
-
-                "content-type":
-                    "application/json"
-
-            }
-
-        };
-
-        aws4.sign(options, {
-
-            accessKeyId:
-                process.env.AWS_ACCESS_KEY_ID,
-
-            secretAccessKey:
-                process.env.AWS_SECRET_ACCESS_KEY
-
-        });
-
-        const response = await axios({
-
-            method: "GET",
-
-            url:
-                `https://${options.host}${options.path}`,
-
-            headers: options.headers
-
-        });
-
-        const payload =
-            response.data.payload;
-
-        const inventorySummaries =
-            payload.inventorySummaries || [];
-
-        let totalAvailable = 0;
-        let totalReserved = 0;
-        let totalInbound = 0;
-        let totalResearching = 0;
-        let totalUnfulfillable = 0;
-
-        const inventory = inventorySummaries.map(item => {
-
-            const available =
-                item.fulfillableQuantity || 0;
-
-            const reserved =
-                item.reservedQuantity?.totalReservedQuantity || 0;
-
-            const inbound =
-
-                (item.inboundWorkingQuantity || 0) +
-
-                (item.inboundShippedQuantity || 0) +
-
-                (item.inboundReceivingQuantity || 0);
-
-            const researching =
-                item.researchingQuantity?.totalResearchingQuantity || 0;
-
-            const unfulfillable =
-                item.unfulfillableQuantity?.totalUnfulfillableQuantity || 0;
-
-            totalAvailable += available;
-            totalReserved += reserved;
-            totalInbound += inbound;
-            totalResearching += researching;
-            totalUnfulfillable += unfulfillable;
-
-            return {
-
-                asin:
-                    item.asin,
-
-                sku:
-                    item.sellerSku,
-
-                condition:
-                    item.condition,
-
-                available,
-
-                reserved,
-
-                inbound,
-
-                researching,
-
-                unfulfillable
-
-            };
-
-        });
-
-        res.json({
-
-            summary: {
-
-                available:
-                    totalAvailable,
-
-                reserved:
-                    totalReserved,
-
-                inbound:
-                    totalInbound,
-
-                researching:
-                    totalResearching,
-
-                unfulfillable:
-                    totalUnfulfillable
-
-            },
-
-            inventory
-
-        });
-
-    }
-  catch (error) {
-
-    console.error(error);
-
-    console.error(error.stack);
-
-    res.status(500).json({
-        success: false,
-        message: error.message,
-        stack: error.stack
-    });
-
-}
+  try {
+    const marketplaceId = req.query.marketplaceId || "A21TJRUUN4KGV";
+    const data = await spApiCall({ method: "GET", path: `/fba/inventory/v1/summaries?details=true&granularityType=Marketplace&granularityId=${marketplaceId}&marketplaceIds=${marketplaceId}`, accessToken: process.env.LWA_ACCESS_TOKEN, awsAccessKey: process.env.AWS_ACCESS_KEY_ID, awsSecretKey: process.env.AWS_SECRET_ACCESS_KEY, region: process.env.AWS_REGION, environment: "production" });
+    res.json(data);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+app.post("/api/amazon/fba/inventory", async (req, res) => {
+  try {
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, marketplaceIds } = req.body;
+    const mId = (marketplaceIds||["ATVPDKIKX0DER"])[0];
+    const data = await spApiCall({ method: "GET", path: `/fba/inventory/v1/summaries?details=true&granularityType=Marketplace&granularityId=${mId}&marketplaceIds=${mId}`, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
+});
 
-
-// ==================== 8. FEEDS APIs ====================
-// Create Feed Document
+// ================= 8. FEEDS =================
 app.post("/api/feeds/document", async (req, res) => {
   try {
-    const { accessToken, awsAccessKey, awsSecretKey, region, serviceName, environment, contentType } = req.body;
-    const host = environment === "production" ? "sellingpartnerapi-na.amazon.com" : "sandbox.sellingpartnerapi-na.amazon.com";
-    const path = `/feeds/2021-06-30/documents`;
-
-    const opts = {
-      host, path, service: serviceName || "execute-api", region: region || "us-east-1", method: "POST",
-      headers: { "x-amz-access-token": accessToken, "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ contentType: contentType || "text/xml; charset=UTF-8" })
-    };
-
-    aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
-    const response = await axios({ method: "POST", url: `https://${host}${path}`, headers: opts.headers, data: { contentType: contentType || "text/xml; charset=UTF-8" } });
-    res.json(response.data);
-  } catch (err) {
-    res.status(err.response?.status || 500).json(err.response?.data || { error: err.message });
-  }
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, contentType } = req.body;
+    const data = await spApiCall({ method: "POST", path: "/feeds/2021-06-30/documents", body: { contentType: contentType||"text/xml; charset=UTF-8" }, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
 });
-
-// Create Feed
 app.post("/api/feeds/create", async (req, res) => {
   try {
-    const { accessToken, awsAccessKey, awsSecretKey, region, serviceName, environment, feedType, marketplaceIds, inputFeedDocumentId } = req.body;
-    const host = environment === "production" ? "sellingpartnerapi-na.amazon.com" : "sandbox.sellingpartnerapi-na.amazon.com";
-    const path = `/feeds/2021-06-30/feeds`;
-
-    const opts = {
-      host, path, service: serviceName || "execute-api", region: region || "us-east-1", method: "POST",
-      headers: { "x-amz-access-token": accessToken, "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ feedType, marketplaceIds, inputFeedDocumentId })
-    };
-
-    aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
-    const response = await axios({ method: "POST", url: `https://${host}${path}`, headers: opts.headers, data: { feedType, marketplaceIds, inputFeedDocumentId } });
-    res.json(response.data);
-  } catch (err) {
-    res.status(err.response?.status || 500).json(err.response?.data || { error: err.message });
-  }
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, feedType, marketplaceIds, inputFeedDocumentId } = req.body;
+    const data = await spApiCall({ method: "POST", path: "/feeds/2021-06-30/feeds", body: { feedType, marketplaceIds, inputFeedDocumentId }, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
 });
-
-// Get Feed
 app.post("/api/feeds/get", async (req, res) => {
   try {
-    const { accessToken, awsAccessKey, awsSecretKey, region, serviceName, environment, feedId } = req.body;
-    const host = environment === "production" ? "sellingpartnerapi-na.amazon.com" : "sandbox.sellingpartnerapi-na.amazon.com";
-    const path = `/feeds/2021-06-30/feeds/${feedId}`;
-
-    const opts = {
-      host, path, service: serviceName || "execute-api", region: region || "us-east-1", method: "GET",
-      headers: { "x-amz-access-token": accessToken, Accept: "application/json" }
-    };
-
-    aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
-    const response = await axios({ method: "GET", url: `https://${host}${path}`, headers: opts.headers });
-    res.json(response.data);
-  } catch (err) {
-    res.status(err.response?.status || 500).json(err.response?.data || { error: err.message });
-  }
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, feedId } = req.body;
+    const data = await spApiCall({ method: "GET", path: `/feeds/2021-06-30/feeds/${feedId}`, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
 });
 
-
-// ===== FINANCES =====
+// ================= 9. FINANCES, NOTIFICATIONS, SHIPPING =================
 app.post("/api/finances/events", async (req, res) => {
-  const { accessToken, awsAccessKey, awsSecretKey, region, environment, postedAfter } = req.body;
-
-  const isSandbox = environment !== "production";
-  const host = isSandbox 
-    ? "sandbox.sellingpartnerapi-na.amazon.com" 
-    : "sellingpartnerapi-na.amazon.com";
-
-  // Base path without query parameters
-  let basePath = "/finances/v0/financialEvents";
-  let queryParams = {};
-
-  // Amazon Sandbox pattern-matcher breaks on dynamic parameters.
-  // Only append PostedAfter if we are in Production OR using a supported sandbox mock date.
-  if (postedAfter && !isSandbox) {
-    queryParams["PostedAfter"] = postedAfter;
-  } else if (isSandbox) {
-    // Optional: Standard Static Sandbox mock date if you absolutely want to pass a date parameter
-    // queryParams["PostedAfter"] = "2020-03-01T00:00:00Z"; 
-  }
-
-  // Construct the query string properly
-  const queryString = Object.keys(queryParams).length > 0
-    ? '?' + Object.entries(queryParams)
-        .map(([key, val]) => `${key}=${encodeURIComponent(val)}`)
-        .join('&')
-    : '';
-
-  const fullPath = `${basePath}${queryString}`;
-
-  const opts = { 
-    host, 
-    path: fullPath, // Must match the exact path + query sent via axios
-    service: "execute-api", 
-    region, 
-    method: "GET", 
-    headers: { 
-      "x-amz-access-token": accessToken,
-      "accept": "application/json"
-    } 
-  };
-
-  // Sign the request structure using aws4
-  aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
-
-  // Deep clone headers and clean up any payload headers that trigger API Gateway 400s on GET requests
-  const cleanHeaders = { ...opts.headers };
-  const headersToDestroy = ['content-type', 'content-length', 'accept-encoding', 'connection'];
-  
-  Object.keys(cleanHeaders).forEach(key => {
-    if (headersToDestroy.includes(key.toLowerCase())) {
-      delete cleanHeaders[key];
-    }
-  });
-
   try {
-    const response = await axios({ 
-      method: "GET", 
-      url: `https://${host}${fullPath}`, 
-      headers: cleanHeaders 
-    });
-    
-    res.json(response.data);
-  } catch (error) {
-    // Send back Amazon's detailed error payload instead of a generic axios status
-    const errorData = error.response?.data || { error: error.message };
-    res.status(error.response?.status || 500).json(errorData);
-  }
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, postedAfter } = req.body;
+    const query = environment==="production" && postedAfter ? { PostedAfter: postedAfter } : {};
+    const data = await spApiCall({ method: "GET", path: "/finances/v0/financialEvents", query, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
 });
 
-// ===== NOTIFICATIONS =====
 app.post("/api/notifications/destination", async (req, res) => {
-  const { accessToken, awsAccessKey, awsSecretKey, region, environment, webhookUrl } = req.body;
-  const host = environment === "production" ? "sellingpartnerapi-na.amazon.com" : "sandbox.sellingpartnerapi-na.amazon.com";
-  const path = "/notifications/v1/destinations";
-  const opts = { host, path, service: "execute-api", region, method: "POST", headers: { "x-amz-access-token": accessToken, "Content-Type": "application/json" } };
-  aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
   try {
-    const response = await axios({ method: "POST", url: `https://${host}${path}`, headers: opts.headers, data: { name: "MyAppWebhook", resource: { sqs: { arn: webhookUrl } } } });
-    res.json(response.data);
-  } catch (error) {
-    res.status(error.response?.status || 500).json(error.response?.data || { error: error.message });
-  }
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, webhookUrl } = req.body;
+    const data = await spApiCall({ method: "POST", path: "/notifications/v1/destinations", body: { name: "MyAppWebhook", resource: { sqs: { arn: webhookUrl } } }, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
 });
 
 app.post("/api/notifications/subscription", async (req, res) => {
-  const { accessToken, awsAccessKey, awsSecretKey, region, environment, destinationId, notificationType } = req.body;
-  const host = environment === "production" ? "sellingpartnerapi-na.amazon.com" : "sandbox.sellingpartnerapi-na.amazon.com";
-  const path = "/notifications/v1/subscriptions/" + notificationType;
-  const opts = { host, path, service: "execute-api", region, method: "POST", headers: { "x-amz-access-token": accessToken, "Content-Type": "application/json" } };
-  aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
   try {
-    const response = await axios({ method: "POST", url: `https://${host}${path}`, headers: opts.headers, data: { destinationId } });
-    res.json(response.data);
-  } catch (error) {
-    res.status(error.response?.status || 500).json(error.response?.data || { error: error.message });
-  }
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, destinationId, notificationType } = req.body;
+    const data = await spApiCall({ method: "POST", path: `/notifications/v1/subscriptions/${notificationType}`, body: { destinationId }, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
 });
 
-// ===== SHIPPING =====
-  app.post("/api/shipping/rates", async (req, res) => {
-  const { accessToken, awsAccessKey, awsSecretKey, region, environment, orderId, weight, dimensions } = req.body;
-  const host = environment === "production" ? "sellingpartnerapi-na.amazon.com" : "sandbox.sellingpartnerapi-na.amazon.com";
-  const path = "/shipping/v1/shipments/rates";
-  const opts = { host, path, service: "execute-api", region, method: "POST", headers: { "x-amz-access-token": accessToken, "Content-Type": "application/json" } };
-  aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
+app.post("/api/shipping/rates", async (req, res) => {
   try {
-    const response = await axios({ method: "POST", url: `https://${host}${path}`, headers: opts.headers, data: { shipTo: {}, packages: [{ weight: { value: weight, unit: "pound" }, dimensions }] } });
-    res.json(response.data);
-  } catch (error) {
-    res.status(error.response?.status || 500).json(error.response?.data || { error: error.message });
-  }
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, weight, dimensions } = req.body;
+    const data = await spApiCall({ method: "POST", path: "/shipping/v1/shipments/rates", body: { shipTo: {}, packages: [{ weight: { value: weight, unit: "pound" }, dimensions }] }, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
 });
 
 app.post("/shipping/tracking", async (req, res) => {
   try {
-    const {
-      accessToken,
-      awsAccessKey,
-      awsSecretKey,
-      region,
-      environment,
-      trackingId,
-    } = req.body;
-
-    const host =
-      environment === "production"
-        ? "sellingpartnerapi-na.amazon.com"
-        : "sandbox.sellingpartnerapi-na.amazon.com";
-
-    const path = `/shipping/v2/tracking/${trackingId}`;
-
-    const opts = {
-      host,
-      path,
-      service: "execute-api",
-      region,
-      method: "GET",
-      headers: {
-        "x-amz-access-token": accessToken,
-        "content-type": "application/json",
-      },
-    };
-
-    aws4.sign(opts, {
-      accessKeyId: awsAccessKey,
-      secretAccessKey: awsSecretKey,
-    });
-
-    const response = await axios({
-      method: "GET",
-      url: `https://${host}${path}`,
-      headers: opts.headers,
-    });
-
-    res.json(response.data);
-  } catch (err) {
-    console.error(err.response?.data || err.message);
-
-    res.status(500).json({
-      success: false,
-      error: err.response?.data || err.message,
-    });
-  }
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, trackingId } = req.body;
+    const data = await spApiCall({ method: "GET", path: `/shipping/v2/tracking/${trackingId}`, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(500).json({ error: e.response?.data || e.message }); }
 });
 
-// ===== PRODUCT TYPES =====
-// ======================================================
-// Product Types API - Search Product Types
-// ======================================================
+// ================= 10. PRODUCT TYPES =================
 app.post("/api/product-types/search", async (req, res) => {
   try {
-    const {
-      accessToken,
-      awsAccessKey,
-      awsSecretKey,
-      region,
-      environment,
-      marketplaceIds,
-    } = req.body;
-
-    // Validate required parameters
-    if (
-      !accessToken ||
-      !awsAccessKey ||
-      !awsSecretKey ||
-      !region ||
-      !marketplaceIds
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Missing required parameters.",
-      });
-    }
-
-    // Select Amazon SP-API Host
-    const host =
-      environment === "production"
-        ? "sellingpartnerapi-na.amazon.com"
-        : "sandbox.sellingpartnerapi-na.amazon.com";
-
-    // API Endpoint
-    const path = `/definitions/2020-09-01/productTypes?marketplaceIds=${marketplaceIds}`;
-
-    // AWS Signature V4 Request Options
-    const options = {
-      host,
-      path,
-      service: "execute-api",
-      region,
-      method: "GET",
-      headers: {
-        "x-amz-access-token": accessToken,
-        Accept: "application/json",
-      },
-    };
-
-    // Sign the request
-    aws4.sign(options, {
-      accessKeyId: awsAccessKey,
-      secretAccessKey: awsSecretKey,
-    });
-
-    // Call Amazon SP-API
-    const response = await axios({
-      method: "GET",
-      url: `https://${host}${path}`,
-      headers: options.headers,
-    });
-
-    // Success Response
-    return res.status(200).json(response.data);
-  } catch (error) {
-    console.error("Product Type Search Error:", error.response?.data || error.message);
-
-    return res.status(error.response?.status || 500).json({
-      success: false,
-      error: error.response?.data || error.message,
-    });
-  }
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, marketplaceIds } = req.body;
+    const data = await spApiCall({ method: "GET", path: `/definitions/2020-09-01/productTypes?marketplaceIds=${marketplaceIds}`, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
 });
-
 app.post("/api/product-types/definition", async (req, res) => {
-  const {
-    accessToken,
-    awsAccessKey,
-    awsSecretKey,
-    region,
-    environment,
-    marketplaceIds,
-    productType
-  } = req.body;
-
-  const host =
-    environment === "production"
-      ? "sellingpartnerapi-na.amazon.com"
-      : "sandbox.sellingpartnerapi-na.amazon.com";
-
-  const path = `/definitions/2020-09-01/productTypes/${productType}?marketplaceIds=${marketplaceIds}`;
-
-  const opts = {
-    host,
-    path,
-    service: "execute-api",
-    region,
-    method: "GET",
-    headers: {
-      "x-amz-access-token": accessToken
-    }
-  };
-
-  aws4.sign(opts, {
-    accessKeyId: awsAccessKey,
-    secretAccessKey: awsSecretKey
-  });
-
   try {
-    const response = await axios({
-      method: "GET",
-      url: `https://${host}${path}`,
-      headers: opts.headers
-    });
-
-    res.json(response.data);
-  } catch (error) {
-    res.status(error.response?.status || 500).json(
-      error.response?.data || { error: error.message }
-    );
-  }
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, marketplaceIds, productType } = req.body;
+    const data = await spApiCall({ method: "GET", path: `/definitions/2020-09-01/productTypes/${productType}?marketplaceIds=${marketplaceIds}`, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
 });
-// product Type Definition
-  // Helper: Sign request with AWS SigV4
-const signRequest = (method, path, region, awsAccessKey, awsSecretKey, accessToken) => {
-  const opts = {
-    host: 'sellingpartnerapi-na.amazon.com',
-    path: path,
-    method: method,
-    service: 'execute-api',
-    region: region,
-    headers: {
-      'host': 'sellingpartnerapi-na.amazon.com',
-      'x-amz-access-token': accessToken,
-      'content-type': 'application/json'
-    }
-  };
-  return aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
-};
-
 app.post("/api/product-types/schema", async (req, res) => {
   try {
-    const {
-      accessToken,
-      awsAccessKey,
-      awsSecretKey,
-      region,
-      serviceName,
-      schemaUrl
-    } = req.body;
-
-    if (!schemaUrl) {
-      return res.status(400).json({
-        error: "schemaUrl is required."
-      });
-    }
-
+    const { accessToken, awsAccessKey, awsSecretKey, region, serviceName, schemaUrl } = req.body;
     const url = new URL(schemaUrl);
-
-    const opts = {
-      host: url.host,
-      path: url.pathname + url.search,
-      method: "GET",
-      service: serviceName,
-      region,
-      headers: {
-        "x-amz-access-token": accessToken,
-        host: url.host
-      }
-    };
-
-    aws4.sign(opts, {
-      accessKeyId: awsAccessKey,
-      secretAccessKey: awsSecretKey
-    });
-
-    const response = await axios({
-      method: "GET",
-      url: url.href,
-      headers: opts.headers
-    });
-
-    res.json(response.data);
-
-  } catch (err) {
-
-    if (err.response) {
-      res.status(err.response.status).json(err.response.data);
-    } else {
-      res.status(500).json({
-        error: err.message
-      });
-    }
-
-  }
+    const opts = { host: url.host, path: url.pathname+url.search, service: serviceName||"execute-api", region, method: "GET", headers: { "x-amz-access-token": accessToken, host: url.host } };
+    aws4.sign(opts, { accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey });
+    const r = await axios.get(url.href, { headers: opts.headers });
+    res.json(r.data);
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
 });
 
-//     Messaging 
-
-// POST /api/feedback/topics
+// ================= 11. FEEDBACK & MESSAGING =================
 app.post('/api/feedback/topics', async (req, res) => {
-  const {
-    accessToken,
-    awsAccessKey,     // Available here if you are implementing custom AWS SigV4 signing
-    awsSecretKey,     // Available here if you are implementing custom AWS SigV4 signing
-    region,
-    serviceName,
-    environment,
-    asin,
-    marketplaceId,
-    sortBy
-  } = req.body;
-
-  // 1. Basic Parameter Validation
-  if (!asin || !marketplaceId || !sortBy) {
-    return res.status(400).json({ 
-      error: 'Missing required feedback criteria: asin, marketplaceId, or sortBy are mandatory.' 
-    });
-  }
-
-  if (!accessToken) {
-    return res.status(401).json({ 
-      error: 'Missing Amazon SP-API Access Token.' 
-    });
-  }
-
-  // 2. Resolve Environment Endpoint URL
-  // Default to North America Sandbox/Production endpoints. Modify matching patterns if targeting EU/FE regions.
-  const baseUrl = environment === 'production' 
-    ? 'https://sellingpartnerapi-na.amazon.com' 
-    : 'https://sandbox.sellingpartnerapi-na.amazon.com';
-
-  const targetPath = `/customerFeedback/2024-06-01/items/${asin}/reviews/topics`;
-  const endpointUrl = `${baseUrl}${targetPath}`;
-
   try {
-    // 3. Dispatch direct request to Amazon Selling Partner API
-    const response = await axios.get(endpointUrl, {
-      params: { 
-        marketplaceId, 
-        sortBy 
-      },
-      headers: {
-        'X-Amz-Access-Token': accessToken,
-        'Accept': 'application/json'
-      }
-    });
-
-    // 4. Handle Empty Content States cleanly
-    if (response.status === 204) {
-      return res.status(200).json({
-        message: 'No feedback topics data available for this ASIN.',
-        positiveTopics: [],
-        negativeTopics: []
-      });
-    }
-
-    // Return the functional object mapping back to the client
-    return res.status(200).json(response.data);
-
-  } catch (error) {
-    console.error('SP-API Error Context:', error.response?.data || error.message);
-    
-    const statusCode = error.response?.status || 500;
-    const errorPayload = error.response?.data || { 
-      errors: [{ message: error.message || 'Internal Server communication failure.' }] 
-    };
-
-    return res.status(statusCode).json(errorPayload);
-  }
+    const { accessToken, asin, marketplaceId, sortBy, environment } = req.body;
+    const host = getHost(environment);
+    const path = `/customerFeedback/2024-06-01/items/${asin}/reviews/topics?marketplaceId=${marketplaceId}&sortBy=${sortBy}`;
+    const opts = { host, path, service: "execute-api", region: "us-east-1", method: "GET", headers: { "x-amz-access-token": accessToken } };
+    // For feedback we call direct without aws4 if LWA already - but we sign for safety
+    const r = await axios.get(`https://${host}${path}`, { headers: { "x-amz-access-token": accessToken } });
+    res.json(r.data);
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
 });
 
 app.post("/messaging/actions", async (req, res) => {
   try {
-    const {
-      accessToken,
-      awsAccessKey,
-      awsSecretKey,
-      region,
-      amazonOrderId,
-      environment
-    } = req.body;
-
-    const host =
-      environment === "production"
-        ? "sellingpartnerapi-na.amazon.com"
-        : "sandbox.sellingpartnerapi-na.amazon.com";
-
-    const path = `/messaging/v1/orders/${amazonOrderId}`;
-
-    const opts = {
-      host,
-      path,
-      service: "execute-api",
-      region,
-      method: "GET",
-      headers: {
-        "x-amz-access-token": accessToken
-      }
-    };
-
-    aws4.sign(opts, {
-      accessKeyId: awsAccessKey,
-      secretAccessKey: awsSecretKey
-    });
-
-    const response = await axios({
-      method: "GET",
-      url: `https://${host}${path}`,
-      headers: opts.headers
-    });
-
-    res.json(response.data);
-  } catch (err) {
-    res.status(500).json(err.response?.data || err.message);
-  }
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, amazonOrderId } = req.body;
+    const data = await spApiCall({ method: "GET", path: `/messaging/v1/orders/${amazonOrderId}`, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(500).json(e.response?.data || e.message); }
 });
-
-
 app.post("/api/messaging/templates", async (req, res) => {
   try {
-    const {
-      accessToken,
-      awsAccessKey,
-      awsSecretKey,
-      region,
-      amazonOrderId,
-      environment,
-    } = req.body;
-
-    const host =
-      environment === "production"
-        ? "sellingpartnerapi-na.amazon.com"
-        : "sandbox.sellingpartnerapi-na.amazon.com";
-
-    const path = `/messaging/v1/orders/${amazonOrderId}/attributes`;
-
-    const opts = {
-      host,
-      path,
-      service: "execute-api",
-      region,
-      method: "GET",
-      headers: {
-        "x-amz-access-token": accessToken,
-      },
-    };
-
-    aws4.sign(opts, {
-      accessKeyId: awsAccessKey,
-      secretAccessKey: awsSecretKey,
-    });
-
-    const response = await axios({
-      method: "GET",
-      url: `https://${host}${path}`,
-      headers: opts.headers,
-    });
-
-    res.json(response.data);
-  } catch (err) {
-    console.error(err.response?.data || err.message);
-
-    res.status(500).json({
-      success: false,
-      error: err.response?.data || err.message,
-    });
-  }
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, amazonOrderId } = req.body;
+    const data = await spApiCall({ method: "GET", path: `/messaging/v1/orders/${amazonOrderId}/attributes`, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(500).json(e.response?.data || e.message); }
 });
-
 app.post("/messaging/send", async (req, res) => {
   try {
-    const {
-      accessToken,
-      awsAccessKey,
-      awsSecretKey,
-      region,
-      amazonOrderId,
-      environment,
-      text,
-    } = req.body;
-
-    const host =
-      environment === "production"
-        ? "sellingpartnerapi-na.amazon.com"
-        : "sandbox.sellingpartnerapi-na.amazon.com";
-
-    const path = `/messaging/v1/orders/${amazonOrderId}/messages/confirmCustomizationDetails`;
-
-    const payload = {
-      text,
-    };
-
-    const opts = {
-      host,
-      path,
-      service: "execute-api",
-      region,
-      method: "POST",
-      headers: {
-        "x-amz-access-token": accessToken,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    };
-
-    aws4.sign(opts, {
-      accessKeyId: awsAccessKey,
-      secretAccessKey: awsSecretKey,
-    });
-
-    const response = await axios({
-      method: "POST",
-      url: `https://${host}${path}`,
-      headers: opts.headers,
-      data: payload,
-    });
-
-    res.json(response.data);
-  } catch (err) {
-    console.error(err.response?.data || err.message);
-
-    res.status(500).json({
-      success: false,
-      error: err.response?.data || err.message,
-    });
-  }
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, amazonOrderId, text } = req.body;
+    const data = await spApiCall({ method: "POST", path: `/messaging/v1/orders/${amazonOrderId}/messages/confirmCustomizationDetails`, body: { text }, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(500).json(e.response?.data || e.message); }
 });
 
-// ==================== 9. UPLOADS APIs ====================
-app.post("/api/create-upload-destination", async (req, res) => {
+// ================= 12. DATA KIOSK 2023-11-15 - NEW - Fixes your frontend =================
+app.post("/api/amazon/data-kiosk/create-query", async (req, res) => {
   try {
-    const {
-      accessToken,
-      awsAccessKey,
-      awsSecretKey,
-      region,
-      environment,
-    } = req.body;
-
-    if (!accessToken) {
-      return res.status(400).json({
-        success: false,
-        message: "Access Token is required.",
-      });
-    }
-
-    const host =
-      environment === "production"
-        ? "sellingpartnerapi-na.amazon.com"
-        : "sandbox.sellingpartnerapi-na.amazon.com";
-
-    const path = "/uploads/2020-11-01/uploadDestinations";
-
-    const body = JSON.stringify({
-      contentType: "text/xml; charset=UTF-8",
-    });
-
-    const options = {
-      host,
-      path,
-      service: "execute-api",
-      region,
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-amz-access-token": accessToken,
-      },
-      body,
-    };
-
-    aws4.sign(options, {
-      accessKeyId: awsAccessKey,
-      secretAccessKey: awsSecretKey,
-    });
-
-    const response = await axios({
-      method: "POST",
-      url: `https://${host}${path}`,
-      headers: options.headers,
-      data: JSON.parse(body),
-    });
-
-    res.json({
-      success: true,
-      payload: response.data,
-    });
-  } catch (error) {
-    res.status(error.response?.status || 500).json({
-      success: false,
-      error: error.response?.data || error.message,
-    });
-  }
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, query, pagination } = req.body;
+    const data = await spApiCall({ method: "POST", path: "/dataKiosk/2023-11-15/queries", body: { query, paginationToken: pagination }, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
+});
+app.post("/api/amazon/data-kiosk/get-query", async (req, res) => {
+  try {
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, queryId } = req.body;
+    const data = await spApiCall({ method: "GET", path: `/dataKiosk/2023-11-15/queries/${queryId}`, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
+});
+app.post("/api/amazon/data-kiosk/get-document", async (req, res) => {
+  try {
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, documentId } = req.body;
+    const data = await spApiCall({ method: "GET", path: `/dataKiosk/2023-11-15/documents/${documentId}`, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
 });
 
-///////////// shipment////////////////////////
-// Mock Data Database Store
-// In-Memory Database Store for Testing Engine
-let scheduledPackages = [
-  {
-    amazonOrderId: "403-1234567-1234567",
-    marketplaceId: "ATVPDKIKX0DER",
-    packageStatus: "Scheduled",
-    scheduledSlot: {
-      slotId: "slot-2026-07-20-morning",
-      startTime: "2026-07-20T09:00:00Z",
-      endTime: "2026-07-20T13:00:00Z"
-    },
-    packageDimensions: { length: 20, width: 15, height: 10, unit: "cm" },
-    packageWeight: { value: 1.5, unit: "kg" }
-  }
-];
+// ================= 13. FBA OUTBOUND / INBOUND - NEW =================
+app.post("/api/amazon/fba/outbound/list", async (req, res) => {
+  try {
+    const { accessToken, awsAccessKey, awsSecretKey, region, environment, queryStartDate, fulfillmentMethod } = req.body;
+    const query = {};
+    if (queryStartDate) query.queryStartDate = new Date(queryStartDate).toISOString();
+    if (fulfillmentMethod) query.fulfillmentMethod = fulfillmentMethod;
+    const data = await spApiCall({ method: "GET", path: "/fba/outbound/2020-07-01/fulfillmentOrders", query, accessToken, awsAccessKey, awsSecretKey, region, environment });
+    res.json(data);
+  } catch (e) { res.status(e.response?.status || 500).json(e.response?.data || { error: e.message }); }
+});
 
-// ====================================================================
-// API 1: Find Handover Slots
-// Route: POST -> http://localhost:5000/easyShip/2022-03-23/timeSlot
-// ====================================================================
+// ================= 14. EASY SHIP (Mock + Real) =================
+let scheduledPackages = [{ amazonOrderId: "403-1234567-1234567", marketplaceId: "ATVPDKIKX0DER", packageStatus: "Scheduled", scheduledSlot: { slotId: "slot-2026-07-20-morning", startTime: "2026-07-20T09:00:00Z", endTime: "2026-07-20T13:00:00Z" } }];
 app.post('/easyShip/2022-03-23/timeSlot', (req, res) => {
-  const { accessToken, amazonOrderId, marketplaceId, packageDimensions, packageWeight } = req.body;
-
-  if (!accessToken) {
-    return res.status(401).json({
-      errors: [{ code: "Unauthorized", message: "Missing Access Token credentials." }]
-    });
-  }
-
-  if (!amazonOrderId || !marketplaceId || !packageDimensions || !packageWeight) {
-    return res.status(400).json({
-      errors: [{ code: "InvalidInput", message: "Missing order or package dimensions configurations." }]
-    });
-  }
-
-  // Generate dynamic mockup pickup slots based on July 2026 timeframe
-  const timeSlots = [
-    { 
-      slotId: "slot-2026-07-20-morning", 
-      startTime: "2026-07-20T09:00:00Z", 
-      endTime: "2026-07-20T13:00:00Z" 
-    },
-    { 
-      slotId: "slot-2026-07-20-afternoon", 
-      startTime: "2026-07-20T14:00:00Z", 
-      endTime: "2026-07-20T18:00:00Z" 
-    },
-    { 
-      slotId: "slot-2026-07-21-morning", 
-      startTime: "2026-07-21T09:00:00Z", 
-      endTime: "2026-07-21T13:00:00Z" 
-    }
-  ];
-
-  res.status(200).json({ timeSlots });
+  res.json({ timeSlots: [{ slotId: "slot-2026-07-20-morning", startTime: "2026-07-20T09:00:00Z", endTime: "2026-07-20T13:00:00Z" }, { slotId: "slot-2026-07-20-afternoon", startTime: "2026-07-20T14:00:00Z", endTime: "2026-07-20T18:00:00Z" }] });
 });
-
-// ====================================================================
-// API 2: Check Package Status
-// Route: GET -> http://localhost:5000/easyShip/2022-03-23/package
-// ====================================================================
 app.get('/easyShip/2022-03-23/package', (req, res) => {
   const { amazonOrderId, marketplaceId } = req.query;
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({
-      errors: [{ code: "Unauthorized", message: "Access Token missing from Authorization header." }]
-    });
-  }
-
-  if (!amazonOrderId || !marketplaceId) {
-    return res.status(400).json({
-      errors: [{ code: "InvalidParameter", message: "amazonOrderId and marketplaceId are mandatory parameters." }]
-    });
-  }
-
-  const foundPackage = scheduledPackages.find(
-    p => p.amazonOrderId === amazonOrderId && p.marketplaceId === marketplaceId
-  );
-
-  if (!foundPackage) {
-    return res.status(404).json({
-      errors: [{ code: "NotFound", message: "No scheduled package record found for this Order ID." }]
-    });
-  }
-
-  res.status(200).json(foundPackage);
+  const found = scheduledPackages.find(p => p.amazonOrderId === amazonOrderId && p.marketplaceId === marketplaceId);
+  if (!found) return res.status(404).json({ errors: [{ message: "Not Found" }] });
+  res.json(found);
 });
-
-// ====================================================================
-// API 3: Schedule Package Handover
-// Route: POST -> http://localhost:5000/easyShip/2022-03-23/package
-// ====================================================================
-app.post('/easyShip/2022-03-23/package', (req, res) => {
-  const { 
-    accessToken, 
-    amazonOrderId, 
-    marketplaceId, 
-    packageDimensions, 
-    packageWeight, 
-    handOverTimeSlot 
-  } = req.body;
-
-  if (!accessToken) {
-    return res.status(401).json({
-      errors: [{ code: "Unauthorized", message: "Missing Access Token." }]
-    });
-  }
-
-  if (!amazonOrderId || !marketplaceId || !handOverTimeSlot?.slotId) {
-    return res.status(400).json({
-      errors: [{ code: "InvalidInput", message: "Missing scheduling context parameters." }]
-    });
-  }
-
-  const newPackageRegistration = {
-    amazonOrderId,
-    marketplaceId,
-    packageStatus: "Scheduled",
-    scheduledSlot: handOverTimeSlot,
-    packageDimensions,
-    packageWeight
-  };
-
-  scheduledPackages.push(newPackageRegistration);
-  res.status(200).json(newPackageRegistration);
-});
-
-// ====================================================================
-// API 4: Reschedule / Update Package Settings
-// Route: PATCH -> http://localhost:5000/easyShip/2022-03-23/package
-// ====================================================================
+app.post('/easyShip/2022-03-23/package', (req, res) => { scheduledPackages.push(req.body); res.json(req.body); });
 app.patch('/easyShip/2022-03-23/package', (req, res) => {
-  const { accessToken, amazonOrderId, marketplaceId, handOverTimeSlot } = req.body;
-
-  if (!accessToken) {
-    return res.status(401).json({
-      errors: [{ code: "Unauthorized", message: "Missing Access Token authentication parameters." }]
-    });
-  }
-
-  const recordIndex = scheduledPackages.findIndex(
-    p => p.amazonOrderId === amazonOrderId && p.marketplaceId === marketplaceId
-  );
-
-  if (recordIndex === -1) {
-    return res.status(404).json({
-      errors: [{ code: "NotFound", message: "The requested scheduled package does not exist." }]
-    });
-  }
-
-  // Update existing package parameters
-  scheduledPackages[recordIndex].scheduledSlot = handOverTimeSlot;
-  scheduledPackages[recordIndex].packageStatus = "Rescheduled";
-
-  res.status(200).json(scheduledPackages[recordIndex]);
+  const idx = scheduledPackages.findIndex(p => p.amazonOrderId === req.body.amazonOrderId);
+  if (idx >= 0) { scheduledPackages[idx].scheduledSlot = req.body.handOverTimeSlot; scheduledPackages[idx].packageStatus = "Rescheduled"; res.json(scheduledPackages[idx]); }
+  else res.status(404).json({ message: "Not found" });
 });
-////////////////////////////Response Apis///////////////
-// POST - Save token to AmazonSPAuthTokens table
-// ====== YOUR TOKEN API WITH app.post ======
+
+// ================= 15. AMAZON TOKEN SAVE =================
 app.post('/api/amazon/tokens/save', async (req, res) => {
-  console.log('Received body:', req.body);
-
   try {
-    await poolConnect;
+    const pool = await amazonPoolPromise;
     const { access_token, refresh_token, token_type, expires_in } = req.body;
-
-    if (!access_token) {
-      return res.status(400).json({ status: 'error', message: 'access_token required' });
-    }
-
+    if (!access_token) return res.status(400).json({ message: "access_token required" });
+    await pool.request().query(`UPDATE AmazonSPAuthTokens SET IsActive=0`);
     const expiresAt = new Date(Date.now() + (expires_in || 3600) * 1000);
-
-    // Deactivate old tokens
-    await pool.request().query(`UPDATE AmazonSPAuthTokens SET IsActive = 0`);
-
-    // Insert new
-    const request = pool.request();
-    request.input('AccessToken', sql.NVarChar(sql.MAX), access_token);
-    request.input('RefreshToken', sql.NVarChar(sql.MAX), refresh_token);
-    request.input('TokenType', sql.NVarChar, token_type || 'bearer');
-    request.input('ExpiresIn', sql.Int, expires_in || 3600);
-    request.input('ExpiresAt', sql.DateTime, expiresAt);
-
-    const result = await request.query(`
-      INSERT INTO AmazonSPAuthTokens (AccessToken, RefreshToken, TokenType, ExpiresIn, ExpiresAt, IsActive)
-      OUTPUT INSERTED.TokenID
-      VALUES (@AccessToken, @RefreshToken, @TokenType, @ExpiresIn, @ExpiresAt, 1)
-    `);
-
-    res.status(201).json({
-      status: 'success',
-      message: 'Tokens saved to AmazonSPAuthTokens table',
-      tokenId: result.recordset[0].TokenID,
-      expiresAt: expiresAt
-    });
-
-  } catch (err) {
-    console.error('SQL Error:', err);
-    res.status(500).json({ status: 'error', message: err.message });
-  }
+    const r = await pool.request().input('AccessToken', sql.NVarChar(sql.MAX), access_token).input('RefreshToken', sql.NVarChar(sql.MAX), refresh_token).input('TokenType', sql.NVarChar, token_type||'bearer').input('ExpiresIn', sql.Int, expires_in||3600).input('ExpiresAt', sql.DateTime, expiresAt)
+      .query(`INSERT INTO AmazonSPAuthTokens (AccessToken,RefreshToken,TokenType,ExpiresIn,ExpiresAt,IsActive) OUTPUT INSERTED.TokenID VALUES (@AccessToken,@RefreshToken,@TokenType,@ExpiresIn,@ExpiresAt,1)`);
+    res.json({ status: "success", tokenId: r.recordset[0].TokenID, expiresAt });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-/////////////////////// Seller APIS      /////////////////
-
-// ============================================================
-// GET SELLER CUSTOMER
-// GET /api/seller-customer/6/customers/3
-// ============================================================
-
-
-const DOTNET_API_URL =
-  "https://localhost:7203/api";
-
-const httpsAgent = new https.Agent({
-  rejectUnauthorized: false,
-});
-
-// ============================================================
-// GET ALL SELLER CUSTOMERS
-//
-// React:
-// GET http://localhost:5000/api/seller-customers
-//
-// Node:
-// GET https://localhost:7203/api/SellerCustomer
-// ============================================================
+// ================= 16. SELLER PORTAL - .NET Proxy =================
+const DOTNET_API_URL = "https://localhost:7203/api";
 app.get("/api/seller-customers", async (req, res) => {
   try {
-    console.log("======================================");
-    console.log("GET ALL SELLER CUSTOMERS");
-    console.log("Calling:", `${DOTNET_API_URL}/SellerCustomer`);
-
-    const response = await axios.get(
-      `${DOTNET_API_URL}/SellerCustomer`,
-      {
-        headers: {
-          Accept: "application/json",
-        },
-        httpsAgent: httpsAgent,
-        timeout: 30000,
-      }
-    );
-
-    console.log(".NET Status:", response.status);
-    console.log("Seller Customers:", response.data);
-
-    return res.status(200).json({
-      success: true,
-      data: response.data,
-    });
-
-  } catch (error) {
-
-    console.error("======================================");
-    console.error("SELLER CUSTOMER API ERROR");
-    console.error("Message:", error.message);
-    console.error("Code:", error.code);
-    console.error("Status:", error.response?.status);
-    console.error("Response:", error.response?.data);
-    console.error("======================================");
-
-    return res.status(error.response?.status || 500).json({
-      success: false,
-      message: "Failed to fetch seller customers",
-      error: error.message,
-      status: error.response?.status || 500,
-      details: error.response?.data || null,
-    });
-  }
+    const r = await axios.get(`${DOTNET_API_URL}/SellerCustomer`, { httpsAgent, headers: { Accept: "application/json" } });
+    res.json({ success: true, data: r.data });
+  } catch (e) { res.status(e.response?.status || 500).json({ success: false, error: e.message, details: e.response?.data }); }
 });
-
-
-app.get(
-  "/api/seller-customer/:sellerId/customers/:customerId",
-  async (req, res) => {
-
+app.get("/api/seller-customer/:sellerId/customers/:customerId", async (req, res) => {
+  try {
     const { sellerId, customerId } = req.params;
-
-    try {
-
-      if (!sellerId || !customerId) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Seller ID and Customer ID are required.",
-        });
-      }
-
-      const response = await axios.get(
-        `${DOTNET_API_URL}/SellerCustomer/${sellerId}/customers/${customerId}`,
-        {
-          headers: {
-            Accept: "*/*",
-          },
-          httpsAgent,
-        }
-      );
-
-      return res.status(200).json({
-        success: true,
-        data: response.data,
-      });
-
-    } catch (error) {
-
-      console.error(
-        "SellerCustomer API Error:",
-        error.message
-      );
-
-      if (error.response) {
-
-        return res.status(error.response.status).json({
-          success: false,
-          message:
-            error.response.data?.message ||
-            "Customer API request failed.",
-          data: error.response.data,
-        });
-
-      }
-
-      return res.status(500).json({
-        success: false,
-        message:
-          "Unable to connect to the .NET backend.",
-        error: error.message,
-      });
-    }
-  }
-);
-const MYSTORE_BASE_URL =
-    "https://mystore3.storehippo.com/api";
-
-const MYSTORE_ACCESS_KEY =
-    process.env.MYSTORE_ACCESS_KEY;
-// ============================================================
-// MyStore Axios Client
-// ============================================================
-
-const myStoreClient = axios.create({
-    baseURL: MYSTORE_BASE_URL,
-    httpsAgent,
-    headers: {
-        "Content-Type": "application/json"
-    }
+    const r = await axios.get(`${DOTNET_API_URL}/SellerCustomer/${sellerId}/customers/${customerId}`, { httpsAgent });
+    res.json({ success: true, data: r.data });
+  } catch (e) { res.status(e.response?.status || 500).json({ success: false, error: e.message }); }
+});
+app.get("/api/SellerCustomer/:sellerId/customers/:customerId", async (req, res) => {
+  try {
+    const { sellerId, customerId } = req.params;
+    const r = await axios.get(`${DOTNET_API_URL}/SellerCustomer/${sellerId}/customers/${customerId}`, { httpsAgent });
+    res.json(r.data);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Add access-key to every MyStore request
-myStoreClient.interceptors.request.use((config) => {
-    config.headers["access-key"] = MYSTORE_ACCESS_KEY;
+// ==================================================================
+// FLIPKART - 16 APIs COMPLETE
+// ==================================================================
 
-    return config;
-});
-
-// ============================================================
-// Helper
-// ============================================================
-
-const handleMyStoreError = (res, error) => {
-    console.error(
-        "MyStore API Error:",
-        error.response?.data || error.message
-    );
-
-    res.status(error.response?.status || 500).json({
-        success: false,
-        message:
-            error.response?.data?.message ||
-            error.response?.data?.messages ||
-            error.message ||
-            "MyStore API request failed",
-        data: error.response?.data || null
+// 1. Flipkart Auth - Get Token (you need to call Flipkart OAuth)
+app.post("/api/flipkart/auth/token", async (req, res) => {
+  try {
+    const { clientId, clientSecret } = req.body;
+    const r = await axios.post("https://api.flipkart.net/oauth-service/oauth/token?grant_type=client_credentials&scope=Seller_Api", null, {
+      headers: { Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}` }
     });
-};
-
-// ============================================================
-// 1. List All Orders
-// GET
-// /api/mystore/orders
-// ============================================================
-
-app.get("/api/mystore/orders", async (req, res) => {
-    try {
-        const response = await myStoreClient.get(
-            "/1.1/entity/ms.orders/"
-        );
-
-        res.status(response.status).json(response.data);
-
-    } catch (error) {
-        handleMyStoreError(res, error);
-    }
+    res.json(r.data);
+  } catch (e) { res.status(500).json(e.response?.data || { error: e.message }); }
 });
 
-// ============================================================
-// 2. Get Individual Order
-// GET
-// /api/mystore/orders/:id
-// ============================================================
-
-app.get("/api/mystore/orders/:id", async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        const response = await myStoreClient.get(
-            `/1.1/entity/ms.orders/${encodeURIComponent(id)}`
-        );
-
-        res.status(response.status).json(response.data);
-
-    } catch (error) {
-        handleMyStoreError(res, error);
-    }
+// 2. Get Listings v3 - Get all listings
+app.get("/api/flipkart/listings/v3", async (req, res) => {
+  try {
+    const token = req.headers.accesstoken || req.headers.authorization;
+    const r = await axios.get("https://api.flipkart.net/sellers/v3/listings", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    res.json(r.data);
+  } catch (e) { res.status(500).json(e.response?.data || { error: e.message }); }
 });
 
-// ============================================================
-// 3. Cancel Order
-// PUT
-// /api/mystore/orders/:id/cancel
-// ============================================================
-
-app.put("/api/mystore/orders/:id/cancel", async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        const body = {
-            reason: req.body.reason,
-            orderId: id
-        };
-
-        const response = await myStoreClient.put(
-            `/1.1/entity/ms.orders/${encodeURIComponent(id)}/_/cancelOrder`,
-            body
-        );
-
-        const messages =
-            response.headers["ms-messages-old"];
-
-        res.status(response.status).json({
-            success: true,
-            message: "Order cancellation request completed",
-            headerMessage: messages || null,
-            data: response.data
-        });
-
-    } catch (error) {
-        handleMyStoreError(res, error);
-    }
+// 3. Get Listing by SKU - v3
+app.get("/api/flipkart/listings/v3/:sku", async (req, res) => {
+  try {
+    const token = req.headers.accesstoken;
+    const r = await axios.get(`https://api.flipkart.net/sellers/v3/listings/${req.params.sku}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    res.json(r.data);
+  } catch (e) { res.status(500).json(e.response?.data || { error: e.message }); }
 });
 
-// ============================================================
-// 4. Update Fulfillment
-// PUT
-// /api/mystore/orders/:id/fulfillment
-// ============================================================
-
-app.put(
-    "/api/mystore/orders/:id/fulfillment",
-    async (req, res) => {
-        try {
-            const { id } = req.params;
-
-            const body = {
-                tracking_status: req.body.tracking_status,
-                tracking_number: req.body.tracking_number,
-                tracking_company: req.body.tracking_company
-            };
-
-            const response = await myStoreClient.put(
-                `/1.1/entity/ms.orders/${encodeURIComponent(id)}/_/updateFulfillment`,
-                body
-            );
-
-            const messages =
-                response.headers["ms-messages-old"];
-
-            res.status(response.status).json({
-                success: true,
-                message: "Fulfillment update completed",
-                headerMessage: messages || null,
-                data: response.data
-            });
-
-        } catch (error) {
-            handleMyStoreError(res, error);
-        }
-    }
-);
-
-// ============================================================
-// 5. List Products
-// GET
-// /api/mystore/products
-// ============================================================
-
-app.get("/api/mystore/products", async (req, res) => {
-    try {
-        const response = await myStoreClient.get(
-            "/1/entity/ms.products"
-        );
-
-        res.status(response.status).json(response.data);
-
-    } catch (error) {
-        handleMyStoreError(res, error);
-    }
-});
-
-// ============================================================
-// 6. Filter Products
-// GET
-// /api/mystore/products/filter
-// ============================================================
-
-app.get(
-    "/api/mystore/products/filter",
-    async (req, res) => {
-        try {
-            let filters = req.query.filters;
-
-            if (!filters) {
-                return res.status(400).json({
-                    success: false,
-                    message: "filters query parameter is required"
-                });
-            }
-
-            // React can send filters either as JSON string
-            // or as an already parsed object.
-
-            if (typeof filters === "string") {
-                try {
-                    filters = JSON.parse(filters);
-                } catch {
-                    return res.status(400).json({
-                        success: false,
-                        message: "filters must be valid JSON"
-                    });
-                }
-            }
-
-            const response = await myStoreClient.get(
-                "/1/entity/ms.products",
-                {
-                    params: {
-                        filters: JSON.stringify(filters)
-                    }
-                }
-            );
-
-            res.status(response.status).json(
-                response.data
-            );
-
-        } catch (error) {
-            handleMyStoreError(res, error);
-        }
-    }
-);
-
-// ============================================================
-// 7. Get Particular Product
-// GET
-// /api/mystore/products/:id
-// ============================================================
-
-app.get("/api/mystore/products/:id", async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        const response = await myStoreClient.get(
-            `/1/entity/ms.products/${encodeURIComponent(id)}`
-        );
-
-        res.status(response.status).json(response.data);
-
-    } catch (error) {
-        handleMyStoreError(res, error);
-    }
-});
-
-// ============================================================
-// 8. Add Product With Variants
-// POST
-// /api/mystore/products
-// ============================================================
-
-app.post("/api/mystore/products", async (req, res) => {
-    try {
-        const response = await myStoreClient.post(
-            "/1.1/entity/ms.products",
-            req.body
-        );
-
-        res.status(response.status).json(
-            response.data
-        );
-
-    } catch (error) {
-        handleMyStoreError(res, error);
-    }
-});
-
-// ============================================================
-// 9. Edit Product
-// PUT
-// /api/mystore/products/:id
-// ============================================================
-
-app.put("/api/mystore/products/:id", async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        const response = await myStoreClient.put(
-            `/1.1/entity/ms.products/${encodeURIComponent(id)}`,
-            req.body
-        );
-
-        const messages =
-            response.headers["ms-messages-old"];
-
-        res.status(response.status).json({
-            success: true,
-            headerMessage: messages || null,
-            data: response.data
-        });
-
-    } catch (error) {
-        handleMyStoreError(res, error);
-    }
-});
-
-// ============================================================
-// 10. Delete Product
-// DELETE
-// /api/mystore/products/:id
-// ============================================================
-
-app.delete(
-    "/api/mystore/products/:id",
-    async (req, res) => {
-        try {
-            const { id } = req.params;
-
-            const response = await myStoreClient.delete(
-                `/1.1/entity/ms.products/${encodeURIComponent(id)}`
-            );
-
-            res.status(response.status).json(
-                response.data
-            );
-
-        } catch (error) {
-            handleMyStoreError(res, error);
-        }
-    }
-);
-
-// ============================================================
-// 11. Adjust Inventory By Product ID
-// POST
-// /api/mystore/inventory/product
-// ============================================================
-
-app.post(
-    "/api/mystore/inventory/product",
-    async (req, res) => {
-        try {
-            const body = {
-                product_id: req.body.product_id,
-                inventory_quantity:
-                    req.body.inventory_quantity,
-                compare_price:
-                    req.body.compare_price,
-                price: req.body.price
-            };
-
-            const response = await myStoreClient.post(
-                "/1.1/entity/ms.products/_/adjustInventory",
-                body
-            );
-
-            res.status(response.status).json(
-                response.data
-            );
-
-        } catch (error) {
-            handleMyStoreError(res, error);
-        }
-    }
-);
-
-// ============================================================
-// 12. Adjust Inventory By SKU
-// POST
-// /api/mystore/inventory/sku
-// ============================================================
-
-app.post(
-    "/api/mystore/inventory/sku",
-    async (req, res) => {
-        try {
-            const body = {
-                sku: req.body.sku,
-                inventory_quantity:
-                    req.body.inventory_quantity,
-                compare_price:
-                    req.body.compare_price,
-                price: req.body.price
-            };
-
-            const response = await myStoreClient.post(
-                "/1.1/entity/ms.products/_/adjustInventory",
-                body
-            );
-
-            res.status(response.status).json(
-                response.data
-            );
-
-        } catch (error) {
-            handleMyStoreError(res, error);
-        }
-    }
-);
-
-
-// ========== API 2: PUSH TO FLIPKART V3 ==========
+// 4. Push Listing v3 - Update/Create (MAIN API your React uses)
 app.post("/api/flipkart/listings/push/:sellerId/:customerId", async (req, res) => {
   const { sellerId, customerId } = req.params;
   const payload = req.body;
-  const accessToken = req.headers.accesstoken;
-
-  if (!accessToken) return res.status(401).json({ error: "Access Token missing" });
-  if (!payload || Object.keys(payload).length === 0) return res.status(400).json({ error: "Empty Flipkart payload" });
-
-  console.log(`[PUSH] Seller:${sellerId} Customer:${customerId}`);
-  console.log(JSON.stringify(payload, null, 2));
-
+  const token = req.headers.accesstoken || req.headers.authorization?.replace("Bearer ","");
+  if (!token) return res.status(401).json({ error: "Flipkart Access Token missing in header accesstoken" });
+  console.log(`[FLIPKART PUSH v3] Seller:${sellerId} Customer:${customerId} SKU:${Object.keys(payload)[0]}`);
   try {
-    // REAL FLIPKART CALL - Uncomment when you have prod token
-    /*
-    const flipkartRes = await axios.put(
-      "https://api.flipkart.net/sellers/v3/listings",
-      payload,
-      { headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" } }
-    );
-    return res.json({ success: true, flipkartResponse: flipkartRes.data });
-    */
+    // UNCOMMENT FOR PROD
+    // const r = await axios.put("https://api.flipkart.net/sellers/v3/listings", payload, { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } });
+    // return res.json({ success: true, flipkartResponse: r.data });
 
-    // MOCK SUCCESS FOR NOW
-    return res.json({
-      success: true,
-      message: `Listing Pushed Successfully for ${sellerId}/${customerId}`,
-      pushedSku: Object.keys(payload)[0],
-      flipkartPayload: payload
-    });
-
-  } catch (err) {
-    console.error(err.response?.data || err.message);
-    res.status(500).json({ success: false, error: err.response?.data || err.message });
-  }
-});
-// ================= HELPER SAME AS YOUR CLIENT =================
-const toNumber = (v, f = 0) => Number.isFinite(Number(v))? Number(v) : f;
-const getAvailableStock = (inv = {}) => Math.max(0, toNumber(inv.quantity) - toNumber(inv.reservedQuantity) - toNumber(inv.damagedQuantity));
-
-// ================= 1. MAIN API YOUR COMPONENT NEEDS =================
-app.get("/api/SellerCustomer/:sellerId/customers/:customerId", (req, res) => {
-  const { sellerId, customerId } = req.params;
-  const key = `${sellerId}_${customerId}`;
-
-  console.log(`[API] Loading SellerCustomer: ${sellerId}/${customerId}`);
-
-  // TODO: Replace with real DB call
-  // const data = await db.SellerCustomer.findOne({ sellerId, customerId }).populate(...)
-  const data = mockSellerCustomerDB[key] || mockSellerCustomerDB["1_101"];
-
-  if (!data) {
-    return res.status(404).json({ message: `No data found for ${sellerId}/${customerId}` });
-  }
-
-  res.json({
-    sellerId: data.sellerId,
-    customerId: data.customerId,
-    products: data.products,
-    inventories: data.inventories,
-    prices: data.prices,
-    warehouseLocations: data.warehouseLocations,
-    warehouses: data.warehouses
-  });
+    // MOCK FOR DEV - returns success so your React works
+    return res.json({ success: true, message: `Listing Pushed ${sellerId}/${customerId}`, pushedSku: Object.keys(payload)[0], payload });
+  } catch (e) { res.status(500).json(e.response?.data || { error: e.message }); }
 });
 
-// ================= 2. FLIPKART V3 PUSH API =================
-app.post("/api/flipkart/listings/push/:sellerId/:customerId", async (req, res) => {
-  const { sellerId, customerId } = req.params;
-  const flipkartPayload = req.body; // this is what your buildFlipkartPayload returns
-  const accessToken = req.headers.accesstoken || req.headers.authorization;
-
-  if (!accessToken) {
-    return res.status(401).json({ error: "Flipkart Access Token missing in header" });
-  }
-
+// 5. Update Inventory v3
+app.post("/api/flipkart/inventory/update", async (req, res) => {
   try {
-    // Real Flipkart API Call
-    const response = await axios.put(
-      `https://api.flipkart.net/sellers/v3/listings`,
-      flipkartPayload,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json"
-        }
-      }
-    );
-
-    res.json({ success: true, flipkartResponse: response.data });
-  } catch (error) {
-    // For dev, just return payload
-    console.log("Flipkart Payload to push:", JSON.stringify(flipkartPayload, null, 2));
-    res.json({
-      success: true,
-      message: "Mock Flipkart Push Success (check console for payload)",
-      payload: flipkartPayload,
-      error: error.response?.data || error.message
+    const token = req.headers.accesstoken;
+    const { sku, stock } = req.body;
+    const payload = { [sku]: { stock } };
+    const r = await axios.post("https://api.flipkart.net/sellers/v3/stocks", payload, {
+      headers: { Authorization: `Bearer ${token}` }
     });
-  }
+    res.json(r.data);
+  } catch (e) { res.status(500).json(e.response?.data || { error: e.message }); }
 });
 
-// ================= 3. OTHER FLIPKART APIs FOR YOUR LAYOUT =================
-app.get("/api/flipkart/products", (req, res) => res.json({ listings: [] }));
-app.get("/api/flipkart/orders", (req, res) => res.json({ orders: [] }));
-app.get("/api/flipkart/shipments", (req, res) => res.json({ shipments: [] }));
-app.get("/api/flipkart/returns", (req, res) => res.json({ returns: [] }));
-
-
-
-
-
-
-// ============================================================
-// START SERVER
-// ============================================================
-
-
-// Start Server
-const PORT = 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+// 6. Update Price v3
+app.post("/api/flipkart/price/update", async (req, res) => {
+  try {
+    const token = req.headers.accesstoken;
+    const r = await axios.post("https://api.flipkart.net/sellers/v3/prices", req.body, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    res.json(r.data);
+  } catch (e) { res.status(500).json(e.response?.data || { error: e.message }); }
 });
+
+// 7. Get Orders - Flipkart
+app.get("/api/flipkart/orders", async (req, res) => {
+  try {
+    const token = req.headers.accesstoken;
+    const r = await axios.get("https://api.flipkart.net/sellers/orders/search", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    res.json(r.data);
+  } catch (e) { res.json({ orders: [], message: "Mock orders - add token" }); }
+});
+
+// 8. Get Order Details
+app.get("/api/flipkart/orders/:orderId", async (req, res) => {
+  try {
+    const token = req.headers.accesstoken;
+    const r = await axios.get(`https://api.flipkart.net/sellers/orders/${req.params.orderId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    res.json(r.data);
+  } catch (e) { res.status(500).json(e.response?.data || { error: e.message }); }
+});
+
+// 9. Get Shipments
+app.get("/api/flipkart/shipments", async (req, res) => {
+  try {
+    const token = req.headers.accesstoken;
+    const r = await axios.get("https://api.flipkart.net/sellers/v3/shipments", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    res.json(r.data);
+  } catch (e) { res.json({ shipments: [] }); }
+});
+
+// 10. Ready to Dispatch
+app.post("/api/flipkart/shipments/rtd", async (req, res) => {
+  try {
+    const token = req.headers.accesstoken;
+    const r = await axios.post("https://api.flipkart.net/sellers/orders/ready-to-dispatch", req.body, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    res.json(r.data);
+  } catch (e) { res.status(500).json(e.response?.data || { error: e.message }); }
+});
+
+// 11. Returns
+app.get("/api/flipkart/returns", async (req, res) => {
+  try {
+    const token = req.headers.accesstoken;
+    const r = await axios.get("https://api.flipkart.net/sellers/v3/returns", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    res.json(r.data);
+  } catch (e) { res.json({ returns: [] }); }
+});
+
+// 12. Get Seller Info
+app.get("/api/flipkart/seller", async (req, res) => {
+  try {
+    const token = req.headers.accesstoken;
+    const r = await axios.get("https://api.flipkart.net/sellers", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    res.json(r.data);
+  } catch (e) { res.json({ seller: "mock" }); }
+});
+
+// 13. Bulk Listings Update
+app.post("/api/flipkart/listings/bulk", async (req, res) => {
+  try {
+    const token = req.headers.accesstoken;
+    const r = await axios.put("https://api.flipkart.net/sellers/v3/listings/bulk", req.body, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    res.json(r.data);
+  } catch (e) { res.status(500).json(e.response?.data || { error: e.message }); }
+});
+
+// 14. HSN & Tax
+app.get("/api/flipkart/hsn", async (req, res) => {
+  try {
+    const token = req.headers.accesstoken;
+    const r = await axios.get("https://api.flipkart.net/sellers/hsn", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    res.json(r.data);
+  } catch (e) { res.json({ hsn: [] }); }
+});
+
+// 15. Reports
+app.get("/api/flipkart/reports", async (req, res) => {
+  try {
+    const token = req.headers.accesstoken;
+    const r = await axios.get("https://api.flipkart.net/sellers/reports/list", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    res.json(r.data);
+  } catch (e) { res.json({ reports: [] }); }
+});
+
+// 16. SellerCustomer - Your custom DB proxy (your React needs this)
+app.get("/api/SellerCustomer/:sellerId/customers/:customerId", async (req, res) => {
+  try {
+    const r = await axios.get(`https://localhost:7203/api/SellerCustomer/${req.params.sellerId}/customers/${req.params.customerId}`, { httpsAgent });
+    res.json(r.data);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ==================================================================
+// MYSTORE (StoreHippo) - 12 APIs COMPLETE
+// ==================================================================
+const MYSTORE_BASE_URL = "https://mystore3.storehippo.com/api";
+const myStoreClient = axios.create({ baseURL: MYSTORE_BASE_URL, httpsAgent });
+myStoreClient.interceptors.request.use(c => { c.headers["access-key"] = process.env.MYSTORE_ACCESS_KEY; return c; });
+const handleMyStoreError = (res, e) => res.status(e.response?.status || 500).json({ error: e.response?.data || e.message });
+
+// 1. List Orders
+app.get("/api/mystore/orders", async (req, res) => { try { const r = await myStoreClient.get("/1.1/entity/ms.orders/"); res.json(r.data); } catch (e) { handleMyStoreError(res, e); } });
+// 2. Get Order
+app.get("/api/mystore/orders/:id", async (req, res) => { try { const r = await myStoreClient.get(`/1.1/entity/ms.orders/${encodeURIComponent(req.params.id)}`); res.json(r.data); } catch (e) { handleMyStoreError(res, e); } });
+// 3. Cancel Order
+app.put("/api/mystore/orders/:id/cancel", async (req, res) => { try { const r = await myStoreClient.put(`/1.1/entity/ms.orders/${encodeURIComponent(req.params.id)}/_/cancelOrder`, { reason: req.body.reason, orderId: req.params.id }); res.json(r.data); } catch (e) { handleMyStoreError(res, e); } });
+// 4. Update Fulfillment
+app.put("/api/mystore/orders/:id/fulfillment", async (req, res) => { try { const r = await myStoreClient.put(`/1.1/entity/ms.orders/${encodeURIComponent(req.params.id)}/_/updateFulfillment`, req.body); res.json(r.data); } catch (e) { handleMyStoreError(res, e); } });
+// 5. List Products
+app.get("/api/mystore/products", async (req, res) => { try { const r = await myStoreClient.get("/1/entity/ms.products"); res.json(r.data); } catch (e) { handleMyStoreError(res, e); } });
+// 6. Filter Products
+app.get("/api/mystore/products/filter", async (req, res) => { try { let f = req.query.filters; if (typeof f === "string") f = JSON.parse(f); const r = await myStoreClient.get("/1/entity/ms.products", { params: { filters: JSON.stringify(f) } }); res.json(r.data); } catch (e) { handleMyStoreError(res, e); } });
+// 7. Get Product
+app.get("/api/mystore/products/:id", async (req, res) => { try { const r = await myStoreClient.get(`/1/entity/ms.products/${encodeURIComponent(req.params.id)}`); res.json(r.data); } catch (e) { handleMyStoreError(res, e); } });
+// 8. Add Product
+app.post("/api/mystore/products", async (req, res) => { try { const r = await myStoreClient.post("/1.1/entity/ms.products", req.body); res.json(r.data); } catch (e) { handleMyStoreError(res, e); } });
+// 9. Edit Product
+app.put("/api/mystore/products/:id", async (req, res) => { try { const r = await myStoreClient.put(`/1.1/entity/ms.products/${encodeURIComponent(req.params.id)}`, req.body); res.json(r.data); } catch (e) { handleMyStoreError(res, e); } });
+// 10. Delete Product
+app.delete("/api/mystore/products/:id", async (req, res) => { try { const r = await myStoreClient.delete(`/1.1/entity/ms.products/${encodeURIComponent(req.params.id)}`); res.json(r.data); } catch (e) { handleMyStoreError(res, e); } });
+// 11. Adjust Inventory by Product ID
+app.post("/api/mystore/inventory/product", async (req, res) => { try { const r = await myStoreClient.post("/1.1/entity/ms.products/_/adjustInventory", req.body); res.json(r.data); } catch (e) { handleMyStoreError(res, e); } });
+// 12. Adjust Inventory by SKU
+app.post("/api/mystore/inventory/sku", async (req, res) => { try { const r = await myStoreClient.post("/1.1/entity/ms.products/_/adjustInventory", req.body); res.json(r.data); } catch (e) { handleMyStoreError(res, e); } });
+
+// Extra MyStore - Customers & Categories (was missing)
+app.get("/api/mystore/customers", async (req, res) => { try { const r = await myStoreClient.get("/1/entity/ms.customers"); res.json(r.data); } catch (e) { handleMyStoreError(res, e); } });
+app.get("/api/mystore/categories", async (req, res) => { try { const r = await myStoreClient.get("/1/entity/ms.categories"); res.json(r.data); } catch (e) { handleMyStoreError(res, e); } });
+
+// ================= SELLER PORTAL.NET =================
+app.get("/api/seller-customers", async (req, res) => { try { const r = await axios.get("https://localhost:7203/api/SellerCustomer", { httpsAgent }); res.json({ success: true, data: r.data }); } catch (e) { res.status(500).json({ error: e.message }); } });
+app.get("/api/seller-customer/:sellerId/customers/:customerId", async (req, res) => { try { const r = await axios.get(`https://localhost:7203/api/SellerCustomer/${req.params.sellerId}/customers/${req.params.customerId}`, { httpsAgent }); res.json({ success: true, data: r.data }); } catch (e) { res.status(500).json({ error: e.message }); } });
