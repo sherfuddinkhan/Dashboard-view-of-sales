@@ -98,18 +98,32 @@ const SellerCustomerlist = ({ marketplace: propMarketplace, sellerId: propSeller
     }
   };
 
-const handleListToMarketplace = (targetMarketplace, productItem) => {
-  const orderItem = customerData?.marketplaceOrderItems?.[0] || null;
-  localStorage.setItem("bindedProductData", JSON.stringify({
-    fromCustomer: customerData,
-    product: productItem,
-    orderItem: orderItem,
+const handleListToMarketplace = (productItem) => {
+  const fullData = {
+    fromCustomer: customerData, // your 37 fields data
+    product: productItem || customerData?.products?.[0],
     sellerId: String(sellerId),
     customerId: String(customerId),
-    targetMarketplace
-  }));
-  window.location.href = `/mystore/add-product?sellerId=${sellerId}&customerId=${customerId}`;
-};
+  };
+
+  localStorage.setItem("bindedProductData", JSON.stringify(fullData));
+
+  if (marketplace === "amazon") {
+    // ✅ Amazon - Real SP-API - CreateListing.jsx
+    navigate(`/marketplaces/amazon/listings/create?sellerId=${sellerId}&customerId=${customerId}`, {
+      state: fullData
+    });
+  } else if (marketplace === "mystore") {
+    // ✅ MyStore - ONDC
+    navigate(`/mystore/add-product?sellerId=${sellerId}&customerId=${customerId}`, {
+      state: fullData
+    });
+  } else if (marketplace === "flipkart") {
+  navigate(`/marketplaces/flipkart/listings/v3/${sellerId}/${customerId}`, {
+    state: { fromCustomer: customerData }
+  });
+}
+}
 
   if(loading) return <div style={{ padding:40, textAlign:"center" }}><RefreshCw className="animate-spin" /> Loading Seller {sellerId} Customer {customerId}...</div>;
   if(error) return <div style={{ padding:40, textAlign:"center" }}><XCircle size={40} color="red"/><h3>Unable to Load Records</h3><p>{error}</p><button type="button" onClick={fetchCustomer} style={{ padding:"8px 16px", borderRadius:6, border:"1px solid #ddd", cursor:"pointer" }}>Retry</button></div>;
