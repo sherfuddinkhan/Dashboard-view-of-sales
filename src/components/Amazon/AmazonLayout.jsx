@@ -4,7 +4,7 @@ import {
   BarChart3, Key, ShoppingBag, Layers,
   Package, ShoppingCart, DollarSign, Bell, Truck,
   MessageSquare, Globe, ChevronDown, ChevronRight,
-  Menu, X, LogOut, CheckCircle2, Lock, Store, LayoutDashboard
+  Menu, X, LogOut, Store, Users, LayoutDashboard
 } from "lucide-react";
 import "./AmazonDashboard.css";
 
@@ -22,11 +22,26 @@ const AmazonLayout = () => {
   const goTo = (path) => navigate(path);
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + "/");
 
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("amazon_token");
+    localStorage.removeItem("user");
+    sessionStorage.clear();
+    navigate("/marketplaces", { replace: true });
+  };
+
   const menu = [
-    { key: "sellers", title: "Seller Management", icon: Store, items: [
-      { label: "Sellers List", path: "/marketplaces/amazon/sellers" },
-      { label: "Amazon Overview", path: "/marketplaces/amazon/dashboard" },
-    ]},
+    {
+      key: "sellers",
+      title: "Seller Management",
+      icon: Store,
+      items: [
+        { label: "🏪 Sellers List [Click Seller → Customers]", path: "/marketplaces/amazon/sellers" },
+        { label: "👥 All Seller Customers", path: "/marketplaces/amazon/seller-customers" },
+        { label: "📊 Amazon Overview", path: "/marketplaces/amazon/dashboard" },
+      ]
+    },
     { key: "auth", title: "Authentication", icon: Key, items: [
       { label: "Token Generator", path: "/marketplaces/amazon/auth/token" },
     ]},
@@ -86,12 +101,19 @@ const AmazonLayout = () => {
         <div className="sidebar-header">
           <div className="brand-wrapper">
             <div className="icon-badge"><BarChart3 size={20} color="#fff" /></div>
-            {sidebarOpen && <div><h1 className="brand-title">Amazon SP-API</h1><p className="brand-subtitle">Control Panel</p></div>}
+            {sidebarOpen && <div><h1 className="brand-title">Amazon SP-API</h1><p className="brand-subtitle">Control Panel - 40 APIs</p></div>}
           </div>
           <button onClick={()=>setSidebarOpen(false)} className="icon-button mobile-only"><X size={20}/></button>
         </div>
 
         <div className="sidebar-content">
+          {/* Marketplace Selector */}
+          <div style={{ padding: "12px" }}>
+            <button onClick={() => navigate("/marketplaces")} style={{ width: "100%", padding: "10px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff", borderRadius: "6px", cursor: "pointer", fontSize: "13px", fontWeight: 600 }}>
+              ← Marketplace Selector
+            </button>
+          </div>
+
           {menu.map(cat => (
             <div key={cat.key} className="category-wrapper">
               <button onClick={()=>toggleCategory(cat.key)} className={`category-button ${expanded[cat.key]? "expanded" : ""}`}>
@@ -109,12 +131,19 @@ const AmazonLayout = () => {
               )}
             </div>
           ))}
+
+          {/* LOGOUT - FIXED */}
+          <div style={{ padding: "16px 12px", borderTop: "1px solid rgba(255,255,255,0.10)", marginTop: "20px" }}>
+            <button onClick={handleLogout} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", padding: "10px", background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.25)", color: "#fca5a5", borderRadius: "6px", cursor: "pointer", fontWeight: 600 }}>
+              <LogOut size={16} /> Logout
+            </button>
+          </div>
         </div>
       </aside>
 
       <main className="main-area">
         <header className="top-navbar">
-          <button onClick={()=>setSidebarOpen(!sidebarOpen)} className="toggle-btn">{sidebarOpen? <ChevronRight size={20}/> : <Menu size={20}/>}</button>
+          <button onClick={()=>setSidebarOpen(!sidebarOpen)} className="toggle-btn">{sidebarOpen? <X size={20}/> : <Menu size={20}/>}</button>
           <h2 className="active-page-name">{location.pathname.split("/").pop() || "Dashboard"}</h2>
         </header>
 

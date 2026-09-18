@@ -1,1391 +1,228 @@
-import React, { useEffect, useMemo, useState } from "react";
-import {
-  ArrowLeft,
-  User,
-  Boxes,
-  RefreshCw,
-  Search,
-  CheckCircle2,
-  XCircle,
-  ShieldCheck,
-  Globe,
-  Layers,
-  Edit3,
-  Save,
-  Package,
-  Database,
-  ChevronDown,
-  ChevronRight
-} from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
-import "./SellerCustomerlist.css";
+import React, { useEffect, useState, useMemo } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { ArrowLeft, RefreshCw, XCircle, CheckCircle2, Search, Package, Globe } from "lucide-react";
 
 const NODE_API = "http://localhost:5000/api";
 
-/* =========================================================
-   HELPERS
-========================================================= */
+const formatLabel = (k) => String(k).replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/_/g, " ").replace(/-/g, " ").replace(/^./, s => s.toUpperCase()).trim();
+const formatValue = (v) => v==null?"": typeof v==="boolean"? (v?"Yes":"No") : typeof v==="object"? JSON.stringify(v) : String(v);
+const isObject = (v) => v!==null && typeof v==="object" &&!Array.isArray(v);
 
-const formatLabel = (key) => {
-  if (!key) return "";
-
-  return String(key)
-    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-    .replace(/_/g, " ")
-    .replace(/-/g, " ")
-    .replace(/^./, (str) => str.toUpperCase())
-    .trim();
-};
-
-const formatValue = (value) => {
-  if (value === null || value === undefined) {
-    return "";
-  }
-
-  if (typeof value === "boolean") {
-    return value ? "Yes" : "No";
-  }
-
-  if (typeof value === "object") {
-    return JSON.stringify(value);
-  }
-
-  return String(value);
-};
-
-const isObject = (value) =>
-  value !== null &&
-  typeof value === "object" &&
-  !Array.isArray(value);
-
-const flattenObject = (obj, prefix = "") => {
-  const result = {};
-
-  Object.entries(obj || {}).forEach(([key, value]) => {
-    const fullKey = prefix ? `${prefix}.${key}` : key;
-
-    if (isObject(value)) {
-      Object.assign(result, flattenObject(value, fullKey));
-    } else if (Array.isArray(value)) {
-      result[fullKey] = value;
-    } else {
-      result[fullKey] = value;
+const flattenObject = (obj, prefix="") => {
+  let res={};
+  Object.entries(obj||{}).forEach(([k,v])=>{
+    const full=prefix?`${prefix}.${k}`:k;
+    if(isObject(v)){
+      Object.assign(res, flattenObject(v, full));
+    } else if(!Array.isArray(v)){
+      res[full]=v;
+    } else if(Array.isArray(v) && v.length>0 && typeof v[0]!=="object"){
+      res[full]=v.join(", ");
     }
   });
-
-  return result;
+  return res;
 };
 
-const COLOR_PALETTE = [
-  "theme-indigo",
-  "theme-emerald",
-  "theme-purple",
-  "theme-amber",
-  "theme-rose",
-  "theme-cyan",
-  "theme-teal",
-  "theme-orange"
+const MARKETPLACES = [
+  { name: "Amazon", path: "amazon", color: "#FF9900", icon: "🛒", route: "/marketplaces/amazon" },
+  { name: "Flipkart", path: "flipkart", color: "#2874F0", icon: "🛍️", route: "/marketplaces/flipkart" },
+  { name: "MyStore", path: "mystore", color: "#673AB7", icon: "🏪", route: "/mystore" },
+  { name: "Meesho", path: "meesho", color: "#E91E63", icon: "👗", route: "/marketplaces/meesho" },
+  { name: "Blinkit", path: "blinkit", color: "#F7C600", icon: "⚡", route: "/marketplaces/blinkit" },
 ];
 
-/* =========================================================
-   MAIN COMPONENT
-========================================================= */
-
-const SellerCustomerlist = ({ marketplace: propMarketplace }) => {
+const SellerCustomerlist = ({ marketplace: propMarketplace, sellerId: propSellerId, customerId: propCustomerId, onBack }) => {
   const navigate = useNavigate();
+  const { marketplace: paramMarketplace, sellerId: paramSellerId, customerId: paramCustomerId } = useParams();
 
-  const {
-    marketplace: paramMarketplace,
-    sellerId,
-    customerId
-  } = useParams();
-
-  const marketplace =
-    propMarketplace ||
-    paramMarketplace ||
-    "amazon";
+  const marketplace = propMarketplace || paramMarketplace || "mystore";
+  const sellerId = propSellerId || paramSellerId;
+  const customerId = propCustomerId || paramCustomerId;
 
   const [customerData, setCustomerData] = useState(null);
-  const [formData, setFormData] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
   const [activeTab, setActiveTab] = useState("info");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isEditing, setIsEditing] = useState(false);
-
-  /* =========================================================
-     FETCH CUSTOMER
-  ========================================================= */
+  const [search, setSearch] = useState("");
 
   const fetchCustomer = async () => {
-    if (!sellerId || !customerId) {
-      setError("Seller ID and Customer ID are required.");
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError("");
-
-      const url =
-        `${NODE_API}/seller-customer/${sellerId}/customers/${customerId}`;
-
-      const response = await fetch(url);
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          result?.message ||
-          "Unable to load customer profile."
-        );
-      }
-
-      const raw = result?.data ?? result;
-
-      setCustomerData(raw);
-      setFormData(raw);
-
-    } catch (err) {
-      setError(
-        err?.message ||
-        "Failed to load customer profile."
-      );
-    } finally {
-      setLoading(false);
-    }
+    if(!sellerId ||!customerId){ setError("Seller ID and Customer ID are required"); setLoading(false); return; }
+    try{
+      setLoading(true); setError("");
+      const res = await fetch(`${NODE_API}/seller-customer/${sellerId}/customers/${customerId}`);
+      const result = await res.json();
+      if(!res.ok) throw new Error(result?.message || "Failed to load");
+      setCustomerData(result?.data?? result);
+    }catch(e){ setError(e.message); }finally{ setLoading(false); }
   };
 
-  useEffect(() => {
-    fetchCustomer();
-  }, [sellerId, customerId, marketplace]);
+  useEffect(()=>{ fetchCustomer(); }, [sellerId, customerId]);
 
-  /* =========================================================
-     TOP LEVEL SCALAR FIELDS
-  ========================================================= */
-
-  const scalarFields = useMemo(() => {
-    if (!formData) return [];
-
-    return Object.keys(formData).filter(
-      (key) =>
-        !Array.isArray(formData[key]) &&
-        !isObject(formData[key])
-    );
-  }, [formData]);
-
-  /* =========================================================
-     PROFILE FIELD GROUPS
-  ========================================================= */
-
-  const identifierKeys = useMemo(() => {
-    return scalarFields.filter((key) => {
-      const lower = key.toLowerCase();
-
-      return (
-        lower.includes("id") ||
-        lower.includes("code") ||
-        lower.includes("name")
-      );
-    });
-  }, [scalarFields]);
-
-  const contactKeys = useMemo(() => {
-    return scalarFields.filter((key) => {
-      const lower = key.toLowerCase();
-
-      return (
-        lower.includes("email") ||
-        lower.includes("phone") ||
-        lower.includes("mobile") ||
-        lower.includes("contact") ||
-        lower.includes("gst")
-      );
-    });
-  }, [scalarFields]);
-
-  const locationKeys = useMemo(() => {
-    return scalarFields.filter((key) => {
-      const lower = key.toLowerCase();
-
-      return (
-        lower.includes("city") ||
-        lower.includes("state") ||
-        lower.includes("country") ||
-        lower.includes("address") ||
-        lower.includes("postal") ||
-        lower.includes("floor") ||
-        lower.includes("location") ||
-        lower.includes("building")
-      );
-    });
-  }, [scalarFields]);
-
-  const remainingKeys = useMemo(() => {
-    return scalarFields.filter(
-      (key) =>
-        !identifierKeys.includes(key) &&
-        !contactKeys.includes(key) &&
-        !locationKeys.includes(key) &&
-        key !== "isActive"
-    );
-  }, [
-    scalarFields,
-    identifierKeys,
-    contactKeys,
-    locationKeys
-  ]);
-
-  /* =========================================================
-     DATASETS
-  ========================================================= */
-
-  const dataSections = useMemo(() => {
-    if (!customerData) return [];
-
-    const sections = [];
-
-    const processObject = (
-      obj,
-      parentPath = ""
-    ) => {
-      Object.entries(obj || {}).forEach(
-        ([key, value]) => {
-
-          const currentPath = parentPath
-            ? `${parentPath}.${key}`
-            : key;
-
-          if (Array.isArray(value)) {
-
-            sections.push({
-              key: currentPath,
-              title: formatLabel(key),
-              path: currentPath,
-              data: value,
-              parent: parentPath
-            });
-
-          } else if (isObject(value)) {
-
-            processObject(
-              value,
-              currentPath
-            );
-          }
-        }
-      );
-    };
-
-    processObject(customerData);
-
-    return sections;
+  const allScalarFields = useMemo(()=>{
+    if(!customerData) return [];
+    return Object.keys(customerData).filter(k=>!Array.isArray(customerData[k]) &&!isObject(customerData[k]));
   }, [customerData]);
 
-  /* =========================================================
-     SEARCH DATASETS
-  ========================================================= */
-
-  const filteredSections = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return dataSections;
-    }
-
-    const query =
-      searchQuery.toLowerCase();
-
-    return dataSections
-      .map((section) => {
-
-        const filtered = section.data.filter(
-          (item) => {
-
-            const flattened =
-              flattenObject(item);
-
-            return Object.values(flattened)
-              .some((value) =>
-                formatValue(value)
-                  .toLowerCase()
-                  .includes(query)
-              );
+  const allDatasets = useMemo(()=>{
+    if(!customerData) return [];
+    const list=[];
+    Object.entries(customerData).forEach(([k,v])=>{
+      if(Array.isArray(v) && v.length>0){
+        list.push({ key:k, title:formatLabel(k), data:v });
+      } else if(isObject(v)){
+        Object.entries(v).forEach(([k2,v2])=>{
+          if(Array.isArray(v2) && v2.length>0){
+            list.push({ key:k2, title:formatLabel(k2), data:v2, parent:k });
           }
-        );
-
-        return {
-          ...section,
-          data: filtered
-        };
-      })
-      .filter(
-        (section) =>
-          section.data.length > 0 ||
-          section.title
-            .toLowerCase()
-            .includes(query)
-      );
-
-  }, [dataSections, searchQuery]);
-
-  /* =========================================================
-     FORM CHANGE
-  ========================================================= */
-
-  const handleInputChange = (e) => {
-    const {
-      name,
-      value,
-      type,
-      checked
-    } = e.target;
-
-    setFormData((prev) => ({
-      ...prev,
-      [name]:
-        type === "checkbox"
-          ? checked
-          : value
-    }));
-  };
-
-  /* =========================================================
-     BACK
-  ========================================================= */
-
-  const handleBack = () => {
-    if (marketplace === "mystore") {
-      navigate("/mystore/sellers");
-    } else {
-      navigate(
-        `/marketplaces/${marketplace}/sellers`
-      );
-    }
-  };
-
-  /* =========================================================
-     LOADING
-  ========================================================= */
-
-  if (loading) {
-    return (
-      <div className="scl-page-container scl-centered-layout">
-
-        <div className="scl-card scl-center-card scl-pulse-glow">
-
-          <RefreshCw
-            size={44}
-            className="scl-spin scl-accent-glow-icon"
-          />
-
-          <h2 className="scl-loading-title">
-            Loading {marketplace} Customer Profile...
-          </h2>
-
-          <p className="scl-subtext">
-            Seller:
-            <span className="scl-chip">
-              {sellerId}
-            </span>
-
-            {" | "}
-
-            Customer:
-            <span className="scl-chip">
-              {customerId}
-            </span>
-          </p>
-
-        </div>
-
-      </div>
-    );
-  }
-
-  /* =========================================================
-     ERROR
-  ========================================================= */
-
-  if (error || !customerData) {
-    return (
-      <div className="scl-page-container scl-centered-layout">
-
-        <div className="scl-card scl-center-card scl-error-card">
-
-          <XCircle
-            size={52}
-            className="scl-error-icon"
-          />
-
-          <h2>
-            Unable to Load Records
-          </h2>
-
-          <p>
-            {error ||
-              "No customer account matches the provided credentials."}
-          </p>
-
-          <button
-            className="scl-btn scl-btn-gradient"
-            onClick={fetchCustomer}
-          >
-            <RefreshCw size={18} />
-            Retry Connection
-          </button>
-
-        </div>
-
-      </div>
-    );
-  }
-
-  /* =========================================================
-     RENDER
-  ========================================================= */
-
-  return (
-    <div className="scl-page-container scl-centered-layout">
-
-      {/* =====================================================
-          HEADER
-      ===================================================== */}
-
-      <div className="scl-header-banner">
-
-        <div className="scl-header-left">
-
-          <button
-            className="scl-btn-back"
-            onClick={handleBack}
-          >
-            <ArrowLeft size={18} />
-
-            Back to {marketplace}
-          </button>
-
-          <div className="scl-title-block">
-
-            <div className="scl-title-row">
-
-              <h1 className="scl-title">
-                {customerData.customerName ||
-                  "Customer Record"}
-              </h1>
-
-              <span
-                className={`scl-status-pill-lg ${
-                  formData.isActive
-                    ? "active"
-                    : "inactive"
-                }`}
-              >
-
-                {formData.isActive ? (
-                  <CheckCircle2 size={16} />
-                ) : (
-                  <XCircle size={16} />
-                )}
-
-                {formData.isActive
-                  ? "Active Account"
-                  : "Inactive"}
-
-              </span>
-
-            </div>
-
-            <span
-              className="scl-subtitle"
-              style={{
-                textTransform: "capitalize"
-              }}
-            >
-              {marketplace} -
-              Seller Customer Management Console
-            </span>
-
-          </div>
-
-        </div>
-
-        <div className="scl-header-badges">
-
-          <div className="scl-badge-card">
-            <span className="scl-badge-label">
-              MARKETPLACE
-            </span>
-
-            <span
-              className="scl-badge-val"
-              style={{
-                textTransform: "uppercase"
-              }}
-            >
-              {marketplace}
-            </span>
-          </div>
-
-          <div className="scl-badge-card">
-            <span className="scl-badge-label">
-              SELLER ID
-            </span>
-
-            <span className="scl-badge-val">
-              {sellerId}
-            </span>
-          </div>
-
-          <div className="scl-badge-card">
-            <span className="scl-badge-label">
-              CUSTOMER ID
-            </span>
-
-            <span className="scl-badge-val">
-              {customerId}
-            </span>
-          </div>
-
-          <div className="scl-badge-card">
-            <span className="scl-badge-label">
-              DATASETS
-            </span>
-
-            <span className="scl-badge-val">
-              {dataSections.length}
-            </span>
-          </div>
-
-        </div>
-
-      </div>
-
-      {/* =====================================================
-          MAIN CARD
-      ===================================================== */}
-
-      <div className="scl-card scl-main-card">
-
-        {/* ===================================================
-            TABS
-        =================================================== */}
-
-        <div className="scl-tabs-header scl-tabs-centered">
-
-          <button
-            className={`scl-tab ${
-              activeTab === "info"
-                ? "active indigo"
-                : ""
-            }`}
-            onClick={() =>
-              setActiveTab("info")
-            }
-          >
-            <User size={20} />
-
-            Customer Profile
-
-            <span className="scl-tab-count">
-              {scalarFields.length}
-            </span>
-
-          </button>
-
-          <button
-            className={`scl-tab ${
-              activeTab === "data"
-                ? "active emerald"
-                : ""
-            }`}
-            onClick={() =>
-              setActiveTab("data")
-            }
-          >
-            <Database size={20} />
-
-            All API Datasets
-
-            <span className="scl-tab-count">
-              {dataSections.length}
-            </span>
-
-          </button>
-
-        </div>
-
-        {/* ===================================================
-            PROFILE
-        =================================================== */}
-
-        {activeTab === "info" && (
-
-          <div className="scl-tab-content">
-
-            <div className="scl-form-top-bar">
-
-              <div>
-                <h2>
-                  Customer Overview & Attributes
-                </h2>
-
-                <p>
-                  Every top-level customer field
-                  returned by SellerCustomer API
-                </p>
-              </div>
-
-              <button
-                className={`scl-btn ${
-                  isEditing
-                    ? "scl-btn-save"
-                    : "scl-btn-edit"
-                }`}
-                onClick={() =>
-                  setIsEditing(!isEditing)
-                }
-              >
-
-                {isEditing ? (
-                  <Save size={18} />
-                ) : (
-                  <Edit3 size={18} />
-                )}
-
-                {isEditing
-                  ? "Save Configuration"
-                  : "Edit Profile"}
-
-              </button>
-
-            </div>
-
-            {/* IDENTIFIERS */}
-
-            {identifierKeys.length > 0 && (
-
-              <ProfileSection
-                title="Account & System Identifiers"
-                icon={<ShieldCheck size={22} />}
-                theme="indigo"
-                fields={identifierKeys}
-                formData={formData}
-                handleInputChange={
-                  handleInputChange
-                }
-                isEditing={isEditing}
-              />
-
-            )}
-
-            {/* CONTACT */}
-
-            {contactKeys.length > 0 && (
-
-              <ProfileSection
-                title="Contact & Communication Information"
-                icon={<User size={22} />}
-                theme="emerald"
-                fields={contactKeys}
-                formData={formData}
-                handleInputChange={
-                  handleInputChange
-                }
-                isEditing={isEditing}
-              />
-
-            )}
-
-            {/* LOCATION */}
-
-            {locationKeys.length > 0 && (
-
-              <ProfileSection
-                title="Address & Location Details"
-                icon={<Globe size={22} />}
-                theme="purple"
-                fields={locationKeys}
-                formData={formData}
-                handleInputChange={
-                  handleInputChange
-                }
-                isEditing={isEditing}
-              />
-
-            )}
-
-            {/* OTHER FIELDS */}
-
-            {remainingKeys.length > 0 && (
-
-              <ProfileSection
-                title="Extended Customer Attributes"
-                icon={<Layers size={22} />}
-                theme="amber"
-                fields={remainingKeys}
-                formData={formData}
-                handleInputChange={
-                  handleInputChange
-                }
-                isEditing={isEditing}
-              />
-
-            )}
-
-            {/* ACTIVE */}
-
-            <div className="scl-section-box scl-theme-cyan-box">
-
-              <div className="scl-section-header">
-
-                <CheckCircle2
-                  size={22}
-                  className="scl-section-icon"
-                />
-
-                <h3>
-                  Account Status
-                </h3>
-
-              </div>
-
-              <div className="scl-form-grid-3col">
-
-                <FormInput
-                  label="Active"
-                  value={
-                    formData.isActive
-                      ? "Yes"
-                      : "No"
-                  }
-                  disabled={true}
-                  themeClass="theme-cyan-input"
-                />
-
-              </div>
-
-            </div>
-
-          </div>
-
-        )}
-
-        {/* ===================================================
-            ALL DATASETS
-        =================================================== */}
-
-        {activeTab === "data" && (
-
-          <div className="scl-tab-content">
-
-            <div className="scl-form-top-bar">
-
-              <div>
-                <h2>
-                  Complete API Dataset Explorer
-                </h2>
-
-                <p>
-                  All arrays and nested transaction
-                  datasets returned by the API
-                </p>
-              </div>
-
-              <div className="scl-dataset-summary">
-
-                <Database size={18} />
-
-                {dataSections.length}
-                {" "}
-                Dataset Groups
-
-              </div>
-
-            </div>
-
-            {/* SEARCH */}
-
-            <div className="scl-filter-bar scl-center-search">
-
-              <div className="scl-search-input-box">
-
-                <Search
-                  size={20}
-                  className="scl-search-icon"
-                />
-
-                <input
-                  type="text"
-                  placeholder="Search across every API field..."
-                  value={searchQuery}
-                  onChange={(e) =>
-                    setSearchQuery(
-                      e.target.value
-                    )
-                  }
-                />
-
-              </div>
-
-            </div>
-
-            {/* DATASET LIST */}
-
-            <div className="scl-subtypes-centered-container">
-
-              {filteredSections.length === 0 ? (
-
-                <div className="scl-empty-state">
-
-                  <Search size={40} />
-
-                  <h3>
-                    No matching API records
-                  </h3>
-
-                  <p>
-                    Try another search value.
-                  </p>
-
-                </div>
-
-              ) : (
-
-                filteredSections.map(
-                  (section, index) => (
-
-                    <div
-                      key={section.key}
-                      className="scl-focused-subtype-wrapper"
-                    >
-
-                      <SubSectionView
-                        title={
-                          section.parent
-                            ? `${formatLabel(
-                                section.parent
-                              )} → ${section.title}`
-                            : section.title
-                        }
-                        count={
-                          section.data.length
-                        }
-                        data={section.data}
-                        searchQuery={
-                          searchQuery
-                        }
-                        colorTheme={
-                          COLOR_PALETTE[
-                            index %
-                              COLOR_PALETTE.length
-                          ]
-                        }
-                        path={section.path}
-                      />
-
-                    </div>
-
-                  )
-                )
-
-              )}
-
-            </div>
-
-          </div>
-
-        )}
-
-      </div>
-
-    </div>
-  );
-};
-
-/* =========================================================
-   PROFILE SECTION
-========================================================= */
-
-const ProfileSection = ({
-  title,
-  icon,
-  theme,
-  fields,
-  formData,
-  handleInputChange,
-  isEditing
-}) => {
-
-  return (
-    <div
-      className={`scl-section-box scl-theme-${theme}-box`}
-    >
-
-      <div className="scl-section-header">
-
-        <span className="scl-section-icon">
-          {icon}
-        </span>
-
-        <h3>
-          {title}
-        </h3>
-
-      </div>
-
-      <div className="scl-form-grid-3col">
-
-        {fields.map((key) => (
-
-          <FormInput
-            key={key}
-            label={formatLabel(key)}
-            name={key}
-            value={formData[key]}
-            onChange={handleInputChange}
-            disabled={
-              !isEditing ||
-              key.toLowerCase().includes("id")
-            }
-            themeClass={
-              `theme-${theme}-input`
-            }
-          />
-
-        ))}
-
-      </div>
-
-    </div>
-  );
-};
-
-/* =========================================================
-   DATASET COMPONENT
-========================================================= */
-
-const SubSectionView = ({
-  title,
-  count,
-  data,
-  searchQuery,
-  colorTheme,
-  path
-}) => {
-
-  const [expanded, setExpanded] =
-    useState(true);
-
-  const filteredData = data.filter(
-    (item) => {
-
-      if (!searchQuery) {
-        return true;
+        });
       }
+    });
+    return list;
+  }, [customerData]);
 
-      const flat =
-        flattenObject(item);
+  const filteredDatasets = useMemo(()=>{
+    if(!search) return allDatasets;
+    const q=search.toLowerCase();
+    return allDatasets.map(s=>{
+      const f=s.data.filter(item=> Object.values(flattenObject(item)).some(val=> formatValue(val).toLowerCase().includes(q)) );
+      return {...s, data:f};
+    }).filter(s=> s.data.length>0);
+  }, [allDatasets, search]);
 
-      return Object.values(flat)
-        .some((value) =>
-          formatValue(value)
-            .toLowerCase()
-            .includes(
-              searchQuery.toLowerCase()
-            )
-        );
+  const handleMarketplaceSwitch = (target) => {
+    if(target.path===marketplace) return;
+    if(target.path==="mystore"){
+      navigate(`/mystore/customers/${sellerId}/${customerId}`, { state: { from: marketplace } });
+    } else {
+      navigate(`/marketplaces/${target.path}/customers/${sellerId}/${customerId}`, { state: { from: marketplace } });
     }
-  );
+  };
+
+const handleListToMarketplace = (targetMarketplace, productItem) => {
+  const orderItem = customerData?.marketplaceOrderItems?.[0] || null;
+  localStorage.setItem("bindedProductData", JSON.stringify({
+    fromCustomer: customerData,
+    product: productItem,
+    orderItem: orderItem,
+    sellerId: String(sellerId),
+    customerId: String(customerId),
+    targetMarketplace
+  }));
+  window.location.href = `/mystore/add-product?sellerId=${sellerId}&customerId=${customerId}`;
+};
+
+  if(loading) return <div style={{ padding:40, textAlign:"center" }}><RefreshCw className="animate-spin" /> Loading Seller {sellerId} Customer {customerId}...</div>;
+  if(error) return <div style={{ padding:40, textAlign:"center" }}><XCircle size={40} color="red"/><h3>Unable to Load Records</h3><p>{error}</p><button type="button" onClick={fetchCustomer} style={{ padding:"8px 16px", borderRadius:6, border:"1px solid #ddd", cursor:"pointer" }}>Retry</button></div>;
 
   return (
-    <div
-      className={`scl-subtype-card ${colorTheme}`}
-    >
-
-      {/* HEADER */}
-
-      <div
-        className="scl-subtype-card-header"
-        onClick={() =>
-          setExpanded(!expanded)
-        }
-        style={{
-          cursor: "pointer"
-        }}
-      >
-
-        <div className="scl-subtype-header-left">
-
-          {expanded ? (
-            <ChevronDown size={20} />
-          ) : (
-            <ChevronRight size={20} />
-          )}
-
-          <Package
-            size={24}
-            className="scl-subtype-icon"
-          />
-
+    <div style={{ padding:16, background:"#f5f7fb", minHeight:"100vh" }}>
+      {/* HEADER - ABC Electronics Customer - Seller:5 Customer:2 */}
+      <div style={{ background:"#fff", padding:16, borderRadius:12, marginBottom:12, border:"1px solid #e5e7eb" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12, flexWrap:"wrap" }}>
           <div>
-
-            <h2 className="scl-subtype-title">
-              {title}
-            </h2>
-
-            <small>
-              {path}
-            </small>
-
+            <button type="button" onClick={()=> onBack? onBack() : navigate("/mystore")} style={{ padding:"6px 12px", borderRadius:6, border:"1px solid #ddd", background:"#fff", cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}><ArrowLeft size={16}/> Back to {marketplace}</button>
+            <h1 style={{ margin:"12px 0 4px 0", fontSize:22, fontWeight:800 }}>{customerData?.customerName || "ABC Electronics Customer"} - Seller: {sellerId} | Customer: {customerId} | Marketplace: {marketplace}</h1>
+            <p style={{ fontSize:12, color:"#6b7280", margin:0 }}>Auto-generates textboxes for any new field - No code change needed in future - Binded values shown in AddProduct UI</p>
           </div>
-
-          <span className="scl-subtype-badge">
-            {count} Items
+          <span style={{ background: customerData?.isActive?"#dcfce7":"#fee2e2", color: customerData?.isActive?"#16a34a":"#dc2626", padding:"6px 12px", borderRadius:20, fontSize:12, fontWeight:700, display:"flex", alignItems:"center", gap:6 }}>
+            {customerData?.isActive?<CheckCircle2 size={14}/>:<XCircle size={14}/>} {customerData?.isActive?"Active Account":"Inactive"}
           </span>
-
         </div>
 
-      </div>
-
-      {/* BODY */}
-
-      {expanded && (
-
-        <div className="scl-subtype-card-body">
-
-          {filteredData.length === 0 ? (
-
-            <div className="scl-empty-state">
-
-              <Search size={32} />
-
-              <p>
-                No records matching
-                {" "}
-                "{searchQuery}"
-              </p>
-
-            </div>
-
-          ) : (
-
-            filteredData.map(
-              (item, itemIdx) => (
-
-                <DatasetRecord
-                  key={itemIdx}
-                  item={item}
-                  itemIdx={itemIdx}
-                  colorTheme={colorTheme}
-                />
-
-              )
-            )
-
-          )}
-
+        {/* BUTTON TO NAVIGATE TO DIFFERENT MARKETPLACES */}
+        <div style={{ marginTop:16, padding:12, background:"#f8fafc", borderRadius:8, border:"1px dashed #d1d5db" }}>
+          <div style={{ fontSize:12, fontWeight:700, marginBottom:8, display:"flex", alignItems:"center", gap:6 }}><Globe size={14}/> Navigate this same customer data to different marketplaces & bind with respective components:</div>
+          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+            {MARKETPLACES.map(mp=>(
+              <button type="button" key={mp.path} onClick={()=>handleMarketplaceSwitch(mp)} disabled={mp.path===marketplace}
+                style={{ padding:"8px 14px", borderRadius:20, border: mp.path===marketplace?"2px solid #111":"1px solid #e5e7eb", background: mp.path===marketplace?"#111":"#fff", color: mp.path===marketplace?"#fff":mp.color, cursor: mp.path===marketplace?"not-allowed":"pointer", fontWeight:600, fontSize:12, display:"flex", alignItems:"center", gap:6 }}>
+                <span>{mp.icon}</span> {mp.name} {mp.path===marketplace?"(Current)":"→"}
+              </button>
+            ))}
+          </div>
+          <div style={{ fontSize:10, color:"#9ca3af", marginTop:6 }}>URL will be /marketplaces/{`{marketplace}`}/customers/{sellerId}/{customerId} - Same IDs bind to {`{marketplace}`} component</div>
         </div>
 
-      )}
-
-    </div>
-  );
-};
-
-/* =========================================================
-   DATASET RECORD
-========================================================= */
-
-const DatasetRecord = ({
-  item,
-  itemIdx,
-  colorTheme
-}) => {
-
-  const [expanded, setExpanded] =
-    useState(true);
-
-  const flattened =
-    flattenObject(item);
-
-  return (
-    <div className="scl-item-record-box">
-
-      <div
-        className="scl-item-record-tag"
-        onClick={() =>
-          setExpanded(!expanded)
-        }
-        style={{
-          cursor: "pointer"
-        }}
-      >
-
-        {expanded ? (
-          <ChevronDown size={16} />
-        ) : (
-          <ChevronRight size={16} />
-        )}
-
-        Record #{itemIdx + 1}
-
-        <span>
-          {Object.keys(flattened).length}
-          {" "}
-          Fields
-        </span>
-
-      </div>
-
-      {expanded && (
-
-        <div className="scl-form-grid-3col">
-
-          {Object.entries(flattened).map(
-            ([key, value]) => {
-
-              /*
-               * Arrays inside an individual record
-               * such as Product.packages are also displayed.
-               */
-
-              if (Array.isArray(value)) {
-
-                return (
-                  <NestedArrayField
-                    key={key}
-                    label={key}
-                    value={value}
-                    colorTheme={colorTheme}
-                  />
-                );
-              }
-
-              return (
-                <FormInput
-                  key={key}
-                  label={formatLabel(
-                    key
-                      .split(".")
-                      .pop()
-                  )}
-                  value={value}
-                  disabled={true}
-                  themeClass={
-                    `${colorTheme}-input`
-                  }
-                />
-              );
-            }
-          )}
-
-        </div>
-
-      )}
-
-    </div>
-  );
-};
-
-/* =========================================================
-   NESTED ARRAY FIELD
-========================================================= */
-
-const NestedArrayField = ({
-  label,
-  value,
-  colorTheme
-}) => {
-
-  return (
-    <div
-      className="scl-input-group span-wide"
-    >
-
-      <label className="scl-label">
-
-        {formatLabel(
-          label.split(".").pop()
-        )}
-
-        {" "}
-        ({value.length} Items)
-
-      </label>
-
-      <div
-        className={`scl-textbox-wrapper ${colorTheme}-input`}
-        style={{
-          padding: "12px"
-        }}
-      >
-
-        {value.map(
-          (nestedItem, index) => {
-
-            if (
-              isObject(nestedItem)
-            ) {
-
-              return (
-                <div
-                  key={index}
-                  style={{
-                    marginBottom:
-                      "12px",
-                    padding:
-                      "12px",
-                    border:
-                      "1px solid rgba(0,0,0,.08)",
-                    borderRadius:
-                      "8px"
-                  }}
-                >
-
-                  <strong>
-                    Item #{index + 1}
-                  </strong>
-
-                  <div
-                    className="scl-form-grid-3col"
-                    style={{
-                      marginTop:
-                        "10px"
-                    }}
-                  >
-
-                    {Object.entries(
-                      flattenObject(
-                        nestedItem
-                      )
-                    ).map(
-                      ([
-                        nestedKey,
-                        nestedValue
-                      ]) => (
-
-                        <FormInput
-                          key={
-                            nestedKey
-                          }
-                          label={formatLabel(
-                            nestedKey
-                              .split(".")
-                              .pop()
-                          )}
-                          value={
-                            nestedValue
-                          }
-                          disabled={
-                            true
-                          }
-                          themeClass={
-                            `${colorTheme}-input`
-                          }
-                        />
-
-                      )
-                    )}
-
-                  </div>
-
+        {/* LIST TO MYSTORE / FLIPKART / AMAZON - BINDED VALUES - QUICK LIST */}
+        {customerData?.products && customerData.products.length>0 && (
+          <div style={{ marginTop:12, padding:12, background:"#fff7ed", borderRadius:8, border:"1px solid #fed7aa" }}>
+            <div style={{ fontSize:12, fontWeight:700, marginBottom:8 }}>Quick List - Binded values will show in AddProduct UI:</div>
+            <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+              {customerData.products.slice(0,3).map((prod, i)=>(
+                <div key={i} style={{ display:"flex", gap:6, alignItems:"center", background:"#fff", padding:"6px 10px", borderRadius:20, border:"1px solid #e5e7eb" }}>
+                  <span style={{ fontSize:11, fontWeight:600 }}>{prod.productName || prod.name} - {prod.sku}</span>
+                  <button type="button" onClick={()=>handleListToMarketplace("mystore", prod)} style={{ padding:"5px 10px", background:"#673AB7", color:"#fff", border:"none", borderRadius:12, cursor:"pointer", fontSize:11, fontWeight:700 }}>List to MyStore</button>
+                  <button type="button" onClick={()=>handleListToMarketplace("flipkart", prod)} style={{ padding:"5px 10px", background:"#2874F0", color:"#fff", border:"none", borderRadius:12, cursor:"pointer", fontSize:11, fontWeight:700 }}>List to Flipkart</button>
+                  <button type="button" onClick={()=>handleListToMarketplace("amazon", prod)} style={{ padding:"5px 10px", background:"#FF9900", color:"#000", border:"none", borderRadius:12, cursor:"pointer", fontSize:11, fontWeight:700 }}>List to Amazon</button>
                 </div>
-              );
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
-            }
+      {/* TABS - Customer Profile 24 fields + All API Datasets 13 groups */}
+      <div style={{ background:"#fff", borderRadius:12, border:"1px solid #e5e7eb" }}>
+        <div style={{ display:"flex", gap:8, padding:12, borderBottom:"1px solid #eee", flexWrap:"wrap" }}>
+          <button type="button" onClick={()=>setActiveTab("info")} style={{ padding:"8px 16px", borderRadius:20, border:"none", cursor:"pointer", background: activeTab==="info"?"#4f46e5":"#f3f4f6", color: activeTab==="info"?"#fff":"#000", fontWeight:600 }}>Customer Profile ({allScalarFields.length} fields - auto)</button>
+          <button type="button" onClick={()=>setActiveTab("data")} style={{ padding:"8px 16px", borderRadius:20, border:"none", cursor:"pointer", background: activeTab==="data"?"#059669":"#f3f4f6", color: activeTab==="data"?"#fff":"#000", fontWeight:600 }}>All API Datasets ({allDatasets.length} groups - auto)</button>
+          <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:6, border:"1px solid #ddd", padding:"6px 10px", borderRadius:8 }}><Search size={14}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search any field..." style={{ border:"none", outline:"none", fontSize:12 }} /></div>
+        </div>
 
-            return (
-              <div
-                key={index}
-                style={{
-                  padding:
-                    "6px 0"
-                }}
-              >
-                {formatValue(
-                  nestedItem
-                )}
+        {activeTab==="info" && (
+          <div style={{ padding:20 }}>
+            <h3 style={{ margin:"0 0 4px 0" }}>All Top-Level Fields - Auto Textbox Binding</h3>
+            <p style={{ fontSize:12, color:"#6b7280", margin:"0 0 16px 0" }}>If tomorrow you add new fields like loyaltyPoints, creditScore, etc - textboxes auto-create here</p>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:14 }}>
+              {allScalarFields.map(key=>(
+                <div key={key} style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                  <label style={{ fontSize:11, fontWeight:700, color:"#374151" }}>{formatLabel(key)} *</label>
+                  <input disabled value={formatValue(customerData[key])} style={{ padding:"8px 10px", border:"1px solid #d1d5db", borderRadius:6, background:"#f9fafb", fontSize:13 }} />
+                  <span style={{ fontSize:9, color:"#9ca3af" }}>key: {key} - auto</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab==="data" && (
+          <div style={{ padding:20 }}>
+            {filteredDatasets.map(sec=>(
+              <div key={sec.key} style={{ border:"1px solid #e5e7eb", borderRadius:10, marginBottom:16, overflow:"hidden" }}>
+                <div style={{ background:"#f8fafc", padding:"10px 14px", fontWeight:700, display:"flex", justifyContent:"space-between", fontSize:13 }}>
+                  <span><Package size={16} style={{ marginRight:6 }}/>{sec.title} ({sec.data.length}) {sec.parent?`→ from ${sec.parent}`:""}</span>
+                  <span style={{ fontSize:10, color:"#6b7280" }}>auto group: {sec.key}</span>
+                </div>
+                {sec.data.map((item, idx)=>{
+                  const isProductGroup = sec.key==="products";
+                  return (
+                    <div key={idx} style={{ padding:14, borderTop:"1px solid #f1f5f9", background:"#fff" }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8, flexWrap:"wrap", gap:8 }}>
+                        <div style={{ fontWeight:700, fontSize:12 }}>Record #{idx+1} - {Object.keys(flattenObject(item)).length} fields auto-created</div>
+                        {isProductGroup && (
+                          <div style={{ display:"flex", gap:6 }}>
+                            <button type="button" onClick={()=>handleListToMarketplace("mystore", item)} style={{ padding:"5px 10px", background:"#673AB7", color:"#fff", border:"none", borderRadius:6, cursor:"pointer", fontSize:11, fontWeight:700 }}>List to MyStore</button>
+                            <button type="button" onClick={()=>handleListToMarketplace("flipkart", item)} style={{ padding:"5px 10px", background:"#2874F0", color:"#fff", border:"none", borderRadius:6, cursor:"pointer", fontSize:11, fontWeight:700 }}>List to Flipkart</button>
+                            <button type="button" onClick={()=>handleListToMarketplace("amazon", item)} style={{ padding:"5px 10px", background:"#FF9900", color:"#000", border:"none", borderRadius:6, cursor:"pointer", fontSize:11, fontWeight:700 }}>List to Amazon</button>
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:10 }}>
+                        {Object.entries(flattenObject(item)).map(([k,v])=>(
+                          <div key={k} style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                            <label style={{ fontSize:10, fontWeight:600, color:"#6b7280" }}>{formatLabel(k.split(".").pop())}</label>
+                            <input disabled value={formatValue(v)} style={{ padding:"6px 8px", border:"1px solid #d1d5db", borderRadius:6, background:"#f9fafb", fontSize:12 }} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          }
+            ))}
+          </div>
         )}
-
       </div>
-
-    </div>
-  );
-};
-
-/* =========================================================
-   FORM INPUT
-========================================================= */
-
-const FormInput = ({
-  label,
-  value,
-  onChange,
-  disabled,
-  type = "text",
-  name,
-  themeClass
-}) => {
-
-  const strVal =
-    value === null ||
-    value === undefined
-      ? ""
-      : formatValue(value);
-
-  const isLong =
-    strVal.length > 45 ||
-    strVal.includes("\n");
-
-  return (
-    <div
-      className={`scl-input-group ${
-        isLong ? "span-wide" : ""
-      }`}
-    >
-
-      <label className="scl-label">
-        {label}
-      </label>
-
-      <div
-        className={`scl-textbox-wrapper ${
-          themeClass || ""
-        } ${
-          disabled ? "disabled" : ""
-        }`}
-      >
-
-        {isLong ? (
-
-          <textarea
-            name={name}
-            value={strVal}
-            onChange={onChange}
-            disabled={disabled}
-            className="scl-textbox scl-textarea"
-            rows={3}
-          />
-
-        ) : (
-
-          <input
-            type={type}
-            name={name}
-            value={strVal}
-            onChange={onChange}
-            disabled={disabled}
-            className="scl-textbox"
-          />
-
-        )}
-
-      </div>
-
     </div>
   );
 };

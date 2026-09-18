@@ -1,123 +1,192 @@
 import React, { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
 import "./FlipkartSidebar.css";
 
-const FlipkartSidebar = ({ onClose }) => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [openMenu, setOpenMenu] = useState("seller");
+const FlipkartSidebar = ({ activeTab, setActiveTab, onClose, onLogout }) => {
+  const [openMenu, setOpenMenu] = useState("seller-mgmt");
 
   const toggle = (menu) => setOpenMenu(openMenu === menu ? "" : menu);
-  const isActive = (path) => location.pathname === path;
+  const isActive = (id) => activeTab === id ? "active" : "";
+  const nav = (id) => {
+    setActiveTab(id);
+    if (onClose) onClose();
+  };
+
+  const handleLogout = () => {
+    if (onLogout) {
+      onLogout();
+    } else {
+      localStorage.removeItem("token");
+      localStorage.removeItem("flipkart_token");
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("user");
+      sessionStorage.clear();
+      window.location.href = "/marketplaces";
+    }
+  };
 
   return (
     <div className="flipkart-sidebar">
+      {/* HEADER */}
       <div className="sidebar-header">
         <div className="logo-box">
           <span className="logo-icon">🛒</span>
           <div>
             <div className="logo-title">Flipkart SP-API</div>
-            <div className="logo-sub">Control Panel</div>
+            <div className="logo-sub">16 APIs Control Panel</div>
           </div>
         </div>
-        <button className="close-btn" onClick={onClose}>✕</button>
       </div>
 
-      <div className="sidebar-section">
-        <div className="section-label">OAuth Required</div>
-      </div>
-
-      {/* MAIN DASHBOARDS */}
+      {/* SELLER MANAGEMENT - Seller Click → Customers */}
       <div className="menu-group">
-        <div className="menu-title" onClick={() => toggle("main")}>
-          <span>⊞ Main Dashboards</span><span>{openMenu==="main" ? "∧" : "∨"}</span>
+        <div className="menu-title" onClick={() => toggle("seller-mgmt")}>
+          <span>🏪 Seller Management</span>
+          <span className="arrow">{openMenu === "seller-mgmt" ? "∧" : "∨"}</span>
         </div>
-        {openMenu==="main" && (
+        {openMenu === "seller-mgmt" && (
           <div className="submenu">
-            <div className={`submenu-item ${isActive("/marketplaces/flipkart") ? "active" : ""}`} onClick={() => navigate("/marketplaces/flipkart")}>Flipkart Overview</div>
+            <div className={`submenu-item ${isActive("sellers")}`} onClick={() => nav("sellers")}>
+              🏪 Sellers [Click → Customers]
+            </div>
+            <div className={`submenu-item ${isActive("seller-detail")}`} onClick={() => nav("seller-customers")}>
+              👥 Seller Customers
+            </div>
+            <div className={`submenu-item ${isActive("dashboard")}`} onClick={() => nav("dashboard")}>
+              📊 Dashboard
+            </div>
           </div>
         )}
       </div>
 
-      {/* AUTH */}
+      {/* AUTH - 1 API - NEW */}
       <div className="menu-group">
         <div className="menu-title" onClick={() => toggle("auth")}>
-          <span>🔑 Authentication</span><span>{openMenu==="auth" ? "∧" : "∨"}</span>
+          <span>🔑 Auth (1)</span>
+          <span className="arrow">{openMenu === "auth" ? "∧" : "∨"}</span>
         </div>
-        {openMenu==="auth" && (
+        {openMenu === "auth" && (
           <div className="submenu">
-            <div className="submenu-item" onClick={() => navigate("/marketplaces/flipkart/auth")}>Token Generator</div>
+            <div className={`submenu-item ${isActive("auth")}`} onClick={() => nav("auth")}>
+              OAuth Token
+            </div>
           </div>
         )}
       </div>
 
-      {/* CATALOG APIs */}
+      {/* CATALOG - 4 APIs */}
       <div className="menu-group">
         <div className="menu-title" onClick={() => toggle("catalog")}>
-          <span>📦 Seller & Catalog</span><span>›</span>
+          <span>📦 Catalog (4)</span>
+          <span className="arrow">{openMenu === "catalog" ? "∧" : "∨"}</span>
         </div>
-        <div className="menu-title" onClick={() => toggle("catalog")}>
-          <span>🧱 Product Types</span><span>›</span>
-        </div>
-      </div>
-
-      {/* CATALOG APIs - Your Folder */}
-      <div className="menu-group">
-        <div className="menu-title" onClick={() => toggle("seller")}>
-          <span>📦 Catalog APIs</span><span>{openMenu==="seller" ? "∧" : "∨"}</span>
-        </div>
-        {openMenu==="seller" && (
+        {openMenu === "catalog" && (
           <div className="submenu">
-            <div className={`submenu-item ${isActive("/marketplaces/flipkart/listings") ? "active" : ""}`} onClick={() => navigate("/marketplaces/flipkart/listings/6/3")}>ListingsCommon V3 API</div>
-            <div className="submenu-item" onClick={() => navigate("/marketplaces/flipkart/catalog/listings")}>Get Listings</div>
-            <div className="submenu-item" onClick={() => navigate("/marketplaces/flipkart/catalog/products")}>Products</div>
+            <div className={`submenu-item ${isActive("listings")}`} onClick={() => nav("listings")}>
+              Listings V3 Create
+            </div>
+            <div className={`submenu-item ${isActive("listings-update")}`} onClick={() => nav("listings-update")}>
+              Listings Update / Get
+            </div>
+            <div className={`submenu-item ${isActive("products")}`} onClick={() => nav("products")}>
+              Products
+            </div>
+            <div className={`submenu-item ${isActive("product-types")}`} onClick={() => nav("product-types")}>
+              Product Types
+            </div>
           </div>
         )}
       </div>
 
-      {/* INVENTORY APIs */}
+      {/* INVENTORY - 2 APIs */}
       <div className="menu-group">
         <div className="menu-title" onClick={() => toggle("inventory")}>
-          <span>📦 Inventory APIs</span><span>›</span>
+          <span>📊 Inventory (2)</span>
+          <span className="arrow">{openMenu === "inventory" ? "∧" : "∨"}</span>
         </div>
-        {openMenu==="inventory" && (
+        {openMenu === "inventory" && (
           <div className="submenu">
-            <div className="submenu-item" onClick={() => navigate("/marketplaces/flipkart/inventory/update")}>Update Inventory</div>
-            <div className="submenu-item" onClick={() => navigate("/marketplaces/flipkart/inventory/locations")}>Warehouse Locations</div>
+            <div className={`submenu-item ${isActive("inventory")}`} onClick={() => nav("inventory")}>
+              Inventory FBF
+            </div>
+            <div className={`submenu-item ${isActive("inventory-nonfbf")}`} onClick={() => nav("inventory-nonfbf")}>
+              Inventory Non-FBF
+            </div>
           </div>
         )}
       </div>
 
-      {/* ORDERS APIs */}
+      {/* PRICING - 2 APIs */}
+      <div className="menu-group">
+        <div className="menu-title" onClick={() => toggle("pricing")}>
+          <span>💰 Pricing (2)</span>
+          <span className="arrow">{openMenu === "pricing" ? "∧" : "∨"}</span>
+        </div>
+        {openMenu === "pricing" && (
+          <div className="submenu">
+            <div className={`submenu-item ${isActive("pricing")}`} onClick={() => nav("pricing")}>
+              Pricing
+            </div>
+            <div className={`submenu-item ${isActive("pricing-promo")}`} onClick={() => nav("pricing-promo")}>
+              Promotions / MRP
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ORDERS - 4 APIs */}
       <div className="menu-group">
         <div className="menu-title" onClick={() => toggle("orders")}>
-          <span>🛒 Orders & Reports</span><span>{openMenu==="orders" ? "∧" : "∨"}</span>
+          <span>🛒 Orders (4)</span>
+          <span className="arrow">{openMenu === "orders" ? "∧" : "∨"}</span>
         </div>
-        {openMenu==="orders" && (
+        {openMenu === "orders" && (
           <div className="submenu">
-            <div className="submenu-item">Orders APIs</div>
-            <div className="submenu-item">Shipments</div>
-            <div className="submenu-item">Returns</div>
+            <div className={`submenu-item ${isActive("orders")}`} onClick={() => nav("orders")}>
+              Orders
+            </div>
+            <div className={`submenu-item ${isActive("shipments")}`} onClick={() => nav("shipments")}>
+              Shipments V3
+            </div>
+            <div className={`submenu-item ${isActive("returns")}`} onClick={() => nav("returns")}>
+              Returns
+            </div>
+            <div className={`submenu-item ${isActive("cancellations")}`} onClick={() => nav("cancellations")}>
+              Cancellations
+            </div>
           </div>
         )}
       </div>
 
-      {/* PAYMENTS */}
+      {/* FINANCE - 3 APIs */}
       <div className="menu-group">
-        <div className="menu-title"><span>💲 Payments</span><span>›</span></div>
+        <div className="menu-title" onClick={() => toggle("finance")}>
+          <span>💲 Finance & Reports (3)</span>
+          <span className="arrow">{openMenu === "finance" ? "∧" : "∨"}</span>
+        </div>
+        {openMenu === "finance" && (
+          <div className="submenu">
+            <div className={`submenu-item ${isActive("payments")}`} onClick={() => nav("payments")}>
+              Payments / Settlements
+            </div>
+            <div className={`submenu-item ${isActive("reports")}`} onClick={() => nav("reports")}>
+              Reports
+            </div>
+            <div className={`submenu-item ${isActive("seller-profile")}`} onClick={() => nav("seller-profile")}>
+              Seller Profile
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* REPORTS */}
-      <div className="menu-group">
-        <div className="menu-title"><span>📊 Reports APIs</span><span>›</span></div>
+      {/* FOOTER */}
+      <div className="sidebar-footer">
+        <button className="footer-btn selector-btn" onClick={() => window.location.href = "/marketplaces"}>
+          ← Marketplace Selector
+        </button>
+        <button className="footer-btn logout-btn" onClick={handleLogout}>
+          🚪 Logout
+        </button>
       </div>
-
-      <div className="menu-group"><div className="menu-title"><span>🔔 Notifications</span><span>›</span></div></div>
-      <div className="menu-group"><div className="menu-title"><span>🚚 Shipping</span><span>›</span></div></div>
-      <div className="menu-group"><div className="menu-title"><span>💬 Messaging</span><span>›</span></div></div>
-      <div className="menu-group"><div className="menu-title"><span>🌐 Feeds & Uploads</span><span>›</span></div></div>
-
-      <div className="sidebar-footer" onClick={() => navigate("/")}><span>↪ Logout</span></div>
     </div>
   );
 };

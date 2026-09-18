@@ -1,36 +1,65 @@
-import React, { useState, useEffect } from "react";
-import FlipkartSidebar from "./FlipkartSidebar";
-import Sellerlist from "../Common/Sellerlist"; // <-- Changed to Common
+import React, { useState } from "react";
+import FlipkartSidebar from "./FlipkartSidebar.js";
+import Sellerlist from "../Common/Sellerlist.js";
+import SellerCustomerlist from "../Common/SellerCustomerlist.js";
+
+// Flipkart APIs - your real files
+import ListingsCommonV3Api from "./Catalog APIs/ListingsCommonV3Api.js";
+import FlipkartProducts from "./Products/FlipkartProducts.jsx";
+import FlipkartInventoryFBF from "./Inventory APIs/FlipkartInventoryFBF.jsx";
+import FlipkartPricing from "./Pricing/FlipkartPricing.jsx";
+import FlipkartOrders from "./Orders APIs/FlipkartOrders.jsx";
+import FlipkartShipments from "./Shipment V3/FlipkartShipments.jsx";
+import FlipkartReturns from "./Returns/FlipkartReturns.jsx";
+import FlipkartReports from "./Reports APIs/FlipkartReports.jsx";
 import "./FlipkartDashboard.css";
 
 const FlipkartDashboard = () => {
-  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [selectedSellerId, setSelectedSellerId] = useState(null);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 800);
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="flipkart-dashboard-layout">
-        <FlipkartSidebar />
-        <div className="flipkart-main-content">
-          <div className="flipkart-loading">
-            <div className="fk-spinner"></div>
-            <p>Loading Flipkart Sellers...</p>
+  const renderContent = () => {
+    switch(activeTab) {
+      case "dashboard":
+        return (
+          <div>
+            <h1>Flipkart Dashboard</h1>
+            <p>Manage Flipkart Seller APIs - Same Seller → Customer flow as Amazon & MyStore</p>
+            <Sellerlist />
           </div>
-        </div>
-      </div>
-    );
-  }
+        );
+      case "sellers":
+        return <Sellerlist />;
+      case "seller-detail":
+        return <SellerCustomerlist />;
+      case "seller-customers":
+        return <SellerCustomerlist />;
+      case "listings":
+        return <ListingsCommonV3Api />;
+      case "products":
+        return <FlipkartProducts />;
+      case "inventory":
+        return <FlipkartInventoryFBF />;
+      case "pricing":
+        return <FlipkartPricing />;
+      case "orders":
+        return <FlipkartOrders />;
+      case "shipments":
+        return <FlipkartShipments />;
+      case "returns":
+        return <FlipkartReturns />;
+      case "reports":
+        return <FlipkartReports />;
+      default:
+        return <Sellerlist />;
+    }
+  };
 
   return (
     <div className="flipkart-dashboard-layout">
-      <FlipkartSidebar />
+      <FlipkartSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
       <div className="flipkart-main-content">
-        {/* Now using Common Sellerlist */}
-        <Sellerlist marketplace="flipkart" />
+        {renderContent()}
       </div>
     </div>
   );

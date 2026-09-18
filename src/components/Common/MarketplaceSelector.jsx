@@ -17,48 +17,56 @@ const marketplaces = [
     icon: ShoppingBag,
     color: "#FF9900",
     path: "/marketplaces/amazon",
+    count: "40 APIs",
   },
   {
     name: "Flipkart",
     icon: ShoppingCart,
     color: "#2874F0",
     path: "/marketplaces/flipkart",
+    count: "16 APIs",
+  },
+  {
+    name: "MyStore",
+    icon: Store,
+    color: "#673AB7",
+    path: "/mystore",
+    count: "14 APIs",
   },
   {
     name: "Meesho",
     icon: Store,
     color: "#E91E63",
     path: "/marketplaces/meesho",
+    count: "Soon",
   },
   {
     name: "Blinkit",
     icon: Zap,
     color: "#F7C600",
     path: "/marketplaces/blinkit",
+    count: "Soon",
   },
   {
     name: "Myntra",
     icon: Shirt,
     color: "#FF3F6C",
     path: "/marketplaces/myntra",
+    count: "Soon",
   },
   {
     name: "JioMart",
     icon: Package,
     color: "#0A66C2",
     path: "/marketplaces/jiomart",
+    count: "Soon",
   },
   {
     name: "Shopify",
     icon: Globe,
     color: "#96BF48",
     path: "/marketplaces/shopify",
-  },
-  {
-    name: "MyStore",
-    icon: Store,
-    color: "#673AB7",
-    path: "/mystore/sellers",
+    count: "Soon",
   },
 ];
 
@@ -66,62 +74,52 @@ const MarketplaceSelector = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const isActive = (path) => {
+    if (path === "/mystore") {
+      return location.pathname.startsWith("/mystore");
+    }
+    return location.pathname.startsWith(path);
+  };
+
   return (
     <div className="marketplace-wrapper">
       <div className="marketplace-header">
-        <h1>Marketplaces</h1>
-        <p>Select a marketplace to manage your business</p>
+        <h1>Marketplaces - Option 1</h1>
+        <p>Select a marketplace - Each has Seller → Customer flow</p>
       </div>
 
       <div className="marketplace-scroll">
-        {marketplaces.map((marketplace) => {
-          const Icon = marketplace.icon;
-
-          const isActive =
-            location.pathname.startsWith(marketplace.path) ||
-            (
-              marketplace.path === "/mystore/sellers" &&
-              location.pathname.startsWith("/mystore")
-            );
+        {marketplaces.map((mp) => {
+          const Icon = mp.icon;
+          const active = isActive(mp.path);
 
           return (
             <button
-              key={marketplace.path}
-              className={`marketplace-card ${
-                isActive ? "active" : ""
-              }`}
-              onClick={() => navigate(marketplace.path)}
+              key={mp.path}
+              className={`marketplace-card ${active ? "active" : ""}`}
+              onClick={() => navigate(mp.path)}
             >
               <div
                 className="marketplace-icon"
                 style={{
-                  backgroundColor: `${marketplace.color}18`,
-                  color: marketplace.color,
+                  backgroundColor: `${mp.color}18`,
+                  color: mp.color,
                 }}
               >
                 <Icon size={42} strokeWidth={1.8} />
               </div>
 
-              <div className="marketplace-name">
-                {marketplace.name}
+              <div className="marketplace-name">{mp.name}</div>
+              <div className="marketplace-count" style={{ fontSize: "11px", color: "#6b7280" }}>
+                {mp.count}
               </div>
 
-              <div
-                className="marketplace-dashboard-text"
-                style={{
-                  color: marketplace.color,
-                }}
-              >
+              <div className="marketplace-dashboard-text" style={{ color: mp.color }}>
                 Open Dashboard →
               </div>
 
-              {isActive && (
-                <div
-                  className="active-indicator"
-                  style={{
-                    backgroundColor: marketplace.color,
-                  }}
-                />
+              {active && (
+                <div className="active-indicator" style={{ backgroundColor: mp.color }} />
               )}
             </button>
           );
