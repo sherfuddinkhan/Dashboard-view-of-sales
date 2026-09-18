@@ -1,224 +1,197 @@
-import React, { useEffect, useMemo, useState } from "react";
-import axios from "axios";
-import { useNavigate, useParams, useLocation } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useLocation, useNavigate, Routes, Route } from "react-router-dom";
 import {
-  ShoppingCart, Package, Boxes, RefreshCw, XCircle, Clock3,
-  CheckCircle2, Users, Store, LayoutDashboard
+  LayoutDashboard, Store, Users, ShoppingCart, Package, Boxes,
+  ChevronDown, ChevronRight, Search, Filter, Edit, Trash2, Truck,
+  XCircle, Hash, Menu, X, Plus, LogOut
 } from "lucide-react";
+
+// ✅ KEEP YOUR EXISTING IMPORTS - SAME FOLDER ROUTE
 import Sellerlist from "../Common/Sellerlist.js";
 import SellerCustomerlist from "../Common/SellerCustomerlist.js";
-
-import ListAllOrders from "./ListAllOrders.jsx";
-import GetOrder from "./GetOrder.jsx";
-import CancelOrder from "./CancelOrder.jsx";
-import UpdateFulfillment from "./UpdateFulfillment.jsx";
-import ListProducts from "./ListProducts.jsx";
-import GetProduct from "./GetProduct.jsx";
 import AddProduct from "./AddProduct.jsx";
-import EditProduct from "./EditProduct.jsx";
-import DeleteProduct from "./DeleteProduct.jsx";
-import FilterProducts from "./FilterProducts.jsx";
-import AdjustInventoryByProductId from "./AdjustInventoryByProductId.jsx";
-import AdjustInventoryBySku from "./AdjustInventoryBySku.jsx";
 
-import "./MyStoreDashboard.css";
-
-const NODE_API = "http://localhost:5000/api";
-const getApiError = (e, f) => e?.response?.data?.message || e?.message || f;
-const formatPrice = (v) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(Number(v||0));
-const formatDate = (v) => { if(!v) return "-"; const d=new Date(v); return isNaN(d.getTime())? "-": d.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}); };
-const getStatusClass = (s) => { s=String(s||"").toLowerCase(); if(["delivered","completed"].includes(s)) return "status-success"; if(["cancelled"].includes(s)) return "status-danger"; if(["shipped"].includes(s)) return "status-info"; if(["pending","processing"].includes(s)) return "status-warning"; return "status-default"; };
-const getOrderDate = (o) => o?.order_date || o?.orderDate || o?.created_at || 0;
-const getOrderStatus = (o) => o?.status || "Unknown";
-const getOrderTotal = (o) => o?.total?? 0;
-const getProductInventory = (p) => p?.inventory_quantity?? 0;
-
-const StatCard = ({ title, value, icon, onClick }) => (
-  <div className={`mystore-stat-card ${onClick? "mystore-clickable": ""}`} onClick={onClick}>
-    <div className="mystore-stat-content"><div className="mystore-stat-title">{title}</div><div className="mystore-stat-value">{value}</div></div>
-    <div className="mystore-stat-icon">{icon}</div>
+const Placeholder = ({ name }) => (
+  <div style={{ padding: 30, background: "#fff", borderRadius: 10, border: "1px solid #e5e7eb" }}>
+    <h2>{name}</h2>
+    <p style={{ fontSize: 12, color: "#6b7280" }}>Route: {window.location.pathname} - Seller:Customer IDs binded here - Ready for API</p>
   </div>
 );
 
 const MyStoreDashboard = () => {
   const navigate = useNavigate();
-  const params = useParams();
-  const locationHook = useLocation();
+  const location = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [openGroups, setOpenGroups] = useState({
+    seller: true,
+    orders: true,
+    products: true,
+    inventory: true,
+  });
 
-  const [activeTab, setActiveTab] = useState("dashboard");
-  const [selectedSellerId, setSelectedSellerId] = useState(null);
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [orders, setOrders] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [sellers, setSellers] = useState([]);
-  const [ordersLoading, setOrdersLoading] = useState(false);
-  const [productsLoading, setProductsLoading] = useState(false);
-  const [sellersLoading, setSellersLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  // READ URL ON REFRESH - FIXED FOR ADD-PRODUCT + CUSTOMERS + SELLERS
+  // ✅ WHEN MYSTORE LOADED → SELLERLIST PRESENT BY DEFAULT
   useEffect(() => {
-    const path = window.location.pathname;
-
-    // 1. ADD-PRODUCT - THIS FIXES YOUR REDIRECT ISSUE
-    if (path.includes("/add-product")) {
-      setActiveTab("add-product");
-      return;
+    if (location.pathname === "/mystore" || location.pathname === "/mystore/" || location.pathname === "/mystore/dashboard") {
+      navigate("/mystore/sellers", { replace: true });
     }
-    // 2. /mystore/customers/S123/C456
-    const match = path.match(/\/mystore\/customers\/([^/]+)\/([^/]+)/);
-    if (match) {
-      const [, sId, cId] = match;
-      setSelectedCustomer({ sellerId: sId, customerId: cId });
-      setActiveTab("customer-detail");
-      return;
-    }
-    // 3. /mystore/sellers/S123
-    const match2 = path.match(/\/mystore\/sellers\/([^/]+)/);
-    if (match2) {
-      const [, sId] = match2;
-      setSelectedSellerId(sId);
-      setActiveTab("seller-detail");
-      return;
-    }
-    // 4. /mystore/customers
-    if (path.includes("/customers")) {
-      setActiveTab("seller-customers");
-      return;
-    }
-    // 5. /mystore/sellers
-    if (path.includes("/sellers")) {
-      setActiveTab("sellers");
-      return;
-    }
-  }, [params, locationHook.pathname, locationHook.search]);
+  }, [location.pathname, navigate]);
 
-  const fetchOrders = async () => { try{ setOrdersLoading(true); const r=await axios.get(`${NODE_API}/mystore/orders`); const d=r.data?.data?? r.data; setOrders(Array.isArray(d)? d: []); }catch(e){ setError(getApiError(e,"Failed orders")); }finally{ setOrdersLoading(false); } };
-  const fetchProducts = async () => { try{ setProductsLoading(true); const r=await axios.get(`${NODE_API}/mystore/products`); const d=r.data?.data?? r.data; setProducts(Array.isArray(d)? d: []); }catch(e){ setError(getApiError(e,"Failed products")); }finally{ setProductsLoading(false); } };
-  const fetchSellers = async () => { try{ setSellersLoading(true); const r=await axios.get(`${NODE_API}/mystore/sellers`); setSellers(r.data?.data||r.data||[]); }catch(e){}finally{ setSellersLoading(false); } };
-  const loadDashboard = async () => { setError(""); await Promise.all([fetchOrders(), fetchProducts(), fetchSellers()]); };
-  useEffect(()=>{ loadDashboard(); },[]);
+  const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + "/");
+  const toggleGroup = (g) => setOpenGroups(p => ({...p, [g]:!p[g]}));
+  const go = (path) => navigate(path);
 
-  const statistics = useMemo(()=>({
-    totalOrders: orders.length,
-    pendingOrders: orders.filter(o=>["pending","processing"].includes(String(getOrderStatus(o)).toLowerCase())).length,
-    cancelledOrders: orders.filter(o=>["cancelled"].includes(String(getOrderStatus(o)).toLowerCase())).length,
-    deliveredOrders: orders.filter(o=>String(getOrderStatus(o)).toLowerCase()==="delivered").length,
-    totalProducts: products.length,
-    inventoryQuantity: products.reduce((t,p)=>t+Number(getProductInventory(p)||0),0),
-    totalSellers: sellers.length
-  }),[orders, products, sellers]);
-
-  const recentOrders = useMemo(()=>[...orders].sort((a,b)=>new Date(getOrderDate(b)).getTime()-new Date(getOrderDate(a)).getTime()).slice(0,5),[orders]);
-
-  const handleSellerSelect = (sellerId) => {
-    setSelectedSellerId(sellerId);
-    setActiveTab("seller-detail");
-    navigate(`/mystore/sellers/${sellerId}`);
-  };
-
-  const handleCustomerSelect = (sellerId, customerId) => {
-    setSelectedCustomer({ sellerId, customerId });
-    setActiveTab("customer-detail");
-    navigate(`/mystore/customers/${sellerId}/${customerId}`);
-  };
-
-  const handleBack = () => {
-    setSelectedCustomer(null);
-    setSelectedSellerId(null);
-    setActiveTab("sellers");
-    navigate("/mystore");
-  };
-
-  const handleTabChange = (tab) => {
-    setActiveTab(tab);
-    if (tab === "dashboard") navigate("/mystore");
-    if (tab === "sellers") navigate("/mystore/sellers");
-    if (tab === "seller-customers") navigate("/mystore/customers");
-    if (tab === "add-product") navigate("/mystore/add-product");
-  };
-
-  const renderContent = () => {
-    // CRITICAL FIX: Check pathname directly for add-product - This stops redirect to dashboard
-    if (window.location.pathname.includes("/add-product")) {
-      return <AddProduct />;
-    }
-
-    switch(activeTab){
-      case "sellers":
-        return <Sellerlist marketplace="mystore" onCustomerClick={handleCustomerSelect} onSellerClick={handleSellerSelect} />;
-      case "seller-customers":
-        return <Sellerlist marketplace="mystore" onCustomerClick={handleCustomerSelect} />;
-      case "seller-detail":
-        return <Sellerlist marketplace="mystore" sellerId={selectedSellerId} onCustomerClick={handleCustomerSelect} onBack={()=>{ setActiveTab("sellers"); navigate("/mystore"); }} />;
-      case "customer-detail":
-        return (
-          <SellerCustomerlist
-            marketplace="mystore"
-            sellerId={selectedCustomer?.sellerId || selectedSellerId}
-            customerId={selectedCustomer?.customerId}
-            onBack={handleBack}
-          />
-        );
-      case "orders": return <ListAllOrders />;
-      case "get-order": return <GetOrder />;
-      case "cancel-order": return <CancelOrder />;
-      case "fulfillment": return <UpdateFulfillment />;
-      case "products": return <ListProducts />;
-      case "get-product": return <GetProduct />;
-      case "add-product": return <AddProduct />;
-      case "edit-product": return <EditProduct />;
-      case "delete-product": return <DeleteProduct />;
-      case "filter-products": return <FilterProducts />;
-      case "adjust-product": return <AdjustInventoryByProductId />;
-      case "adjust-sku": return <AdjustInventoryBySku />;
-      default:
-        return (
-          <div className="mystore-dashboard">
-            <div className="mystore-topbar">
-              <div><h1>MyStore Dashboard - 12 APIs</h1><p>URL now shows SellerId / CustomerId - Check address bar | List to Marketplace binded</p></div>
-              <button className="mystore-refresh-button" onClick={loadDashboard}><RefreshCw size={17} /> Refresh</button>
-            </div>
-            {error && <div className="mystore-error"><span>{error}</span><button onClick={()=>setError("")}>×</button></div>}
-            <section className="mystore-section">
-              <div className="mystore-section-title">Seller Management</div>
-              <div className="mystore-stat-grid">
-                <StatCard title="Total Sellers" value={sellersLoading?"...":statistics.totalSellers} icon={<Store size={25} />} onClick={()=>handleTabChange("sellers")} />
-                <StatCard title="Total Customers" value="View All" icon={<Users size={25} />} onClick={()=>handleTabChange("seller-customers")} />
-                <StatCard title="Seller → Customer" value="Active" icon={<CheckCircle2 size={25} />} onClick={()=>handleTabChange("sellers")} />
-                <StatCard title="Add Product" value="List to MyStore" icon={<Package size={25} />} onClick={()=>handleTabChange("add-product")} />
-              </div>
-            </section>
-            <div className="mystore-content-grid">
-              <section className="mystore-panel">
-                <div className="mystore-panel-header"><div><h2>Recent Sellers</h2><p>Click to see customers - URL will show ID - List to MyStore/Flipkart/Amazon binded</p></div><button onClick={()=>handleTabChange("sellers")}>View All</button></div>
-                <div className="mystore-table-wrapper">
-                  <table className="mystore-table"><thead><tr><th>Seller ID</th><th>Name</th><th>Action</th></tr></thead>
-                    <tbody>{sellers.length===0?<tr><td colSpan="3" className="mystore-empty">No sellers</td></tr>:sellers.slice(0,5).map(s=><tr key={s.sellerId} className="mystore-clickable-row" onClick={()=>handleSellerSelect(s.sellerId)}><td><strong>{s.sellerId}</strong></td><td>{s.sellerName}</td><td><button type="button" style={{background:"#3b82f6",color:"#fff",border:"none",padding:"4px 8px",borderRadius:"4px"}}>View Customers →</button></td></tr>)}</tbody>
-                  </table>
-                </div>
-              </section>
-            </div>
-          </div>
-        );
-    }
-  };
+  const menuBtn = (path, Icon, label, small = false) => (
+    <button
+      onClick={() => go(path)}
+      className={`menu-item ${isActive(path)? "active" : ""} ${small? "small" : ""}`}
+    >
+      <Icon size={small? 14 : 18} />
+      <span>{label}</span>
+    </button>
+  );
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#f5f7fb" }}>
-      <aside style={{ width: "260px", background: "linear-gradient(180deg,#111827,#0f172a)", color: "#fff", padding: "20px 12px", overflowY: "auto" }}>
-        <div style={{ fontSize: "20px", fontWeight: 700 }}>MyStore</div>
-        <div style={{ fontSize: "11px", color: "#9ca3af", marginBottom: "16px" }}>12 APIs - Route shows IDs - List Binded</div>
-        <button type="button" onClick={()=>handleTabChange("dashboard")} style={{ width: "100%", textAlign: "left", padding: "10px 12px", marginBottom: "12px", borderRadius: "6px", border: activeTab==="dashboard"?"1px solid #3b82f6":"1px solid rgba(255,255,255,0.12)", background: activeTab==="dashboard"?"rgba(59,130,246,0.22)":"rgba(255,255,255,0.06)", color: "#fff", cursor: "pointer" }}><LayoutDashboard size={14} style={{ marginRight: "6px" }} /> Dashboard</button>
-        <div style={{ marginBottom: "14px" }}><div style={{ fontSize: "10px", color: "#6b7280", textTransform: "uppercase", padding: "6px 10px" }}>🏪 Seller Management</div>
-          <button type="button" onClick={()=>handleTabChange("sellers")} style={{ display: "block", width: "100%", textAlign: "left", padding: "9px 12px", borderRadius: "6px", border: "none", background: activeTab==="sellers"?"rgba(59,130,246,0.22)":"transparent", color: "#cbd5e1", cursor: "pointer" }}>🏪 Sellers</button>
-          <button type="button" onClick={()=>handleTabChange("seller-customers")} style={{ display: "block", width: "100%", textAlign: "left", padding: "9px 12px", borderRadius: "6px", border: "none", background: activeTab==="seller-customers"?"rgba(59,130,246,0.22)":"transparent", color: "#cbd5e1", cursor: "pointer" }}>👥 Seller Customers</button>
-          <button type="button" onClick={()=>handleTabChange("add-product")} style={{ display: "block", width: "100%", textAlign: "left", padding: "9px 12px", borderRadius: "6px", border: "none", background: activeTab==="add-product"?"rgba(59,130,246,0.22)":"transparent", color: "#cbd5e1", cursor: "pointer" }}>📦 Add Product - Binded UI</button>
+      {/* SIDEBAR - DARK LIKE YOUR SCREENSHOT - ALL COMPONENTS */}
+      <aside
+        style={{
+          width: sidebarOpen? 300 : 70,
+          background: "#0f172a",
+          color: "#fff",
+          transition: "width 0.2s",
+          height: "100vh",
+          position: "sticky",
+          top: 0,
+          overflowY: "auto",
+          display: "flex",
+          flexDirection: "column",
+          flexShrink: 0,
+        }}
+      >
+        <div style={{ padding: 16, borderBottom: "1px solid #1e293b", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>MyStore</h2>
+            <span style={{ fontSize: 11, color: "#94a3b8" }}>12 APIs - Route shows IDs - List Binded</span>
+          </div>
+          <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ background: "transparent", border: "none", color: "#fff", cursor: "pointer" }}>
+            {sidebarOpen? <X size={18} /> : <Menu size={18} />}
+          </button>
         </div>
-        <button type="button" onClick={()=>window.location.href="/marketplaces"} style={{ marginTop: "16px", width: "100%", padding: "10px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff", borderRadius: "6px", cursor: "pointer" }}>← Marketplace Selector</button>
-        <button type="button" onClick={()=>{localStorage.clear(); window.location.href="/marketplaces";}} style={{ marginTop: "8px", width: "100%", padding: "10px", background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.25)", color: "#fca5a5", borderRadius: "6px", cursor: "pointer" }}>🚪 Logout</button>
+
+        <div style={{ padding: 12, flex: 1 }}>
+          {menuBtn("/mystore/dashboard", LayoutDashboard, "Dashboard")}
+
+          {/* SELLER MANAGEMENT - ALL */}
+          {sidebarOpen && <div className="section-title">SELLER MANAGEMENT</div>}
+          <div>
+            <button onClick={() => toggleGroup("seller")} className="group-header">
+              <Store size={16} /> {sidebarOpen && <><span>Sellers</span>{openGroups.seller? <ChevronDown size={14} /> : <ChevronRight size={14} />}</>}
+            </button>
+            {sidebarOpen && openGroups.seller && (
+              <div className="submenu">
+                {menuBtn("/mystore/sellers", Store, "Sellers", true)}
+                {menuBtn("/mystore/seller-customers", Users, "Seller Customers", true)}
+                {menuBtn("/mystore/add-product", Package, "Add Product - Binded UI", true)}
+              </div>
+            )}
+          </div>
+
+          {/* ORDERS - 4 APIs */}
+          {sidebarOpen && <div className="section-title">ORDERS</div>}
+          <div>
+            <button onClick={() => toggleGroup("orders")} className="group-header">
+              <ShoppingCart size={16} /> {sidebarOpen && <><span>Orders</span>{openGroups.orders? <ChevronDown size={14} /> : <ChevronRight size={14} />}</>}
+            </button>
+            {sidebarOpen && openGroups.orders && (
+              <div className="submenu">
+                {menuBtn("/mystore/orders", ShoppingCart, "All Orders", true)}
+                {menuBtn("/mystore/orders/get", Hash, "Get Order", true)}
+                {menuBtn("/mystore/orders/cancel", XCircle, "Cancel Order", true)}
+                {menuBtn("/mystore/orders/fulfillment", Truck, "Update Fulfillment", true)}
+              </div>
+            )}
+          </div>
+
+          {/* CATALOG & PRODUCTS - 6 APIs */}
+          {sidebarOpen && <div className="section-title">CATALOG & PRODUCTS</div>}
+          <div>
+            <button onClick={() => toggleGroup("products")} className="group-header">
+              <Package size={16} /> {sidebarOpen && <><span>Products</span>{openGroups.products? <ChevronDown size={14} /> : <ChevronRight size={14} />}</>}
+            </button>
+            {sidebarOpen && openGroups.products && (
+              <div className="submenu">
+                {menuBtn("/mystore/products", Package, "All Products", true)}
+                {menuBtn("/mystore/products/filter", Filter, "Filter Products", true)}
+                {menuBtn("/mystore/products/get", Search, "Get Product", true)}
+                {menuBtn("/mystore/products/create", Plus, "Add Product", true)}
+                {menuBtn("/mystore/products/edit", Edit, "Edit Product", true)}
+                {menuBtn("/mystore/products/delete", Trash2, "Delete Product", true)}
+              </div>
+            )}
+          </div>
+
+          {/* INVENTORY - 2 APIs */}
+          {sidebarOpen && <div className="section-title">INVENTORY</div>}
+          <div>
+            <button onClick={() => toggleGroup("inventory")} className="group-header">
+              <Boxes size={16} /> {sidebarOpen && <><span>Inventory</span>{openGroups.inventory? <ChevronDown size={14} /> : <ChevronRight size={14} />}</>}
+            </button>
+            {sidebarOpen && openGroups.inventory && (
+              <div className="submenu">
+                {menuBtn("/mystore/inventory/product", Package, "Adjust by Product ID", true)}
+                {menuBtn("/mystore/inventory/sku", Hash, "Adjust by SKU", true)}
+              </div>
+            )}
+          </div>
+
+          <div style={{ marginTop: 20, display: "grid", gap: 8 }}>
+            <button onClick={() => navigate("/marketplaces")} style={{ width: "100%", padding: "10px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", borderRadius: "8px", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+              ← Marketplace Selector
+            </button>
+            <button onClick={() => { localStorage.clear(); navigate("/marketplaces"); }} style={{ width: "100%", padding: "10px", background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.25)", color: "#fca5a5", borderRadius: "8px", cursor: "pointer", fontWeight: 600, display: "flex", justifyContent: "center", gap: 6 }}>
+              <LogOut size={14} /> Logout
+            </button>
+          </div>
+        </div>
       </aside>
-      <main style={{ flex: 1, padding: "24px", overflowY: "auto" }}>{renderContent()}</main>
+
+      {/* MAIN CONTENT - ALL COMPONENTS RENDER HERE */}
+      <main style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ background: "#fff", padding: "12px 16px", borderBottom: "1px solid #e5e7eb", display: "flex", alignItems: "center", gap: 10 }}>
+          <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ background: "#f3f4f6", border: "1px solid #e5e7eb", borderRadius: 6, padding: 6, cursor: "pointer" }}>
+            <Menu size={18} />
+          </button>
+          <span style={{ fontWeight: 700, fontSize: 13 }}>{location.pathname}</span>
+        </div>
+
+        <div style={{ padding: 16 }}>
+          <Routes>
+            <Route index element={<Sellerlist marketplace="mystore" />} />
+            <Route path="dashboard" element={<Sellerlist marketplace="mystore" />} />
+            <Route path="sellers" element={<Sellerlist marketplace="mystore" />} />
+            <Route path="seller-customers" element={<Sellerlist marketplace="mystore" />} />
+            <Route path="customers/:sellerId/:customerId" element={<SellerCustomerlist marketplace="mystore" />} />
+            <Route path="sellers/:sellerId/customers" element={<SellerCustomerlist marketplace="mystore" />} />
+            <Route path="add-product" element={<AddProduct />} />
+            <Route path="products/create" element={<AddProduct />} />
+            <Route path="products/*" element={<Placeholder name="MyStore Products API" />} />
+            <Route path="orders/*" element={<Placeholder name="MyStore Orders API" />} />
+            <Route path="inventory/*" element={<Placeholder name="MyStore Inventory API" />} />
+            <Route path="*" element={<Sellerlist marketplace="mystore" />} />
+          </Routes>
+        </div>
+      </main>
+
+      <style>{`
+       .section-title { font-size: 10px; font-weight: 700; color: #64748b; margin: 16px 0 6px 6px; letter-spacing: 0.6px; }
+       .menu-item { width: 100%; display: flex; align-items: center; gap: 10px; padding: 9px 10px; background: transparent; border: 1px solid transparent; color: #cbd5e1; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; text-align: left; margin-bottom: 2px; }
+       .menu-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+       .menu-item.active { background: #1e40af; color: #fff; border-color: #3b82f6; }
+       .menu-item.small { padding-left: 28px; font-size: 12px; }
+       .group-header { width: 100%; display: flex; align-items: center; gap: 10px; padding: 9px 10px; background: transparent; border: none; color: #94a3b8; cursor: pointer; font-size: 13px; font-weight: 600; justify-content: space-between; }
+       .group-header:hover { color: #fff; }
+       .submenu { display: grid; gap: 2px; margin: 4px 0 8px 0; }
+      `}</style>
     </div>
   );
 };

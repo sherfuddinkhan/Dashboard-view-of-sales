@@ -4,17 +4,17 @@ import MarketplaceSelector from "./components/Common/MarketplaceSelector.jsx";
 import MyStoreDashboard from "./components/MyStore/MyStoreDashboard.jsx";
 import AddProduct from "./components/MyStore/AddProduct.jsx";
 
-// ✅ Layouts
+// ✅ Layouts - Keep same
 import AmazonLayout from "./components/Amazon/AmazonLayout.jsx";
 import FlipkartDashboard from "./components/Flipkart/FlipkartDashboard.jsx";
 
-// ✅ Seller → Customer → Listing - Perfect Binding
+// ✅ Seller → Customer → Listing - Perfect Binding - Keep same
 import Sellerlist from "./components/Common/Sellerlist.js";
 import SellerCustomerlist from "./components/Common/SellerCustomerlist.js";
 import TokenGenerator from "./components/Amazon/Authorization/TokenGenerator.jsx";
 import AmazonRootRedirect from "./components/Amazon/AmazonRootRedirect.jsx";
 
-// ✅ FIX SPACE ISSUE - Rename folder "Listings APIs" to "ListingsAPIs" or use this:
+// ✅ KEEP YOUR ORIGINAL FOLDER ROUTES WITH SPACE - NO RENAME
 import CreateListing from "./components/Amazon/Listings APIs/CreateListing.js";
 import ListingsCommonV3Api from "./components/Flipkart/Catalog APIs/ListingsCommonV3Api.js";
 
@@ -32,8 +32,9 @@ function App() {
         <Route path="/" element={<MarketplaceSelector />} />
         <Route path="/marketplaces" element={<MarketplaceSelector />} />
 
-        {/* MYSTORE */}
+        {/* MYSTORE - Keep same */}
         <Route path="/mystore/add-product" element={<AddProduct />} />
+        <Route path="/mystore/customers/:sellerId/:customerId" element={<SellerCustomerlist marketplace="mystore" />} />
         <Route path="/mystore/*" element={<MyStoreDashboard />} />
 
         {/* ========== AMAZON - ALL 40 APIs KEPT IN AmazonLayout.jsx ========== */}
@@ -52,7 +53,7 @@ function App() {
           <Route path="seller-customers" element={<Sellerlist marketplace="amazon" />} />
           <Route path="customers/:sellerId/:customerId" element={<SellerCustomerlist marketplace="amazon" />} />
 
-          {/* Amazon Real SP-API - ALL KEPT */}
+          {/* Amazon Real SP-API - KEEP SAME FOLDER PATH WITH SPACE */}
           <Route path="listings/create" element={<CreateListing />} />
           <Route path="add-product" element={<CreateListing />} />
           <Route path="seller/marketplace" element={<Placeholder name="Marketplace Participations" />} />
@@ -62,14 +63,19 @@ function App() {
           <Route path="seller/inventory" element={<Placeholder name="Inventory" />} />
         </Route>
 
-        {/* FLIPKART */}
-        <Route path="/marketplaces/flipkart/*" element={<FlipkartDashboard />} />
+        {/* ========== FLIPKART - FIXED - NO MORE REDIRECT TO MYSTORE ========== */}
+        {/* ✅ Specific routes must be BEFORE /* wildcard to win ranking */}
         <Route path="/marketplaces/flipkart/sellers" element={<Sellerlist marketplace="flipkart" />} />
+        <Route path="/marketplaces/flipkart/customers/:sellerId/:customerId" element={<SellerCustomerlist marketplace="flipkart" />} />
         <Route path="/marketplaces/flipkart/listings/v3/:sellerId/:customerId" element={<ListingsCommonV3Api />} />
+        <Route path="/marketplaces/flipkart/listings" element={<ListingsCommonV3Api />} />
+        {/* Wildcard last */}
+        <Route path="/marketplaces/flipkart/*" element={<FlipkartDashboard />} />
 
         <Route path="*" element={<Navigate to="/marketplaces" replace />} />
       </Routes>
     </BrowserRouter>
   );
 }
+
 export default App;
