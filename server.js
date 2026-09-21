@@ -903,6 +903,77 @@ app.post("/api/mystore/listings/push/:sellerId/:customerId", async (req, res) =>
     });
   } catch (e) { handleMyStoreError(res, e); }
 });
+// In-memory DB - replace with SQL Server / Prisma
+let marketplaceCustomers = [];
+let idCounter = 14;
+
+// POST /api/marketplace/customers
+app.post('/api/marketplace/customers', async (req, res) => {
+  try {
+    const {
+      sellerId,
+      customerId,
+      marketplaceCustomerId,
+      marketplaceName,
+      companyName,
+      gstin,
+      email,
+      phone,
+      address,
+      city,
+      state,
+      stateCode,
+      pincode,
+      createdAt
+    } = req.body;
+
+    // Validation
+    if (!sellerId ||!companyName ||!gstin) {
+      return res.status(400).json({ error: "sellerId, companyName, gstin required" });
+    }
+
+    const newCustomer = {
+      id: idCounter++,
+      sellerId: Number(sellerId),
+      customerId: Number(customerId) || 0,
+      marketplaceCustomerId: marketplaceCustomerId || "",
+      marketplaceName: marketplaceName || "MANUAL",
+      companyName,
+      gstin,
+      email: email || "",
+      phone: phone || "",
+      address: address || "",
+      city: city || "",
+      state: state || "",
+      stateCode: stateCode || gstin.substring(0,2),
+      pincode: pincode || "",
+      createdAt: createdAt || new Date().toISOString()
+    };
+
+    // Option 1: Save locally
+    marketplaceCustomers.push(newCustomer);
+
+    // Option 2: Forward to.NET API (if you use.NET)
+    // const axios = require('axios');
+    // const dotnetRes = await axios.post(`${SERVER_URL_DOTNET}/api/marketplace/customers`, newCustomer, {
+    // httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false })
+    // });
+    // return res.status(200).json(dotnetRes.data);
+
+    console.log("Created:", newCustomer);
+    return res.status(200).json(newCustomer);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/marketplace/customers', (req,res)=>{
+  res.json(marketplaceCustomers);
+});
+
+
 // ================= SERVER START =================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
