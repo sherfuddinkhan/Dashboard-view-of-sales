@@ -16462,6 +16462,2481 @@ app.post(
     }
   }
 );
+// ============================================================
+// MARK SALE ORDER RETURNED
+// Uniware: POST /services/rest/v1/saleOrder/markReturned
+// Level: Facility
+// ============================================================
+
+app.post("/api/uniware/sale-orders/mark-returned", async (req, res) => {
+  try {
+    const {
+      facility,
+      saleOrderCode,
+      saleOrderItems,
+      returnReason,
+      returnCode,
+    } = req.body || {};
+
+    // -----------------------------
+    // Validation
+    // -----------------------------
+    if (!facility || !facility.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility is required.",
+      });
+    }
+
+    if (!saleOrderCode || !saleOrderCode.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Sale order code is required.",
+      });
+    }
+
+    if (!Array.isArray(saleOrderItems) || saleOrderItems.length === 0) {
+      return res.status(400).json({
+        successful: false,
+        message: "At least one sale order item is required.",
+      });
+    }
+
+    if (!returnReason || !returnReason.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Return reason is required.",
+      });
+    }
+
+    // -----------------------------
+    // Validate sale order items
+    // -----------------------------
+    for (let i = 0; i < saleOrderItems.length; i++) {
+      const item = saleOrderItems[i];
+
+      if (!item || !item.code || !String(item.code).trim()) {
+        return res.status(400).json({
+          successful: false,
+          message: `Sale order item ${i + 1}: code is required.`,
+        });
+      }
+    }
+
+    // -----------------------------
+    // Build Uniware payload
+    // -----------------------------
+    const payload = {
+      saleOrderCode: saleOrderCode.trim(),
+
+      saleOrderItems: saleOrderItems.map((item) => {
+        const result = {
+          code: String(item.code).trim(),
+        };
+
+        // Optional fields
+        if (
+          item.status !== undefined &&
+          item.status !== null &&
+          String(item.status).trim()
+        ) {
+          result.status = String(item.status).trim();
+        }
+
+        if (
+          item.shelfCode !== undefined &&
+          item.shelfCode !== null &&
+          String(item.shelfCode).trim()
+        ) {
+          result.shelfCode = String(item.shelfCode).trim();
+        }
+
+        if (
+          item.reason !== undefined &&
+          item.reason !== null &&
+          String(item.reason).trim()
+        ) {
+          result.reason = String(item.reason).trim();
+        }
+
+        return result;
+      }),
+
+      returnReason: returnReason.trim(),
+    };
+
+    // Optional returnCode
+    if (
+      returnCode !== undefined &&
+      returnCode !== null &&
+      String(returnCode).trim()
+    ) {
+      payload.returnCode = String(returnCode).trim();
+    }
+
+    // -----------------------------
+    // Uniware API call
+    // -----------------------------
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/saleOrder/markReturned`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          Facility: facility.trim(),
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(200).json(response.data);
+  } catch (error) {
+    console.error(
+      "Mark Sale Order Returned Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message: error.message || "Failed to mark sale order returned.",
+      }
+    );
+  }
+});
+// ============================================================
+// MARK SALE ORDER RETURNED WITH INVENTORY TYPE
+// Uniware:
+// POST /services/rest/v1/oms/returns/complete
+// Level: Facility
+// ============================================================
+
+app.post(
+  "/api/uniware/sale-orders/mark-returned-inventory",
+  async (req, res) => {
+    try {
+      const {
+        facility,
+        saleOrderCode,
+        saleOrderItems,
+      } = req.body || {};
+
+      // --------------------------------------------------------
+      // Validate Facility
+      // --------------------------------------------------------
+      if (!facility || !String(facility).trim()) {
+        return res.status(400).json({
+          successful: false,
+          message: "Facility is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate Sale Order Code
+      // --------------------------------------------------------
+      if (
+        !saleOrderCode ||
+        !String(saleOrderCode).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: "Sale order code is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate Items
+      // --------------------------------------------------------
+      if (
+        !Array.isArray(saleOrderItems) ||
+        saleOrderItems.length === 0
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "At least one sale order item is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate every item
+      // --------------------------------------------------------
+      for (let i = 0; i < saleOrderItems.length; i++) {
+        const item = saleOrderItems[i];
+
+        if (
+          !item ||
+          !item.code ||
+          !String(item.code).trim()
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `Sale order item ${i + 1}: code is required.`,
+          });
+        }
+
+        // Status is optional, but when supplied it must
+        // be one of the Uniware-supported inventory types.
+        if (
+          item.status !== undefined &&
+          item.status !== null &&
+          String(item.status).trim()
+        ) {
+          const status = String(item.status)
+            .trim()
+            .toUpperCase();
+
+          if (
+            ![
+              "GOOD_INVENTORY",
+              "BAD_INVENTORY",
+            ].includes(status)
+          ) {
+            return res.status(400).json({
+              successful: false,
+              message:
+                `Sale order item ${i + 1}: status must be GOOD_INVENTORY or BAD_INVENTORY.`,
+            });
+          }
+        }
+      }
+
+      // --------------------------------------------------------
+      // Build Uniware payload
+      // --------------------------------------------------------
+      const payload = {
+        saleOrderCode: String(
+          saleOrderCode
+        ).trim(),
+
+        saleOrderItems: saleOrderItems.map(
+          (item) => {
+            const result = {
+              code: String(item.code).trim(),
+            };
+
+            // --------------------------------------------------
+            // Inventory Type
+            // --------------------------------------------------
+            if (
+              item.status !== undefined &&
+              item.status !== null &&
+              String(item.status).trim()
+            ) {
+              result.status = String(item.status)
+                .trim()
+                .toUpperCase();
+            }
+
+            // --------------------------------------------------
+            // Optional Shelf Code
+            // --------------------------------------------------
+            if (
+              item.shelfCode !== undefined &&
+              item.shelfCode !== null &&
+              String(item.shelfCode).trim()
+            ) {
+              result.shelfCode =
+                String(item.shelfCode).trim();
+            }
+
+            // --------------------------------------------------
+            // Optional Return Reason
+            // --------------------------------------------------
+            if (
+              item.reason !== undefined &&
+              item.reason !== null &&
+              String(item.reason).trim()
+            ) {
+              result.reason =
+                String(item.reason).trim();
+            }
+
+            return result;
+          }
+        ),
+      };
+
+      // --------------------------------------------------------
+      // Call Uniware
+      // --------------------------------------------------------
+      const response = await axios.post(
+        `${UNIWARE_BASE_URL}/services/rest/v1/oms/returns/complete`,
+        payload,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+            Facility: String(facility).trim(),
+          },
+          timeout: 30000,
+        }
+      );
+
+      return res.status(200).json(
+        response.data
+      );
+    } catch (error) {
+      console.error(
+        "Mark Sale Order Returned With Inventory Type Error:",
+        error.response?.data ||
+          error.message
+      );
+
+      return res
+        .status(
+          error.response?.status || 500
+        )
+        .json(
+          error.response?.data || {
+            successful: false,
+            message:
+              error.message ||
+              "Failed to complete sale order return.",
+          }
+        );
+    }
+  }
+);
+// ============================================================
+// GET RETURN
+// Uniware:
+// POST /services/rest/v1/oms/return/get
+// Level: Facility
+// ============================================================
+
+app.post("/api/uniware/returns/get", async (req, res) => {
+  try {
+    const {
+      facility,
+      reversePickupCode,
+      shipmentCode,
+    } = req.body || {};
+
+    // --------------------------------------------------------
+    // Validate Facility
+    // --------------------------------------------------------
+    if (!facility || !String(facility).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility is required.",
+      });
+    }
+
+    const normalizedReversePickupCode =
+      reversePickupCode !== undefined &&
+      reversePickupCode !== null
+        ? String(reversePickupCode).trim()
+        : "";
+
+    const normalizedShipmentCode =
+      shipmentCode !== undefined &&
+      shipmentCode !== null
+        ? String(shipmentCode).trim()
+        : "";
+
+    // --------------------------------------------------------
+    // At least one lookup parameter is required
+    // --------------------------------------------------------
+    if (
+      !normalizedReversePickupCode &&
+      !normalizedShipmentCode
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "Provide either reversePickupCode or shipmentCode.",
+      });
+    }
+
+    // --------------------------------------------------------
+    // Build payload
+    // --------------------------------------------------------
+    const payload = {
+      reversePickupCode:
+        normalizedReversePickupCode || null,
+
+      shipmentCode:
+        normalizedShipmentCode || null,
+    };
+
+    // --------------------------------------------------------
+    // Call Uniware
+    // --------------------------------------------------------
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/return/get`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          Facility: String(facility).trim(),
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(200).json(response.data);
+  } catch (error) {
+    console.error(
+      "Get Return Error:",
+      error.response?.data || error.message
+    );
+
+    return res
+      .status(error.response?.status || 500)
+      .json(
+        error.response?.data || {
+          successful: false,
+          message:
+            error.message ||
+            "Failed to get return details.",
+        }
+      );
+  }
+});
+ // ============================================================
+ // SEARCH RETURN
+ // Uniware:
+ // POST /services/rest/v1/oms/return/search
+ // Level: Facility
+ // ============================================================
+
+app.post("/api/uniware/returns/search", async (req, res) => {
+  try {
+    const {
+      facility,
+      returnType,
+      statusCode,
+      forwardItemFacility,
+      createdFrom,
+      createdTo,
+      updatedFrom,
+      updatedTo,
+    } = req.body || {};
+
+    // --------------------------------------------------------
+    // Validate Facility
+    // --------------------------------------------------------
+    if (!facility || !String(facility).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility is required.",
+      });
+    }
+
+    // --------------------------------------------------------
+    // Validate Return Type
+    // --------------------------------------------------------
+    const normalizedReturnType = String(
+      returnType || ""
+    )
+      .trim()
+      .toUpperCase();
+
+    if (!["CIR", "RTO"].includes(normalizedReturnType)) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "returnType must be either CIR or RTO.",
+      });
+    }
+
+    // --------------------------------------------------------
+    // Validate status according to return type
+    // --------------------------------------------------------
+    const cirStatuses = [
+      "CREATED",
+      "CANCELED",
+      "COMPLETE",
+      "NOT_RECEIVED",
+    ];
+
+    const rtoStatuses = [
+      "RECEIVED",
+      "NOT_RECEIVED",
+    ];
+
+    let normalizedStatusCode = "";
+
+    if (
+      statusCode !== undefined &&
+      statusCode !== null &&
+      String(statusCode).trim()
+    ) {
+      normalizedStatusCode = String(statusCode)
+        .trim()
+        .toUpperCase();
+
+      const allowedStatuses =
+        normalizedReturnType === "CIR"
+          ? cirStatuses
+          : rtoStatuses;
+
+      if (
+        !allowedStatuses.includes(
+          normalizedStatusCode
+        )
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            `Invalid statusCode for ${normalizedReturnType}. ` +
+            `Allowed values: ${allowedStatuses.join(", ")}.`,
+        });
+      }
+    }
+
+    // --------------------------------------------------------
+    // Normalize dates
+    // --------------------------------------------------------
+    const normalizedCreatedFrom =
+      createdFrom
+        ? String(createdFrom).trim()
+        : "";
+
+    const normalizedCreatedTo =
+      createdTo
+        ? String(createdTo).trim()
+        : "";
+
+    const normalizedUpdatedFrom =
+      updatedFrom
+        ? String(updatedFrom).trim()
+        : "";
+
+    const normalizedUpdatedTo =
+      updatedTo
+        ? String(updatedTo).trim()
+        : "";
+
+    // --------------------------------------------------------
+    // Do not mix created and updated date filters
+    // --------------------------------------------------------
+    const hasCreatedDate =
+      normalizedCreatedFrom ||
+      normalizedCreatedTo;
+
+    const hasUpdatedDate =
+      normalizedUpdatedFrom ||
+      normalizedUpdatedTo;
+
+    if (
+      hasCreatedDate &&
+      hasUpdatedDate
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "Use either created date range or updated date range, not both.",
+      });
+    }
+
+    // --------------------------------------------------------
+    // Date pair validation
+    // --------------------------------------------------------
+    if (
+      normalizedCreatedFrom &&
+      !normalizedCreatedTo
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "createdTo is required when createdFrom is provided.",
+      });
+    }
+
+    if (
+      normalizedCreatedTo &&
+      !normalizedCreatedFrom
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "createdFrom is required when createdTo is provided.",
+      });
+    }
+
+    if (
+      normalizedUpdatedFrom &&
+      !normalizedUpdatedTo
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "updatedTo is required when updatedFrom is provided.",
+      });
+    }
+
+    if (
+      normalizedUpdatedTo &&
+      !normalizedUpdatedFrom
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "updatedFrom is required when updatedTo is provided.",
+      });
+    }
+
+    // --------------------------------------------------------
+    // Validate date ranges when parseable
+    //
+    // The API documentation shows date values as:
+    // dd-mmm-yyyy HH:mm:ss
+    //
+    // We don't rewrite the user's date because Uniware
+    // expects its documented format.
+    // --------------------------------------------------------
+
+    const parseUniwareDate = (value) => {
+      if (!value) {
+        return null;
+      }
+
+      // Expected example:
+      // 16-Dec-2022 00:00:00
+
+      const match = String(value).match(
+        /^(\d{1,2})-([A-Za-z]{3})-(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/
+      );
+
+      if (!match) {
+        return null;
+      }
+
+      const [
+        ,
+        day,
+        monthText,
+        year,
+        hour,
+        minute,
+        second,
+      ] = match;
+
+      const months = {
+        Jan: 0,
+        Feb: 1,
+        Mar: 2,
+        Apr: 3,
+        May: 4,
+        Jun: 5,
+        Jul: 6,
+        Aug: 7,
+        Sep: 8,
+        Oct: 9,
+        Nov: 10,
+        Dec: 11,
+      };
+
+      const month =
+        months[
+          monthText
+            .charAt(0)
+            .toUpperCase() +
+            monthText
+              .slice(1)
+              .toLowerCase()
+        ];
+
+      if (month === undefined) {
+        return null;
+      }
+
+      const date = new Date(
+        Number(year),
+        month,
+        Number(day),
+        Number(hour),
+        Number(minute),
+        Number(second)
+      );
+
+      if (Number.isNaN(date.getTime())) {
+        return null;
+      }
+
+      return date;
+    };
+
+    const validateRange = (
+      from,
+      to,
+      fieldName
+    ) => {
+      if (!from && !to) {
+        return null;
+      }
+
+      const fromDate =
+        parseUniwareDate(from);
+
+      const toDate =
+        parseUniwareDate(to);
+
+      // If the date doesn't follow Uniware's
+      // documented format, leave validation to
+      // Uniware rather than silently changing it.
+      if (!fromDate || !toDate) {
+        return null;
+      }
+
+      if (fromDate > toDate) {
+        return `${fieldName}From cannot be later than ${fieldName}To.`;
+      }
+
+      const difference =
+        toDate.getTime() -
+        fromDate.getTime();
+
+      const maxDifference =
+        30 *
+        24 *
+        60 *
+        60 *
+        1000;
+
+      if (
+        difference >
+        maxDifference
+      ) {
+        return `${fieldName} date range cannot exceed 30 days.`;
+      }
+
+      return null;
+    };
+
+    const createdRangeError =
+      validateRange(
+        normalizedCreatedFrom,
+        normalizedCreatedTo,
+        "created"
+      );
+
+    if (createdRangeError) {
+      return res.status(400).json({
+        successful: false,
+        message: createdRangeError,
+      });
+    }
+
+    const updatedRangeError =
+      validateRange(
+        normalizedUpdatedFrom,
+        normalizedUpdatedTo,
+        "updated"
+      );
+
+    if (updatedRangeError) {
+      return res.status(400).json({
+        successful: false,
+        message: updatedRangeError,
+      });
+    }
+
+    // --------------------------------------------------------
+    // Build payload dynamically
+    // --------------------------------------------------------
+    const payload = {
+      returnType:
+        normalizedReturnType,
+    };
+
+    if (normalizedStatusCode) {
+      payload.statusCode =
+        normalizedStatusCode;
+    }
+
+    if (
+      forwardItemFacility !==
+        undefined &&
+      forwardItemFacility !== null &&
+      String(forwardItemFacility).trim()
+    ) {
+      payload.forwardItemFacility =
+        String(
+          forwardItemFacility
+        ).trim();
+    }
+
+    if (normalizedCreatedFrom) {
+      payload.createdFrom =
+        normalizedCreatedFrom;
+    }
+
+    if (normalizedCreatedTo) {
+      payload.createdTo =
+        normalizedCreatedTo;
+    }
+
+    if (normalizedUpdatedFrom) {
+      payload.updatedFrom =
+        normalizedUpdatedFrom;
+    }
+
+    if (normalizedUpdatedTo) {
+      payload.updatedTo =
+        normalizedUpdatedTo;
+    }
+
+    // --------------------------------------------------------
+    // Call Uniware
+    // --------------------------------------------------------
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/return/search`,
+      payload,
+      {
+        headers: {
+          "Content-Type":
+            "application/json",
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          Facility:
+            String(facility).trim(),
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(200).json(
+      response.data
+    );
+  } catch (error) {
+    console.error(
+      "Search Return Error:",
+      error.response?.data ||
+        error.message
+    );
+
+    return res
+      .status(
+        error.response?.status || 500
+      )
+      .json(
+        error.response?.data || {
+          successful: false,
+          message:
+            error.message ||
+            "Failed to search returns.",
+        }
+      );
+  }
+});
+// ============================================================
+// CREATE REVERSE PICK-UP
+// Uniware:
+// POST /services/rest/v1/oms/reversePickup/create
+// Level: Facility
+// ============================================================
+
+app.post("/api/uniware/returns/reverse-pickup/create", async (req, res) => {
+  try {
+    const {
+      facility,
+      saleOrderCode,
+      reversePickItems,
+      shippingAddress,
+      pickupAddress,
+      actionCode,
+      reversePickupCode,
+      customFieldValues,
+      pickupInstruction,
+      trackingNumber,
+      shippingProviderCode,
+      dimension,
+      returnFacilityCode,
+    } = req.body || {};
+
+    // --------------------------------------------------------
+    // Validate Facility
+    // --------------------------------------------------------
+    if (!facility || !String(facility).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility is required.",
+      });
+    }
+
+    // --------------------------------------------------------
+    // Validate Sale Order Code
+    // --------------------------------------------------------
+    if (!saleOrderCode || !String(saleOrderCode).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "saleOrderCode is required.",
+      });
+    }
+
+    // --------------------------------------------------------
+    // Validate Action Code
+    // Uniware documentation specifies fixed value WAC
+    // --------------------------------------------------------
+    const normalizedActionCode = String(
+      actionCode || "WAC"
+    )
+      .trim()
+      .toUpperCase();
+
+    if (normalizedActionCode !== "WAC") {
+      return res.status(400).json({
+        successful: false,
+        message: "actionCode must be WAC.",
+      });
+    }
+
+    // --------------------------------------------------------
+    // Validate Reverse Pick Items
+    // --------------------------------------------------------
+    if (
+      !Array.isArray(reversePickItems) ||
+      reversePickItems.length === 0
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "At least one reversePickItems entry is required.",
+      });
+    }
+
+    // --------------------------------------------------------
+    // Validate reverse pick items
+    // --------------------------------------------------------
+    const normalizedItems = [];
+
+    for (let index = 0; index < reversePickItems.length; index++) {
+      const item = reversePickItems[index] || {};
+
+      const saleOrderItemCode = String(
+        item.saleOrderItemCode || ""
+      ).trim();
+
+      const reason = String(
+        item.reason || ""
+      ).trim();
+
+      if (!saleOrderItemCode) {
+        return res.status(400).json({
+          successful: false,
+          message: `reversePickItems[${index}].saleOrderItemCode is required.`,
+        });
+      }
+
+      if (!reason) {
+        return res.status(400).json({
+          successful: false,
+          message: `reversePickItems[${index}].reason is required.`,
+        });
+      }
+
+      if (reason.length > 500) {
+        return res.status(400).json({
+          successful: false,
+          message: `reversePickItems[${index}].reason cannot exceed 500 characters.`,
+        });
+      }
+
+      const normalizedItem = {
+        saleOrderItemCode,
+        reason,
+      };
+
+      // ------------------------------------------------------
+      // Optional customer image URL
+      // ------------------------------------------------------
+      if (
+        item.customerImageUrl !== undefined &&
+        item.customerImageUrl !== null &&
+        String(item.customerImageUrl).trim()
+      ) {
+        const value = String(
+          item.customerImageUrl
+        ).trim();
+
+        if (value.length > 2000) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `reversePickItems[${index}].customerImageUrl cannot exceed 2000 characters.`,
+          });
+        }
+
+        normalizedItem.customerImageUrl = value;
+      }
+
+      // ------------------------------------------------------
+      // Optional reversePickupAlternate
+      // ------------------------------------------------------
+      if (
+        item.reversePickupAlternate &&
+        typeof item.reversePickupAlternate === "object"
+      ) {
+        const alternate =
+          item.reversePickupAlternate;
+
+        const itemSKU = String(
+          alternate.itemSKU ??
+            alternate.itemSku ??
+            ""
+        ).trim();
+
+        if (!itemSKU) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `reversePickItems[${index}].reversePickupAlternate.itemSKU is required when reversePickupAlternate is supplied.`,
+          });
+        }
+
+        if (
+          alternate.totalPrice === undefined ||
+          alternate.totalPrice === null ||
+          alternate.totalPrice === ""
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `reversePickItems[${index}].reversePickupAlternate.totalPrice is required.`,
+          });
+        }
+
+        if (
+          alternate.sellingPrice === undefined ||
+          alternate.sellingPrice === null ||
+          alternate.sellingPrice === ""
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `reversePickItems[${index}].reversePickupAlternate.sellingPrice is required.`,
+          });
+        }
+
+        const totalPrice = Number(
+          alternate.totalPrice
+        );
+
+        const sellingPrice = Number(
+          alternate.sellingPrice
+        );
+
+        if (
+          !Number.isFinite(totalPrice)
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `reversePickItems[${index}].reversePickupAlternate.totalPrice must be a number.`,
+          });
+        }
+
+        if (
+          !Number.isFinite(sellingPrice)
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `reversePickItems[${index}].reversePickupAlternate.sellingPrice must be a number.`,
+          });
+        }
+
+        const normalizedAlternate = {
+          itemSKU,
+          totalPrice,
+          sellingPrice,
+        };
+
+        const optionalAlternateNumbers = [
+          "discount",
+          "shippingCharges",
+          "prepaidAmount",
+        ];
+
+        for (const field of optionalAlternateNumbers) {
+          if (
+            alternate[field] !== undefined &&
+            alternate[field] !== null &&
+            alternate[field] !== ""
+          ) {
+            const numericValue = Number(
+              alternate[field]
+            );
+
+            if (
+              !Number.isFinite(numericValue)
+            ) {
+              return res.status(400).json({
+                successful: false,
+                message:
+                  `reversePickItems[${index}].reversePickupAlternate.${field} must be a number.`,
+              });
+            }
+
+            normalizedAlternate[field] =
+              numericValue;
+          }
+        }
+
+        normalizedItem.reversePickupAlternate =
+          normalizedAlternate;
+      }
+
+      normalizedItems.push(
+        normalizedItem
+      );
+    }
+
+    // --------------------------------------------------------
+    // Address normalizer
+    // --------------------------------------------------------
+    const normalizeAddress = (
+      address,
+      addressName
+    ) => {
+      if (
+        address === undefined ||
+        address === null
+      ) {
+        return null;
+      }
+
+      if (
+        typeof address !== "object" ||
+        Array.isArray(address)
+      ) {
+        throw new Error(
+          `${addressName} must be an object.`
+        );
+      }
+
+      const requiredFields = [
+        "id",
+        "name",
+        "addressLine1",
+        "city",
+        "state",
+        "phone",
+      ];
+
+      for (const field of requiredFields) {
+        if (
+          address[field] === undefined ||
+          address[field] === null ||
+          !String(address[field]).trim()
+        ) {
+          throw new Error(
+            `${addressName}.${field} is required.`
+          );
+        }
+      }
+
+      const normalized = {
+        id: String(
+          address.id
+        ).trim(),
+
+        name: String(
+          address.name
+        ).trim(),
+
+        addressLine1: String(
+          address.addressLine1
+        ).trim(),
+
+        city: String(
+          address.city
+        ).trim(),
+
+        state: String(
+          address.state
+        ).trim(),
+
+        phone: String(
+          address.phone
+        ).trim(),
+      };
+
+      if (
+        normalized.name.length > 100
+      ) {
+        throw new Error(
+          `${addressName}.name cannot exceed 100 characters.`
+        );
+      }
+
+      if (
+        normalized.addressLine1.length > 500
+      ) {
+        throw new Error(
+          `${addressName}.addressLine1 cannot exceed 500 characters.`
+        );
+      }
+
+      // ------------------------------------------------------
+      // Optional address fields
+      // ------------------------------------------------------
+      const optionalStringFields = [
+        "addressLine2",
+        "country",
+        "pincode",
+        "latitude",
+        "longitude",
+        "email",
+      ];
+
+      for (
+        const field of optionalStringFields
+      ) {
+        if (
+          address[field] !== undefined &&
+          address[field] !== null &&
+          String(address[field]).trim()
+        ) {
+          normalized[field] =
+            String(
+              address[field]
+            ).trim();
+        }
+      }
+
+      if (
+        normalized.addressLine2 &&
+        normalized.addressLine2.length > 500
+      ) {
+        throw new Error(
+          `${addressName}.addressLine2 cannot exceed 500 characters.`
+        );
+      }
+
+      if (
+        normalized.city.length > 100
+      ) {
+        throw new Error(
+          `${addressName}.city cannot exceed 100 characters.`
+        );
+      }
+
+      if (
+        normalized.state.length > 45
+      ) {
+        throw new Error(
+          `${addressName}.state cannot exceed 45 characters.`
+        );
+      }
+
+      if (
+        normalized.phone.length > 50
+      ) {
+        throw new Error(
+          `${addressName}.phone cannot exceed 50 characters.`
+        );
+      }
+
+      if (
+        normalized.pincode &&
+        !/^\d{6,}$/.test(
+          normalized.pincode
+        )
+      ) {
+        throw new Error(
+          `${addressName}.pincode must contain at least 6 digits.`
+        );
+      }
+
+      if (
+        normalized.email &&
+        normalized.email.length > 100
+      ) {
+        throw new Error(
+          `${addressName}.email cannot exceed 100 characters.`
+        );
+      }
+
+      return normalized;
+    };
+
+    // --------------------------------------------------------
+    // Normalize addresses
+    // --------------------------------------------------------
+    let normalizedShippingAddress = null;
+    let normalizedPickupAddress = null;
+
+    try {
+      normalizedShippingAddress =
+        normalizeAddress(
+          shippingAddress,
+          "shippingAddress"
+        );
+
+      normalizedPickupAddress =
+        normalizeAddress(
+          pickupAddress,
+          "pickupAddress"
+        );
+    } catch (addressError) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          addressError.message,
+      });
+    }
+
+    // --------------------------------------------------------
+    // Custom fields
+    // --------------------------------------------------------
+    let normalizedCustomFields;
+
+    if (
+      customFieldValues !== undefined &&
+      customFieldValues !== null
+    ) {
+      if (
+        !Array.isArray(
+          customFieldValues
+        )
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "customFieldValues must be an array.",
+        });
+      }
+
+      normalizedCustomFields =
+        [];
+
+      for (
+        let index = 0;
+        index < customFieldValues.length;
+        index++
+      ) {
+        const field =
+          customFieldValues[index] || {};
+
+        if (
+          field.name === undefined ||
+          field.name === null ||
+          !String(field.name).trim()
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `customFieldValues[${index}].name is required.`,
+          });
+        }
+
+        const normalizedField = {
+          name: String(
+            field.name
+          ).trim(),
+        };
+
+        if (
+          field.value !== undefined &&
+          field.value !== null
+        ) {
+          normalizedField.value =
+            String(
+              field.value
+            );
+        }
+
+        normalizedCustomFields.push(
+          normalizedField
+        );
+      }
+    }
+
+    // --------------------------------------------------------
+    // Dimension
+    // --------------------------------------------------------
+    let normalizedDimension;
+
+    if (
+      dimension !== undefined &&
+      dimension !== null
+    ) {
+      if (
+        typeof dimension !== "object" ||
+        Array.isArray(dimension)
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "dimension must be an object.",
+        });
+      }
+
+      normalizedDimension = {};
+
+      const dimensionFields = [
+        "boxLength",
+        "boxWidth",
+        "boxHeight",
+        "boxWeight",
+      ];
+
+      for (
+        const field of dimensionFields
+      ) {
+        if (
+          dimension[field] !== undefined &&
+          dimension[field] !== null &&
+          dimension[field] !== ""
+        ) {
+          const value = Number(
+            dimension[field]
+          );
+
+          if (
+            !Number.isInteger(value) ||
+            value < 0
+          ) {
+            return res.status(400).json({
+              successful: false,
+              message:
+                `dimension.${field} must be a non-negative integer.`,
+            });
+          }
+
+          normalizedDimension[field] =
+            value;
+        }
+      }
+
+      if (
+        Object.keys(
+          normalizedDimension
+        ).length === 0
+      ) {
+        normalizedDimension =
+          undefined;
+      }
+    }
+
+    // --------------------------------------------------------
+    // Build Uniware payload
+    // --------------------------------------------------------
+    const payload = {
+      saleOrderCode:
+        String(
+          saleOrderCode
+        ).trim(),
+
+      reversePickItems:
+        normalizedItems,
+
+      actionCode:
+        normalizedActionCode,
+    };
+
+    if (
+      normalizedShippingAddress
+    ) {
+      payload.shippingAddress =
+        normalizedShippingAddress;
+    }
+
+    if (
+      normalizedPickupAddress
+    ) {
+      payload.pickupAddress =
+        normalizedPickupAddress;
+    }
+
+    if (
+      reversePickupCode !== undefined &&
+      reversePickupCode !== null &&
+      String(reversePickupCode).trim()
+    ) {
+      payload.reversePickupCode =
+        String(
+          reversePickupCode
+        ).trim();
+    }
+
+    if (
+      normalizedCustomFields &&
+      normalizedCustomFields.length > 0
+    ) {
+      payload.customFieldValues =
+        normalizedCustomFields;
+    }
+
+    if (
+      pickupInstruction !== undefined &&
+      pickupInstruction !== null &&
+      String(pickupInstruction).trim()
+    ) {
+      payload.pickupInstruction =
+        String(
+          pickupInstruction
+        ).trim();
+    }
+
+    if (
+      trackingNumber !== undefined &&
+      trackingNumber !== null &&
+      String(trackingNumber).trim()
+    ) {
+      payload.trackingNumber =
+        String(
+          trackingNumber
+        ).trim();
+    }
+
+    if (
+      shippingProviderCode !== undefined &&
+      shippingProviderCode !== null &&
+      String(shippingProviderCode).trim()
+    ) {
+      payload.shippingProviderCode =
+        String(
+          shippingProviderCode
+        ).trim();
+    }
+
+    if (
+      normalizedDimension &&
+      Object.keys(
+        normalizedDimension
+      ).length > 0
+    ) {
+      payload.dimension =
+        normalizedDimension;
+    }
+
+    if (
+      returnFacilityCode !== undefined &&
+      returnFacilityCode !== null &&
+      String(returnFacilityCode).trim()
+    ) {
+      payload.returnFacilityCode =
+        String(
+          returnFacilityCode
+        ).trim();
+    }
+
+    // --------------------------------------------------------
+    // Call Uniware
+    // --------------------------------------------------------
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/reversePickup/create`,
+      payload,
+      {
+        headers: {
+          "Content-Type":
+            "application/json",
+
+          Authorization:
+            `bearer ${UNIWARE_ACCESS_TOKEN}`,
+
+          Facility:
+            String(
+              facility
+            ).trim(),
+        },
+
+        timeout: 30000,
+      }
+    );
+
+    return res.status(200).json(
+      response.data
+    );
+  } catch (error) {
+    console.error(
+      "Create Reverse Pick-up Error:",
+      error.response?.data ||
+        error.message
+    );
+
+    return res
+      .status(
+        error.response?.status ||
+          500
+      )
+      .json(
+        error.response?.data || {
+          successful: false,
+          message:
+            error.message ||
+            "Failed to create reverse pick-up.",
+        }
+      );
+  }
+});
+// ============================================================
+// SEARCH RETURNS
+// Uniware: POST /services/rest/v1/oms/return/search
+// Facility-level
+// ============================================================
+
+app.post("/api/uniware/returns/search", async (req, res) => {
+  try {
+    const {
+      facility,
+      returnType,
+      statusCode,
+      forwardItemFacility,
+      createdFrom,
+      createdTo,
+      updatedFrom,
+      updatedTo,
+    } = req.body;
+
+    if (!facility || !facility.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility is required.",
+      });
+    }
+
+    if (!returnType || !["CIR", "RTO"].includes(returnType.trim().toUpperCase())) {
+      return res.status(400).json({
+        successful: false,
+        message: "returnType is required and must be CIR or RTO.",
+      });
+    }
+
+    const normalizedReturnType = returnType.trim().toUpperCase();
+
+    const cirStatuses = ["CREATED", "CANCELED", "COMPLETE", "NOT_RECEIVED"];
+    const rtoStatuses = ["RECEIVED", "NOT_RECEIVED"];
+
+    if (statusCode) {
+      const normalizedStatus = statusCode.trim().toUpperCase();
+
+      const validStatuses =
+        normalizedReturnType === "CIR"
+          ? cirStatuses
+          : rtoStatuses;
+
+      if (!validStatuses.includes(normalizedStatus)) {
+        return res.status(400).json({
+          successful: false,
+          message: `Invalid statusCode '${statusCode}' for returnType '${normalizedReturnType}'.`,
+          validStatuses,
+        });
+      }
+    }
+
+    // Uniware requires either CREATED range OR UPDATED range.
+    const hasCreatedRange = Boolean(createdFrom || createdTo);
+    const hasUpdatedRange = Boolean(updatedFrom || updatedTo);
+
+    if (hasCreatedRange && hasUpdatedRange) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "Use either createdFrom/createdTo or updatedFrom/updatedTo, not both.",
+      });
+    }
+
+    if ((createdFrom && !createdTo) || (!createdFrom && createdTo)) {
+      return res.status(400).json({
+        successful: false,
+        message: "Both createdFrom and createdTo are required when using created date range.",
+      });
+    }
+
+    if ((updatedFrom && !updatedTo) || (!updatedFrom && updatedTo)) {
+      return res.status(400).json({
+        successful: false,
+        message: "Both updatedFrom and updatedTo are required when using updated date range.",
+      });
+    }
+
+    const payload = {
+      returnType: normalizedReturnType,
+    };
+
+    if (statusCode?.trim()) {
+      payload.statusCode = statusCode.trim().toUpperCase();
+    }
+
+    if (forwardItemFacility?.trim()) {
+      payload.forwardItemFacility = forwardItemFacility.trim();
+    }
+
+    if (createdFrom?.trim()) {
+      payload.createdFrom = createdFrom.trim();
+      payload.createdTo = createdTo.trim();
+    }
+
+    if (updatedFrom?.trim()) {
+      payload.updatedFrom = updatedFrom.trim();
+      payload.updatedTo = updatedTo.trim();
+    }
+
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/return/search`,
+      payload,
+      {
+        headers: {
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          "Content-Type": "application/json",
+          Facility: facility.trim(),
+        },
+      }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Search Return Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message: error.message || "Failed to search returns.",
+      }
+    );
+  }
+});
+
+
+
+
+const axios = require("axios");
+
+// ============================================================
+// UNIWARE CONFIG
+// ============================================================
+
+const UNIWARE_BASE_URL =
+  process.env.UNIWARE_BASE_URL || "https://YOUR-TENANT.unicommerce.com";
+
+const UNIWARE_ACCESS_TOKEN =
+  process.env.UNIWARE_ACCESS_TOKEN || "YOUR_UNIWARE_ACCESS_TOKEN";
+
+function uniwareHeaders(facility) {
+  return {
+    Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+    "Content-Type": "application/json",
+    Facility: facility.trim(),
+  };
+}
+
+function getUniwareError(err) {
+  return (
+    err.response?.data || {
+      successful: false,
+      message: err.message || "Uniware request failed",
+      errors: [
+        {
+          code: 500,
+          fieldName: "",
+          description: err.message || "Unknown error",
+          message: err.message || "Unknown error",
+        },
+      ],
+      warnings: [],
+    }
+  );
+}
+
+function cleanOptionalObject(obj) {
+  if (!obj || typeof obj !== "object") {
+    return undefined;
+  }
+
+  const cleaned = {};
+
+  Object.entries(obj).forEach(([key, value]) => {
+    if (value === undefined || value === null) {
+      return;
+    }
+
+    if (typeof value === "string" && value.trim() === "") {
+      return;
+    }
+
+    cleaned[key] =
+      typeof value === "string" ? value.trim() : value;
+  });
+
+  return Object.keys(cleaned).length > 0 ? cleaned : undefined;
+}
+
+
+// ============================================================
+// 1. SEARCH RETURN
+// POST /api/uniware/returns/search
+// ============================================================
+
+app.post("/api/uniware/returns/search", async (req, res) => {
+  try {
+    const {
+      facility,
+      returnType,
+      statusCode,
+      forwardItemFacility,
+      createdFrom,
+      createdTo,
+      updatedFrom,
+      updatedTo,
+    } = req.body;
+
+    if (!facility || !facility.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility is required.",
+      });
+    }
+
+    if (!returnType || !["CIR", "RTO"].includes(returnType)) {
+      return res.status(400).json({
+        successful: false,
+        message: "returnType must be either CIR or RTO.",
+      });
+    }
+
+    // CIR and RTO have different valid statuses.
+    const validStatuses = {
+      CIR: ["CREATED", "CANCELED", "COMPLETE", "NOT_RECEIVED"],
+      RTO: ["RECEIVED", "NOT_RECEIVED"],
+    };
+
+    if (
+      statusCode &&
+      !validStatuses[returnType].includes(statusCode)
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: `Invalid statusCode '${statusCode}' for returnType '${returnType}'.`,
+        validStatuses: validStatuses[returnType],
+      });
+    }
+
+    // Uniware does not allow created and updated ranges together.
+    const hasCreatedRange =
+      Boolean(createdFrom) || Boolean(createdTo);
+
+    const hasUpdatedRange =
+      Boolean(updatedFrom) || Boolean(updatedTo);
+
+    if (hasCreatedRange && hasUpdatedRange) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "Use either createdFrom/createdTo OR updatedFrom/updatedTo, not both.",
+      });
+    }
+
+    const payload = {
+      returnType,
+    };
+
+    if (statusCode) {
+      payload.statusCode = statusCode;
+    }
+
+    if (forwardItemFacility?.trim()) {
+      payload.forwardItemFacility =
+        forwardItemFacility.trim();
+    }
+
+    if (createdFrom) {
+      payload.createdFrom = createdFrom;
+    }
+
+    if (createdTo) {
+      payload.createdTo = createdTo;
+    }
+
+    if (updatedFrom) {
+      payload.updatedFrom = updatedFrom;
+    }
+
+    if (updatedTo) {
+      payload.updatedTo = updatedTo;
+    }
+
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/return/search`,
+      payload,
+      {
+        headers: uniwareHeaders(facility),
+      }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (err) {
+    console.error(
+      "Uniware Search Return Error:",
+      err.response?.status || err.message
+    );
+
+    return res
+      .status(err.response?.status || 500)
+      .json(getUniwareError(err));
+  }
+});
+
+
+// ============================================================
+// 2. CREATE REVERSE PICKUP
+// POST /api/uniware/reverse-pickups/create
+// ============================================================
+
+app.post("/api/uniware/reverse-pickups/create", async (req, res) => {
+  try {
+    const {
+      facility,
+      saleOrderCode,
+      reversePickItems,
+      shippingAddress,
+      pickupAddress,
+      actionCode,
+      reversePickupCode,
+      customFieldValues,
+      pickupInstruction,
+      trackingNumber,
+      shippingProviderCode,
+      dimension,
+      returnFacilityCode,
+    } = req.body;
+
+    if (!facility || !facility.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility is required.",
+      });
+    }
+
+    if (!saleOrderCode || !saleOrderCode.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "saleOrderCode is required.",
+      });
+    }
+
+    if (
+      !Array.isArray(reversePickItems) ||
+      reversePickItems.length === 0
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "At least one reversePickItems entry is required.",
+      });
+    }
+
+    for (let i = 0; i < reversePickItems.length; i++) {
+      const item = reversePickItems[i];
+
+      if (
+        !item?.saleOrderItemCode ||
+        !item.saleOrderItemCode.trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            `reversePickItems[${i}].saleOrderItemCode is required.`,
+        });
+      }
+
+      if (!item?.reason || !item.reason.trim()) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            `reversePickItems[${i}].reason is required.`,
+        });
+      }
+
+      if (item.reason.length > 500) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            `reversePickItems[${i}].reason cannot exceed 500 characters.`,
+        });
+      }
+
+      if (item.reversePickupAlternate) {
+        const alternate = item.reversePickupAlternate;
+
+        if (!alternate.itemSKU?.trim()) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `reversePickItems[${i}].reversePickupAlternate.itemSKU is required.`,
+          });
+        }
+
+        if (
+          alternate.totalPrice === undefined ||
+          alternate.totalPrice === null
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `reversePickItems[${i}].reversePickupAlternate.totalPrice is required.`,
+          });
+        }
+
+        if (
+          alternate.sellingPrice === undefined ||
+          alternate.sellingPrice === null
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `reversePickItems[${i}].reversePickupAlternate.sellingPrice is required.`,
+          });
+        }
+      }
+    }
+
+    if (actionCode !== "WAC") {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "actionCode is fixed by Uniware and must be WAC.",
+      });
+    }
+
+    const payload = {
+      saleOrderCode: saleOrderCode.trim(),
+      reversePickItems: reversePickItems.map((item) => {
+        const mapped = {
+          saleOrderItemCode:
+            item.saleOrderItemCode.trim(),
+          reason: item.reason.trim(),
+        };
+
+        if (item.customerImageUrl?.trim()) {
+          mapped.customerImageUrl =
+            item.customerImageUrl.trim();
+        }
+
+        if (item.reversePickupAlternate) {
+          const alternate = item.reversePickupAlternate;
+
+          mapped.reversePickupAlternate = {
+            itemSKU: alternate.itemSKU.trim(),
+            totalPrice: Number(alternate.totalPrice),
+            sellingPrice: Number(alternate.sellingPrice),
+          };
+
+          if (
+            alternate.discount !== undefined &&
+            alternate.discount !== ""
+          ) {
+            mapped.reversePickupAlternate.discount =
+              Number(alternate.discount);
+          }
+
+          if (
+            alternate.shippingCharges !== undefined &&
+            alternate.shippingCharges !== ""
+          ) {
+            mapped.reversePickupAlternate.shippingCharges =
+              Number(alternate.shippingCharges);
+          }
+
+          if (
+            alternate.prepaidAmount !== undefined &&
+            alternate.prepaidAmount !== ""
+          ) {
+            mapped.reversePickupAlternate.prepaidAmount =
+              Number(alternate.prepaidAmount);
+          }
+        }
+
+        return mapped;
+      }),
+
+      actionCode: "WAC",
+    };
+
+    if (shippingAddress) {
+      payload.shippingAddress =
+        cleanOptionalObject(shippingAddress);
+    }
+
+    if (pickupAddress) {
+      payload.pickupAddress =
+        cleanOptionalObject(pickupAddress);
+    }
+
+    if (reversePickupCode?.trim()) {
+      payload.reversePickupCode =
+        reversePickupCode.trim();
+    }
+
+    if (Array.isArray(customFieldValues) && customFieldValues.length) {
+      payload.customFieldValues = customFieldValues
+        .filter((x) => x?.name?.trim())
+        .map((x) => ({
+          name: x.name.trim(),
+          ...(x.value !== undefined &&
+          x.value !== null &&
+          String(x.value).trim() !== ""
+            ? { value: String(x.value) }
+            : {}),
+        }));
+    }
+
+    if (pickupInstruction?.trim()) {
+      payload.pickupInstruction =
+        pickupInstruction.trim();
+    }
+
+    if (trackingNumber?.trim()) {
+      payload.trackingNumber =
+        trackingNumber.trim();
+    }
+
+    if (shippingProviderCode?.trim()) {
+      payload.shippingProviderCode =
+        shippingProviderCode.trim();
+    }
+
+    if (dimension) {
+      const cleanDimension = {};
+
+      ["boxLength", "boxWidth", "boxHeight", "boxWeight"].forEach(
+        (key) => {
+          if (
+            dimension[key] !== undefined &&
+            dimension[key] !== null &&
+            dimension[key] !== ""
+          ) {
+            cleanDimension[key] = Number(dimension[key]);
+          }
+        }
+      );
+
+      if (Object.keys(cleanDimension).length) {
+        payload.dimension = cleanDimension;
+      }
+    }
+
+    if (returnFacilityCode?.trim()) {
+      payload.returnFacilityCode =
+        returnFacilityCode.trim();
+    }
+
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/reversePickup/create`,
+      payload,
+      {
+        headers: uniwareHeaders(facility),
+      }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (err) {
+    console.error(
+      "Uniware Create Reverse Pickup Error:",
+      err.response?.status || err.message
+    );
+
+    return res
+      .status(err.response?.status || 500)
+      .json(getUniwareError(err));
+  }
+});
+
+
+// ============================================================
+// 3. UPDATE REVERSE PICKUP
+// POST /api/uniware/reverse-pickups/update
+// ============================================================
+
+app.post("/api/uniware/reverse-pickups/update", async (req, res) => {
+  try {
+    const {
+      facility,
+      reversePickupCode,
+      pickupInstruction,
+      trackingLink,
+      shippingCourier,
+      shippingProviderCode,
+      trackingNumber,
+      forcedCancelOnCourier,
+      pickUpAddress,
+      dimension,
+      customFields,
+    } = req.body;
+
+    if (!facility || !facility.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility is required.",
+      });
+    }
+
+    if (!reversePickupCode || !reversePickupCode.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "reversePickupCode is required.",
+      });
+    }
+
+    const payload = {
+      reversePickupCode: reversePickupCode.trim(),
+    };
+
+    if (pickupInstruction?.trim()) {
+      payload.pickupInstruction =
+        pickupInstruction.trim();
+    }
+
+    if (trackingLink?.trim()) {
+      payload.trackingLink = trackingLink.trim();
+    }
+
+    if (shippingCourier?.trim()) {
+      payload.shippingCourier =
+        shippingCourier.trim();
+    }
+
+    if (shippingProviderCode?.trim()) {
+      payload.shippingProviderCode =
+        shippingProviderCode.trim();
+    }
+
+    if (trackingNumber?.trim()) {
+      payload.trackingNumber =
+        trackingNumber.trim();
+    }
+
+    // Preserve explicit false.
+    if (typeof forcedCancelOnCourier === "boolean") {
+      payload.forcedCancelOnCourier =
+        forcedCancelOnCourier;
+    }
+
+    if (pickUpAddress) {
+      const address = cleanOptionalObject(pickUpAddress);
+
+      if (address) {
+        payload.pickUpAddress = address;
+      }
+    }
+
+    if (dimension) {
+      const cleanDimension = {};
+
+      [
+        "boxLength",
+        "boxWidth",
+        "boxHeight",
+        "boxWeight",
+      ].forEach((key) => {
+        if (
+          dimension[key] !== undefined &&
+          dimension[key] !== null &&
+          dimension[key] !== ""
+        ) {
+          cleanDimension[key] = Number(dimension[key]);
+        }
+      });
+
+      if (Object.keys(cleanDimension).length) {
+        payload.dimension = cleanDimension;
+      }
+    }
+
+    if (Array.isArray(customFields) && customFields.length) {
+      payload.customFields = customFields
+        .filter((item) => item?.name?.trim())
+        .map((item) => ({
+          name: item.name.trim(),
+          ...(item.value !== undefined &&
+          item.value !== null &&
+          String(item.value).trim() !== ""
+            ? { value: String(item.value) }
+            : {}),
+        }));
+    }
+
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/reversePickup/edit`,
+      payload,
+      {
+        headers: uniwareHeaders(facility),
+      }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (err) {
+    console.error(
+      "Uniware Update Reverse Pickup Error:",
+      err.response?.status || err.message
+    );
+
+    return res
+      .status(err.response?.status || 500)
+      .json(getUniwareError(err));
+  }
+});
+
+
+// ============================================================
+// 4. APPROVE REVERSE PICKUP
+// POST /api/uniware/reverse-pickups/approve
+// ============================================================
+
+app.post("/api/uniware/reverse-pickups/approve", async (req, res) => {
+  try {
+    const { facility, reversePickupCodes } = req.body;
+
+    if (!facility || !facility.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility is required.",
+      });
+    }
+
+    if (
+      !Array.isArray(reversePickupCodes) ||
+      reversePickupCodes.length === 0
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "reversePickupCodes must contain at least one code.",
+      });
+    }
+
+    const cleanedCodes = [
+      ...new Set(
+        reversePickupCodes
+          .filter(
+            (code) =>
+              typeof code === "string" &&
+              code.trim() !== ""
+          )
+          .map((code) => code.trim())
+      ),
+    ];
+
+    if (cleanedCodes.length === 0) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "At least one valid reverse pickup code is required.",
+      });
+    }
+
+    const payload = {
+      reversePickupCodes: cleanedCodes,
+    };
+
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/reversePickup/approve`,
+      payload,
+      {
+        headers: uniwareHeaders(facility),
+      }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (err) {
+    console.error(
+      "Uniware Approve Reverse Pickup Error:",
+      err.response?.status || err.message
+    );
+
+    return res
+      .status(err.response?.status || 500)
+      .json(getUniwareError(err));
+  }
+});
+
+// ============================================================
+// CANCEL REVERSE PICKUP
+// Uniware:
+// POST /services/rest/v1/oms/reversePickup/cancel
+//
+// Level: Facility
+// ============================================================
+
+app.post("/api/uniware/reverse-pickups/cancel", async (req, res) => {
+  try {
+    const {
+      facility,
+      reversePickupCode,
+    } = req.body;
+
+    // ----------------------------------------------------------
+    // Validate Facility
+    // ----------------------------------------------------------
+    if (!facility || !facility.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility is required.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Validate Reverse Pickup Code
+    // ----------------------------------------------------------
+    if (
+      !reversePickupCode ||
+      !reversePickupCode.trim()
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "Reverse pickup code is required.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Uniware request payload
+    // ----------------------------------------------------------
+    const payload = {
+      reversePickupCode:
+        reversePickupCode.trim(),
+    };
+
+    // ----------------------------------------------------------
+    // Call Uniware
+    // ----------------------------------------------------------
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/reversePickup/cancel`,
+      payload,
+      {
+        headers: {
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          "Content-Type": "application/json",
+          Facility: facility.trim(),
+        },
+      }
+    );
+
+    return res.status(response.status).json(
+      response.data
+    );
+  } catch (err) {
+    console.error(
+      "Uniware Cancel Reverse Pickup Error:",
+      err.response?.status || err.message
+    );
+
+    const errorData =
+      err.response?.data || {
+        successful: false,
+        message:
+          err.message ||
+          "Failed to cancel reverse pickup.",
+        errors: [],
+        warnings: [],
+      };
+
+    return res
+      .status(err.response?.status || 500)
+      .json(errorData);
+  }
+});
 // ================= SERVER START =================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
