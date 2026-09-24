@@ -9483,6 +9483,3960 @@ app.post(
     }
   }
 );
+// Create Shipping Package
+app.post(
+  "/api/uniware/shipping-packages/create",
+  async (req, res) => {
+    try {
+      const {
+        facility,
+        saleOrderCode,
+        saleOrderItemCodes,
+      } = req.body || {};
+
+      // Validate Facility
+      if (
+        !facility ||
+        !String(facility).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: "Facility is required.",
+          errors: [
+            {
+              fieldName: "facility",
+              message:
+                "Facility is required.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      // Validate Sale Order Code
+      if (
+        !saleOrderCode ||
+        !String(saleOrderCode).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "Sale order code is required.",
+          errors: [
+            {
+              fieldName:
+                "saleOrderCode",
+              message:
+                "Sale order code is required.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      // Validate SOI codes
+      if (
+        !Array.isArray(
+          saleOrderItemCodes
+        ) ||
+        saleOrderItemCodes.length === 0
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "At least one sale order item code is required.",
+          errors: [
+            {
+              fieldName:
+                "saleOrderItemCodes",
+              message:
+                "At least one sale order item code is required.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      // Clean SOI codes
+      const cleanedItemCodes =
+        saleOrderItemCodes
+          .map((code) =>
+            String(code || "").trim()
+          )
+          .filter(Boolean);
+
+      if (
+        cleanedItemCodes.length === 0
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "At least one valid sale order item code is required.",
+          errors: [
+            {
+              fieldName:
+                "saleOrderItemCodes",
+              message:
+                "At least one valid sale order item code is required.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      const payload = {
+        saleOrderCode:
+          String(
+            saleOrderCode
+          ).trim(),
+
+        saleOrderItemCodes:
+          cleanedItemCodes,
+      };
+
+      const response = await axios.post(
+        `${UNIWARE_BASE_URL}/services/rest/v1/oms/shippingPackage/create`,
+        payload,
+        {
+          headers: {
+            "Content-Type":
+              "application/json",
+
+            Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+
+            Facility:
+              String(
+                facility
+              ).trim(),
+          },
+        }
+      );
+
+      return res
+        .status(response.status || 200)
+        .json(response.data);
+    } catch (error) {
+      console.error(
+        "Uniware Create Shipping Package Error:",
+        error.response?.data ||
+          error.message
+      );
+
+      return res
+        .status(
+          error.response?.status || 500
+        )
+        .json(
+          error.response?.data || {
+            successful: false,
+            message:
+              error.message ||
+              "Failed to create shipping package.",
+            errors: [],
+            warnings: [],
+          }
+        );
+    }
+  }
+);
+
+////////////////////shipping fulfillment///////////////
+// ============================================================
+// Uniware - Search Shipping Package
+// Uniware Endpoint:
+// POST /services/rest/v1/oms/shippingPackage/search
+// Level: Facility
+// ============================================================
+
+app.post("/api/uniware/shipping-packages/search", async (req, res) => {
+  try {
+    const {
+      facility,
+      shippingPackageCode,
+      saleOrderCode,
+      channelCode,
+      statuses,
+      createTime,
+      dispatchTime,
+      containsCancelledItems,
+      onHold,
+      shippingProvider,
+      shippingMethod,
+      trackingNumber,
+      invoiceCode,
+      cashOnDelivery,
+      searchOptions,
+      paymentReconciled,
+      itemTypeSkuCode,
+      updatedSinceInMinutes,
+    } = req.body || {};
+
+    // --------------------------------------------------------
+    // Facility is mandatory because this is a Facility-level API
+    // --------------------------------------------------------
+    if (!facility || !String(facility).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility code is required.",
+        errors: [
+          {
+            fieldName: "facility",
+            message: "Facility code is required.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // --------------------------------------------------------
+    // At least one of shippingPackageCode / saleOrderCode required
+    // --------------------------------------------------------
+    const packageCode =
+      shippingPackageCode !== undefined &&
+      shippingPackageCode !== null
+        ? String(shippingPackageCode).trim()
+        : "";
+
+    const orderCode =
+      saleOrderCode !== undefined && saleOrderCode !== null
+        ? String(saleOrderCode).trim()
+        : "";
+
+    if (!packageCode && !orderCode) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "Either shippingPackageCode or saleOrderCode is required.",
+        errors: [
+          {
+            fieldName: "shippingPackageCode",
+            message:
+              "Provide shippingPackageCode or saleOrderCode.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // --------------------------------------------------------
+    // Helper functions
+    // --------------------------------------------------------
+    const hasValue = (value) =>
+      value !== undefined &&
+      value !== null &&
+      !(typeof value === "string" && value.trim() === "");
+
+    const cleanString = (value) => {
+      if (!hasValue(value)) return undefined;
+      return String(value).trim();
+    };
+
+    const cleanInteger = (value) => {
+      if (!hasValue(value)) return undefined;
+
+      const number = Number(value);
+
+      if (!Number.isInteger(number)) {
+        return undefined;
+      }
+
+      return number;
+    };
+
+    const cleanBoolean = (value) => {
+      if (value === true || value === false) {
+        return value;
+      }
+
+      return undefined;
+    };
+
+    const cleanDateRange = (range) => {
+      if (!range || typeof range !== "object") {
+        return undefined;
+      }
+
+      const result = {};
+
+      if (hasValue(range.start)) {
+        result.start = new Date(range.start).toISOString();
+      }
+
+      if (hasValue(range.end)) {
+        result.end = new Date(range.end).toISOString();
+      }
+
+      if (hasValue(range.textRange)) {
+        result.textRange = String(range.textRange).trim();
+      }
+
+      return Object.keys(result).length > 0 ? result : undefined;
+    };
+
+    // --------------------------------------------------------
+    // Build payload dynamically
+    // --------------------------------------------------------
+    const payload = {};
+
+    if (packageCode) {
+      payload.shippingPackageCode = packageCode;
+    }
+
+    if (orderCode) {
+      payload.saleOrderCode = orderCode;
+    }
+
+    const optionalStrings = {
+      channelCode,
+      shippingProvider,
+      shippingMethod,
+      trackingNumber,
+      invoiceCode,
+      itemTypeSkuCode,
+    };
+
+    Object.entries(optionalStrings).forEach(([key, value]) => {
+      const cleaned = cleanString(value);
+
+      if (cleaned !== undefined) {
+        payload[key] = cleaned;
+      }
+    });
+
+    // --------------------------------------------------------
+    // Statuses
+    // --------------------------------------------------------
+    if (Array.isArray(statuses)) {
+      const cleanedStatuses = statuses
+        .map((status) => String(status).trim())
+        .filter(Boolean);
+
+      if (cleanedStatuses.length > 0) {
+        payload.statuses = cleanedStatuses;
+      }
+    } else if (hasValue(statuses)) {
+      const cleanedStatus = String(statuses).trim();
+
+      if (cleanedStatus) {
+        payload.statuses = [cleanedStatus];
+      }
+    }
+
+    // --------------------------------------------------------
+    // Create / Dispatch time
+    // --------------------------------------------------------
+    const cleanedCreateTime = cleanDateRange(createTime);
+
+    if (cleanedCreateTime) {
+      payload.createTime = cleanedCreateTime;
+    }
+
+    const cleanedDispatchTime = cleanDateRange(dispatchTime);
+
+    if (cleanedDispatchTime) {
+      payload.dispatchTime = cleanedDispatchTime;
+    }
+
+    // --------------------------------------------------------
+    // Preserve explicit boolean false
+    // --------------------------------------------------------
+    const booleanFields = {
+      containsCancelledItems,
+      onHold,
+      cashOnDelivery,
+      paymentReconciled,
+    };
+
+    Object.entries(booleanFields).forEach(([key, value]) => {
+      const cleaned = cleanBoolean(value);
+
+      if (cleaned !== undefined) {
+        payload[key] = cleaned;
+      }
+    });
+
+    // --------------------------------------------------------
+    // Search options
+    // --------------------------------------------------------
+    if (searchOptions && typeof searchOptions === "object") {
+      const options = {};
+
+      const searchKey = cleanString(searchOptions.searchKey);
+      const sortDirection = cleanString(searchOptions.sortDirection);
+      const columnNames = cleanString(searchOptions.columnNames);
+
+      if (searchKey !== undefined) {
+        options.searchKey = searchKey;
+      }
+
+      if (sortDirection !== undefined) {
+        options.sortDirection = sortDirection;
+      }
+
+      if (columnNames !== undefined) {
+        options.columnNames = columnNames;
+      }
+
+      const integerSearchFields = [
+        "displayLength",
+        "displayStart",
+        "columns",
+        "sortingCols",
+        "sortColumnIndex",
+      ];
+
+      integerSearchFields.forEach((key) => {
+        const value = cleanInteger(searchOptions[key]);
+
+        if (value !== undefined) {
+          options[key] = value;
+        }
+      });
+
+      const getCount = cleanBoolean(searchOptions.getCount);
+
+      if (getCount !== undefined) {
+        options.getCount = getCount;
+      }
+
+      if (Object.keys(options).length > 0) {
+        payload.searchOptions = options;
+      }
+    }
+
+    // --------------------------------------------------------
+    // updatedSinceInMinutes
+    // --------------------------------------------------------
+    const updatedMinutes = cleanInteger(updatedSinceInMinutes);
+
+    if (updatedMinutes !== undefined) {
+      if (updatedMinutes < 0) {
+        return res.status(400).json({
+          successful: false,
+          message: "updatedSinceInMinutes cannot be negative.",
+          errors: [
+            {
+              fieldName: "updatedSinceInMinutes",
+              message: "Value must be zero or greater.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      payload.updatedSinceInMinutes = updatedMinutes;
+    }
+
+    // --------------------------------------------------------
+    // Call Uniware
+    // --------------------------------------------------------
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/shippingPackage/search`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          Facility: String(facility).trim(),
+        },
+      }
+    );
+
+    return res.status(response.status || 200).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Search Shipping Package Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message:
+          error.message || "Failed to search shipping packages.",
+        errors: [],
+        warnings: [],
+      }
+    );
+  }
+});
+// ============================================================
+// Uniware - Search Shipping Package
+// Uniware Endpoint:
+// POST /services/rest/v1/oms/shippingPackage/search
+// Level: Facility
+// ============================================================
+
+app.post("/api/uniware/shipping-packages/search", async (req, res) => {
+  try {
+    const {
+      facility,
+      shippingPackageCode,
+      saleOrderCode,
+      channelCode,
+      statuses,
+      createTime,
+      dispatchTime,
+      containsCancelledItems,
+      onHold,
+      shippingProvider,
+      shippingMethod,
+      trackingNumber,
+      invoiceCode,
+      cashOnDelivery,
+      searchOptions,
+      paymentReconciled,
+      itemTypeSkuCode,
+      updatedSinceInMinutes,
+    } = req.body || {};
+
+    // --------------------------------------------------------
+    // Facility is mandatory because this is a Facility-level API
+    // --------------------------------------------------------
+    if (!facility || !String(facility).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility code is required.",
+        errors: [
+          {
+            fieldName: "facility",
+            message: "Facility code is required.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // --------------------------------------------------------
+    // At least one of shippingPackageCode / saleOrderCode required
+    // --------------------------------------------------------
+    const packageCode =
+      shippingPackageCode !== undefined &&
+      shippingPackageCode !== null
+        ? String(shippingPackageCode).trim()
+        : "";
+
+    const orderCode =
+      saleOrderCode !== undefined && saleOrderCode !== null
+        ? String(saleOrderCode).trim()
+        : "";
+
+    if (!packageCode && !orderCode) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "Either shippingPackageCode or saleOrderCode is required.",
+        errors: [
+          {
+            fieldName: "shippingPackageCode",
+            message:
+              "Provide shippingPackageCode or saleOrderCode.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // --------------------------------------------------------
+    // Helper functions
+    // --------------------------------------------------------
+    const hasValue = (value) =>
+      value !== undefined &&
+      value !== null &&
+      !(typeof value === "string" && value.trim() === "");
+
+    const cleanString = (value) => {
+      if (!hasValue(value)) return undefined;
+      return String(value).trim();
+    };
+
+    const cleanInteger = (value) => {
+      if (!hasValue(value)) return undefined;
+
+      const number = Number(value);
+
+      if (!Number.isInteger(number)) {
+        return undefined;
+      }
+
+      return number;
+    };
+
+    const cleanBoolean = (value) => {
+      if (value === true || value === false) {
+        return value;
+      }
+
+      return undefined;
+    };
+
+    const cleanDateRange = (range) => {
+      if (!range || typeof range !== "object") {
+        return undefined;
+      }
+
+      const result = {};
+
+      if (hasValue(range.start)) {
+        result.start = new Date(range.start).toISOString();
+      }
+
+      if (hasValue(range.end)) {
+        result.end = new Date(range.end).toISOString();
+      }
+
+      if (hasValue(range.textRange)) {
+        result.textRange = String(range.textRange).trim();
+      }
+
+      return Object.keys(result).length > 0 ? result : undefined;
+    };
+
+    // --------------------------------------------------------
+    // Build payload dynamically
+    // --------------------------------------------------------
+    const payload = {};
+
+    if (packageCode) {
+      payload.shippingPackageCode = packageCode;
+    }
+
+    if (orderCode) {
+      payload.saleOrderCode = orderCode;
+    }
+
+    const optionalStrings = {
+      channelCode,
+      shippingProvider,
+      shippingMethod,
+      trackingNumber,
+      invoiceCode,
+      itemTypeSkuCode,
+    };
+
+    Object.entries(optionalStrings).forEach(([key, value]) => {
+      const cleaned = cleanString(value);
+
+      if (cleaned !== undefined) {
+        payload[key] = cleaned;
+      }
+    });
+
+    // --------------------------------------------------------
+    // Statuses
+    // --------------------------------------------------------
+    if (Array.isArray(statuses)) {
+      const cleanedStatuses = statuses
+        .map((status) => String(status).trim())
+        .filter(Boolean);
+
+      if (cleanedStatuses.length > 0) {
+        payload.statuses = cleanedStatuses;
+      }
+    } else if (hasValue(statuses)) {
+      const cleanedStatus = String(statuses).trim();
+
+      if (cleanedStatus) {
+        payload.statuses = [cleanedStatus];
+      }
+    }
+
+    // --------------------------------------------------------
+    // Create / Dispatch time
+    // --------------------------------------------------------
+    const cleanedCreateTime = cleanDateRange(createTime);
+
+    if (cleanedCreateTime) {
+      payload.createTime = cleanedCreateTime;
+    }
+
+    const cleanedDispatchTime = cleanDateRange(dispatchTime);
+
+    if (cleanedDispatchTime) {
+      payload.dispatchTime = cleanedDispatchTime;
+    }
+
+    // --------------------------------------------------------
+    // Preserve explicit boolean false
+    // --------------------------------------------------------
+    const booleanFields = {
+      containsCancelledItems,
+      onHold,
+      cashOnDelivery,
+      paymentReconciled,
+    };
+
+    Object.entries(booleanFields).forEach(([key, value]) => {
+      const cleaned = cleanBoolean(value);
+
+      if (cleaned !== undefined) {
+        payload[key] = cleaned;
+      }
+    });
+
+    // --------------------------------------------------------
+    // Search options
+    // --------------------------------------------------------
+    if (searchOptions && typeof searchOptions === "object") {
+      const options = {};
+
+      const searchKey = cleanString(searchOptions.searchKey);
+      const sortDirection = cleanString(searchOptions.sortDirection);
+      const columnNames = cleanString(searchOptions.columnNames);
+
+      if (searchKey !== undefined) {
+        options.searchKey = searchKey;
+      }
+
+      if (sortDirection !== undefined) {
+        options.sortDirection = sortDirection;
+      }
+
+      if (columnNames !== undefined) {
+        options.columnNames = columnNames;
+      }
+
+      const integerSearchFields = [
+        "displayLength",
+        "displayStart",
+        "columns",
+        "sortingCols",
+        "sortColumnIndex",
+      ];
+
+      integerSearchFields.forEach((key) => {
+        const value = cleanInteger(searchOptions[key]);
+
+        if (value !== undefined) {
+          options[key] = value;
+        }
+      });
+
+      const getCount = cleanBoolean(searchOptions.getCount);
+
+      if (getCount !== undefined) {
+        options.getCount = getCount;
+      }
+
+      if (Object.keys(options).length > 0) {
+        payload.searchOptions = options;
+      }
+    }
+
+    // --------------------------------------------------------
+    // updatedSinceInMinutes
+    // --------------------------------------------------------
+    const updatedMinutes = cleanInteger(updatedSinceInMinutes);
+
+    if (updatedMinutes !== undefined) {
+      if (updatedMinutes < 0) {
+        return res.status(400).json({
+          successful: false,
+          message: "updatedSinceInMinutes cannot be negative.",
+          errors: [
+            {
+              fieldName: "updatedSinceInMinutes",
+              message: "Value must be zero or greater.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      payload.updatedSinceInMinutes = updatedMinutes;
+    }
+
+    // --------------------------------------------------------
+    // Call Uniware
+    // --------------------------------------------------------
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/shippingPackage/search`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          Facility: String(facility).trim(),
+        },
+      }
+    );
+
+    return res.status(response.status || 200).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Search Shipping Package Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message:
+          error.message || "Failed to search shipping packages.",
+        errors: [],
+        warnings: [],
+      }
+    );
+  }
+});
+
+// ============================================================
+// Uniware - Update Shipping Package
+// Uniware Endpoint:
+// POST /services/rest/v1/oms/shippingPackage/edit
+// Level: Facility
+// ============================================================
+
+app.post("/api/uniware/shipping-packages/update", async (req, res) => {
+  try {
+    const {
+      facility,
+      shippingPackageCode,
+      shippingProviderCode,
+      trackingNumber,
+      shippingPackageTypeCode,
+      forcedCancelOnCourier,
+      actualWeight,
+      shippingBox,
+      noOfBoxes,
+      customFieldValues,
+    } = req.body || {};
+
+    // --------------------------------------------------------
+    // Facility validation
+    // --------------------------------------------------------
+    if (!facility || !String(facility).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility code is required.",
+        errors: [
+          {
+            fieldName: "facility",
+            message: "Facility code is required.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // --------------------------------------------------------
+    // Shipping package code is mandatory
+    // --------------------------------------------------------
+    if (
+      !shippingPackageCode ||
+      !String(shippingPackageCode).trim()
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "Shipping package code is required.",
+        errors: [
+          {
+            fieldName: "shippingPackageCode",
+            message: "Shipping package code is required.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // --------------------------------------------------------
+    // Helpers
+    // --------------------------------------------------------
+    const hasValue = (value) =>
+      value !== undefined &&
+      value !== null &&
+      !(typeof value === "string" && value.trim() === "");
+
+    const cleanString = (value) => {
+      if (!hasValue(value)) {
+        return undefined;
+      }
+
+      return String(value).trim();
+    };
+
+    const cleanInteger = (value) => {
+      if (!hasValue(value)) {
+        return undefined;
+      }
+
+      const number = Number(value);
+
+      if (!Number.isInteger(number)) {
+        return undefined;
+      }
+
+      return number;
+    };
+
+    // --------------------------------------------------------
+    // Build payload
+    // --------------------------------------------------------
+    const payload = {
+      shippingPackageCode:
+        String(shippingPackageCode).trim(),
+    };
+
+    // --------------------------------------------------------
+    // Optional string fields
+    // --------------------------------------------------------
+    const optionalStrings = {
+      shippingProviderCode,
+      trackingNumber,
+      shippingPackageTypeCode,
+    };
+
+    Object.entries(optionalStrings).forEach(
+      ([key, value]) => {
+        const cleaned = cleanString(value);
+
+        if (cleaned !== undefined) {
+          payload[key] = cleaned;
+        }
+      }
+    );
+
+    // --------------------------------------------------------
+    // Optional boolean
+    // Preserve false when explicitly supplied
+    // --------------------------------------------------------
+    if (
+      forcedCancelOnCourier === true ||
+      forcedCancelOnCourier === false
+    ) {
+      payload.forcedCancelOnCourier =
+        forcedCancelOnCourier;
+    }
+
+    // --------------------------------------------------------
+    // Actual weight
+    // --------------------------------------------------------
+    if (hasValue(actualWeight)) {
+      const weight = cleanInteger(actualWeight);
+
+      if (weight === undefined || weight < 0) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "actualWeight must be a non-negative integer.",
+          errors: [
+            {
+              fieldName: "actualWeight",
+              message:
+                "Actual weight must be a non-negative integer.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      payload.actualWeight = weight;
+    }
+
+    // --------------------------------------------------------
+    // Number of boxes
+    // --------------------------------------------------------
+    if (hasValue(noOfBoxes)) {
+      const boxes = cleanInteger(noOfBoxes);
+
+      if (boxes === undefined || boxes < 0) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "noOfBoxes must be a non-negative integer.",
+          errors: [
+            {
+              fieldName: "noOfBoxes",
+              message:
+                "Number of boxes must be a non-negative integer.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      payload.noOfBoxes = boxes;
+    }
+
+    // --------------------------------------------------------
+    // Shipping box
+    // If supplied, length/width/height are mandatory
+    // --------------------------------------------------------
+    if (
+      shippingBox !== undefined &&
+      shippingBox !== null
+    ) {
+      if (
+        typeof shippingBox !== "object" ||
+        Array.isArray(shippingBox)
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "shippingBox must be an object.",
+          errors: [
+            {
+              fieldName: "shippingBox",
+              message:
+                "Shipping box must be an object.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      const length = cleanInteger(
+        shippingBox.length
+      );
+
+      const width = cleanInteger(
+        shippingBox.width
+      );
+
+      const height = cleanInteger(
+        shippingBox.height
+      );
+
+      if (
+        length === undefined ||
+        width === undefined ||
+        height === undefined
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "shippingBox length, width and height are required.",
+          errors: [
+            {
+              fieldName: "shippingBox",
+              message:
+                "Length, width and height are required.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      if (
+        length < 0 ||
+        width < 0 ||
+        height < 0
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "Shipping box dimensions cannot be negative.",
+          errors: [
+            {
+              fieldName: "shippingBox",
+              message:
+                "Length, width and height must be non-negative integers.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      payload.shippingBox = {
+        length,
+        width,
+        height,
+      };
+    }
+
+    // --------------------------------------------------------
+    // Custom fields
+    // --------------------------------------------------------
+    if (Array.isArray(customFieldValues)) {
+      const cleanedCustomFields = [];
+
+      for (
+        let index = 0;
+        index < customFieldValues.length;
+        index++
+      ) {
+        const field = customFieldValues[index];
+
+        if (!field || typeof field !== "object") {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `Invalid custom field at index ${index}.`,
+            errors: [
+              {
+                fieldName: `customFieldValues[${index}]`,
+                message:
+                  "Custom field must be an object.",
+              },
+            ],
+            warnings: [],
+          });
+        }
+
+        const name = cleanString(field.name);
+
+        if (!name) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `Custom field name is required at index ${index}.`,
+            errors: [
+              {
+                fieldName: `customFieldValues[${index}].name`,
+                message:
+                  "Custom field name is required.",
+              },
+            ],
+            warnings: [],
+          });
+        }
+
+        const customField = {
+          name,
+        };
+
+        // Value is optional according to Uniware docs.
+        if (hasValue(field.value)) {
+          customField.value = String(field.value);
+        }
+
+        cleanedCustomFields.push(customField);
+      }
+
+      if (cleanedCustomFields.length > 0) {
+        payload.customFieldValues =
+          cleanedCustomFields;
+      }
+    } else if (
+      customFieldValues !== undefined &&
+      customFieldValues !== null
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "customFieldValues must be an array.",
+        errors: [
+          {
+            fieldName: "customFieldValues",
+            message:
+              "Custom field values must be an array.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // --------------------------------------------------------
+    // Call Uniware
+    // --------------------------------------------------------
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/shippingPackage/edit`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          Facility: String(facility).trim(),
+        },
+      }
+    );
+
+    return res
+      .status(response.status || 200)
+      .json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Update Shipping Package Error:",
+      error.response?.data || error.message
+    );
+
+    return res
+      .status(error.response?.status || 500)
+      .json(
+        error.response?.data || {
+          successful: false,
+          message:
+            error.message ||
+            "Failed to update shipping package.",
+          errors: [],
+          warnings: [],
+        }
+      );
+  }
+});
+// ============================================================
+// UNIWARE - SPLIT SHIPPING PACKAGE
+// POST /api/uniware/shipping-packages/split
+// Uniware:
+// POST /services/rest/v1/oms/shippingPackage/split
+// Level: Facility
+// ============================================================
+
+app.post("/api/uniware/shipping-packages/split", async (req, res) => {
+  try {
+    const {
+      facility,
+      shippingPackageCode,
+      splitPackages,
+    } = req.body || {};
+
+    // ----------------------------------------------------------
+    // Validate Facility
+    // ----------------------------------------------------------
+    if (!facility || !String(facility).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility is required.",
+        errors: [
+          {
+            fieldName: "facility",
+            message: "Facility is required.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Validate Shipping Package Code
+    // ----------------------------------------------------------
+    if (
+      !shippingPackageCode ||
+      !String(shippingPackageCode).trim()
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "Shipping package code is required.",
+        errors: [
+          {
+            fieldName: "shippingPackageCode",
+            message: "Shipping package code is required.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Validate Split Packages
+    // ----------------------------------------------------------
+    if (!Array.isArray(splitPackages) || splitPackages.length === 0) {
+      return res.status(400).json({
+        successful: false,
+        message: "At least one split package is required.",
+        errors: [
+          {
+            fieldName: "splitPackages",
+            message: "At least one split package is required.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Build splitPackages
+    // ----------------------------------------------------------
+    const normalizedSplitPackages = [];
+
+    for (let packageIndex = 0; packageIndex < splitPackages.length; packageIndex++) {
+      const splitPackage = splitPackages[packageIndex] || {};
+
+      const packetNumber =
+        splitPackage.packetNumber !== undefined &&
+        splitPackage.packetNumber !== null &&
+        splitPackage.packetNumber !== ""
+          ? Number(splitPackage.packetNumber)
+          : undefined;
+
+      if (
+        packetNumber !== undefined &&
+        (!Number.isInteger(packetNumber) || packetNumber < 0)
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: `Invalid packet number for split package ${packageIndex + 1}.`,
+          errors: [
+            {
+              fieldName: `splitPackages[${packageIndex}].packetNumber`,
+              message: "Packet number must be a non-negative integer.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      // --------------------------------------------------------
+      // Items are optional according to Uniware documentation.
+      // If supplied, they must be an array.
+      // --------------------------------------------------------
+      if (
+        splitPackage.items !== undefined &&
+        !Array.isArray(splitPackage.items)
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: `Items must be an array for split package ${packageIndex + 1}.`,
+          errors: [
+            {
+              fieldName: `splitPackages[${packageIndex}].items`,
+              message: "Items must be an array.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      const normalizedItems = [];
+
+      if (Array.isArray(splitPackage.items)) {
+        for (let itemIndex = 0; itemIndex < splitPackage.items.length; itemIndex++) {
+          const item = splitPackage.items[itemIndex] || {};
+
+          const normalizedItem = {};
+
+          // ----------------------------------------------------
+          // skuCode - optional according to documentation
+          // ----------------------------------------------------
+          if (
+            item.skuCode !== undefined &&
+            item.skuCode !== null &&
+            String(item.skuCode).trim() !== ""
+          ) {
+            normalizedItem.skuCode = String(item.skuCode).trim();
+          }
+
+          // ----------------------------------------------------
+          // quantity - optional according to documentation
+          // ----------------------------------------------------
+          if (
+            item.quantity !== undefined &&
+            item.quantity !== null &&
+            item.quantity !== ""
+          ) {
+            const quantity = Number(item.quantity);
+
+            if (!Number.isInteger(quantity) || quantity < 0) {
+              return res.status(400).json({
+                successful: false,
+                message: `Invalid quantity for item ${itemIndex + 1} in split package ${packageIndex + 1}.`,
+                errors: [
+                  {
+                    fieldName: `splitPackages[${packageIndex}].items[${itemIndex}].quantity`,
+                    message: "Quantity must be a non-negative integer.",
+                  },
+                ],
+                warnings: [],
+              });
+            }
+
+            normalizedItem.quantity = quantity;
+          }
+
+          // ----------------------------------------------------
+          // saleOrderItemCodes
+          //
+          // This is specifically used when splitting package
+          // sale-order-item-wise.
+          //
+          // Uniware says that when SKU + quantity are used,
+          // this can be passed as [].
+          // ----------------------------------------------------
+          if (item.saleOrderItemCodes !== undefined) {
+            if (!Array.isArray(item.saleOrderItemCodes)) {
+              return res.status(400).json({
+                successful: false,
+                message: `saleOrderItemCodes must be an array for item ${itemIndex + 1}.`,
+                errors: [
+                  {
+                    fieldName: `splitPackages[${packageIndex}].items[${itemIndex}].saleOrderItemCodes`,
+                    message: "saleOrderItemCodes must be an array.",
+                  },
+                ],
+                warnings: [],
+              });
+            }
+
+            normalizedItem.saleOrderItemCodes =
+              item.saleOrderItemCodes
+                .map((code) => String(code || "").trim())
+                .filter(Boolean);
+          }
+
+          // ----------------------------------------------------
+          // Avoid sending an empty item object
+          // ----------------------------------------------------
+          if (Object.keys(normalizedItem).length === 0) {
+            return res.status(400).json({
+              successful: false,
+              message: `Item ${itemIndex + 1} in split package ${packageIndex + 1} is empty.`,
+              errors: [
+                {
+                  fieldName: `splitPackages[${packageIndex}].items[${itemIndex}]`,
+                  message:
+                    "Provide skuCode, quantity, or saleOrderItemCodes.",
+                },
+              ],
+              warnings: [],
+            });
+          }
+
+          normalizedItems.push(normalizedItem);
+        }
+      }
+
+      const normalizedPackage = {};
+
+      if (packetNumber !== undefined) {
+        normalizedPackage.packetNumber = packetNumber;
+      }
+
+      if (Array.isArray(splitPackage.items)) {
+        normalizedPackage.items = normalizedItems;
+      }
+
+      normalizedSplitPackages.push(normalizedPackage);
+    }
+
+    // ----------------------------------------------------------
+    // Uniware payload
+    //
+    // IMPORTANT:
+    // facility is NOT part of the body.
+    // It is sent as the Facility HTTP header.
+    // ----------------------------------------------------------
+    const payload = {
+      shippingPackageCode: String(shippingPackageCode).trim(),
+      splitPackages: normalizedSplitPackages,
+    };
+
+    // ----------------------------------------------------------
+    // Call Uniware
+    // ----------------------------------------------------------
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/shippingPackage/split`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          Facility: String(facility).trim(),
+        },
+      }
+    );
+
+    return res
+      .status(response.status || 200)
+      .json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Split Shipping Package Error:",
+      error.response?.data || error.message
+    );
+
+    return res
+      .status(error.response?.status || 500)
+      .json(
+        error.response?.data || {
+          successful: false,
+          message:
+            error.message || "Failed to split shipping package.",
+          errors: [],
+          warnings: [],
+        }
+      );
+  }
+});
+// ============================================================
+// UNIWARE - MODIFY SHIPPING PACKAGE
+// POST /api/uniware/shipping-packages/modify
+//
+// Uniware:
+// POST /services/rest/v1/oms/shippingPackage/modify
+//
+// Level: Tenant
+// Facility Header: NOT REQUIRED
+// ============================================================
+
+app.post("/api/uniware/shipping-packages/modify", async (req, res) => {
+  try {
+    const {
+      saleOrderCode,
+      saleOrderItemCodes,
+    } = req.body || {};
+
+    // ----------------------------------------------------------
+    // At least one of saleOrderCode or saleOrderItemCodes
+    // should be provided.
+    //
+    // Uniware documentation marks both as optional.
+    // An entirely empty request is not useful, so reject it
+    // locally instead of sending an empty payload.
+    // ----------------------------------------------------------
+    const hasSaleOrderCode =
+      saleOrderCode !== undefined &&
+      saleOrderCode !== null &&
+      String(saleOrderCode).trim() !== "";
+
+    const hasSaleOrderItemCodes =
+      Array.isArray(saleOrderItemCodes) &&
+      saleOrderItemCodes.length > 0;
+
+    if (!hasSaleOrderCode && !hasSaleOrderItemCodes) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "Provide saleOrderCode or saleOrderItemCodes.",
+        errors: [
+          {
+            fieldName: "saleOrderCode",
+            message:
+              "At least one of saleOrderCode or saleOrderItemCodes is required.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Validate saleOrderCode
+    // ----------------------------------------------------------
+    if (
+      saleOrderCode !== undefined &&
+      saleOrderCode !== null &&
+      typeof saleOrderCode !== "string"
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "saleOrderCode must be a string.",
+        errors: [
+          {
+            fieldName: "saleOrderCode",
+            message: "saleOrderCode must be a string.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Validate saleOrderItemCodes
+    // ----------------------------------------------------------
+    if (
+      saleOrderItemCodes !== undefined &&
+      !Array.isArray(saleOrderItemCodes)
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "saleOrderItemCodes must be an array.",
+        errors: [
+          {
+            fieldName: "saleOrderItemCodes",
+            message: "saleOrderItemCodes must be an array.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    let normalizedSaleOrderItemCodes = [];
+
+    if (Array.isArray(saleOrderItemCodes)) {
+      normalizedSaleOrderItemCodes =
+        saleOrderItemCodes
+          .map((code) => String(code || "").trim())
+          .filter(Boolean);
+
+      if (
+        saleOrderItemCodes.length > 0 &&
+        normalizedSaleOrderItemCodes.length === 0
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "saleOrderItemCodes must contain at least one valid item code.",
+          errors: [
+            {
+              fieldName: "saleOrderItemCodes",
+              message:
+                "At least one non-empty sale order item code is required.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+    }
+
+    // ----------------------------------------------------------
+    // Build Uniware payload dynamically.
+    //
+    // IMPORTANT:
+    // No Facility field/header is sent because this API
+    // is Tenant-level.
+    // ----------------------------------------------------------
+    const payload = {};
+
+    if (hasSaleOrderCode) {
+      payload.saleOrderCode =
+        String(saleOrderCode).trim();
+    }
+
+    if (hasSaleOrderItemCodes) {
+      payload.saleOrderItemCodes =
+        normalizedSaleOrderItemCodes;
+    }
+
+    // ----------------------------------------------------------
+    // Call Uniware
+    // ----------------------------------------------------------
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/shippingPackage/modify`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+        },
+      }
+    );
+
+    return res
+      .status(response.status || 200)
+      .json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Modify Shipping Package Error:",
+      error.response?.data || error.message
+    );
+
+    return res
+      .status(error.response?.status || 500)
+      .json(
+        error.response?.data || {
+          successful: false,
+          message:
+            error.message ||
+            "Failed to modify shipping package.",
+          errors: [],
+          warnings: [],
+        }
+      );
+  }
+});
+// ============================================================
+// UNIWARE - GET SHIPPING PACKAGES
+// POST /api/uniware/shipping-packages/get
+//
+// Uniware:
+// POST /services/rest/v1/oms/shippingPackage/getShippingPackages
+//
+// Level: Facility
+// Facility Header: REQUIRED
+// ============================================================
+
+app.post("/api/uniware/shipping-packages/get", async (req, res) => {
+  try {
+    const {
+      facility,
+      statusCode,
+    } = req.body || {};
+
+    // ----------------------------------------------------------
+    // Validate Facility
+    // ----------------------------------------------------------
+    if (!facility || !String(facility).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility is required.",
+        errors: [
+          {
+            fieldName: "facility",
+            message: "Facility is required.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Validate statusCode
+    // ----------------------------------------------------------
+    if (
+      !statusCode ||
+      !String(statusCode).trim()
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "Shipping package status code is required.",
+        errors: [
+          {
+            fieldName: "statusCode",
+            message:
+              "Shipping package status code is required.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Uniware payload
+    //
+    // IMPORTANT:
+    // facility is NOT sent in the request body.
+    // It is sent as the Facility HTTP header.
+    // ----------------------------------------------------------
+    const payload = {
+      statusCode: String(statusCode).trim(),
+    };
+
+    // ----------------------------------------------------------
+    // Call Uniware
+    // ----------------------------------------------------------
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/shippingPackage/getShippingPackages`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          Facility: String(facility).trim(),
+        },
+      }
+    );
+
+    return res
+      .status(response.status || 200)
+      .json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Get Shipping Packages Error:",
+      error.response?.data || error.message
+    );
+
+    return res
+      .status(error.response?.status || 500)
+      .json(
+        error.response?.data || {
+          successful: false,
+          message:
+            error.message ||
+            "Failed to get shipping packages.",
+          errors: [],
+          warnings: [],
+          shippingPackages: [],
+        }
+      );
+  }
+});
+// ============================================================
+// UNIWARE - GET SHIPPING PACKAGE DETAILS
+// POST /api/uniware/shipping-packages/details
+//
+// Uniware:
+// POST /services/rest/v1/oms/shippingPackage/getShippingPackageDetails
+//
+// Level: Facility
+// Facility Header: REQUIRED
+// ============================================================
+
+app.post(
+  "/api/uniware/shipping-packages/details",
+  async (req, res) => {
+    try {
+      const {
+        facility,
+        shippingPackageCode,
+      } = req.body || {};
+
+      // --------------------------------------------------------
+      // Validate Facility
+      // --------------------------------------------------------
+      if (
+        !facility ||
+        !String(facility).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: "Facility is required.",
+          errors: [
+            {
+              fieldName: "facility",
+              message: "Facility is required.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate Shipping Package Code
+      // --------------------------------------------------------
+      if (
+        !shippingPackageCode ||
+        !String(shippingPackageCode).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "Shipping package code is required.",
+          errors: [
+            {
+              fieldName:
+                "shippingPackageCode",
+              message:
+                "Shipping package code is required.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      // --------------------------------------------------------
+      // Uniware request body
+      //
+      // IMPORTANT:
+      // facility is NOT part of the Uniware body.
+      // It is sent through the Facility HTTP header.
+      // --------------------------------------------------------
+      const payload = {
+        shippingPackageCode:
+          String(
+            shippingPackageCode
+          ).trim(),
+      };
+
+      // --------------------------------------------------------
+      // Call Uniware
+      // --------------------------------------------------------
+      const response = await axios.post(
+        `${UNIWARE_BASE_URL}/services/rest/v1/oms/shippingPackage/getShippingPackageDetails`,
+        payload,
+        {
+          headers: {
+            "Content-Type":
+              "application/json",
+            Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+            Facility:
+              String(facility).trim(),
+          },
+        }
+      );
+
+      return res
+        .status(response.status || 200)
+        .json(response.data);
+    } catch (error) {
+      console.error(
+        "Uniware Get Shipping Package Details Error:",
+        error.response?.data ||
+          error.message
+      );
+
+      return res
+        .status(
+          error.response?.status || 500
+        )
+        .json(
+          error.response?.data || {
+            successful: false,
+            message:
+              error.message ||
+              "Failed to get shipping package details.",
+            errors: [],
+            warnings: [],
+            shippingPackageDetailDTO:
+              null,
+          }
+        );
+    }
+  }
+);
+// ============================================================
+// UNIWARE - CREATE INVOICE
+// POST /api/uniware/shipping-packages/create-invoice
+//
+// Uniware:
+// POST /services/rest/v1/oms/shippingPackage/createInvoice
+//
+// Level: Facility
+// Facility Header: REQUIRED
+// ============================================================
+
+app.post(
+  "/api/uniware/shipping-packages/create-invoice",
+  async (req, res) => {
+    try {
+      const {
+        facility,
+        shippingPackageCode,
+        commitBlockedInventory,
+        invoiceCode,
+        gstEinvoice,
+        channelProductIdToTax,
+        skipDetailing,
+      } = req.body || {};
+
+      // --------------------------------------------------------
+      // Validate Facility
+      // --------------------------------------------------------
+      if (
+        !facility ||
+        !String(facility).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: "Facility is required.",
+          errors: [
+            {
+              fieldName: "facility",
+              message: "Facility is required.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate Shipping Package Code
+      // --------------------------------------------------------
+      if (
+        !shippingPackageCode ||
+        !String(shippingPackageCode).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "Shipping package code is required.",
+          errors: [
+            {
+              fieldName:
+                "shippingPackageCode",
+              message:
+                "Shipping package code is required.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      // --------------------------------------------------------
+      // Build payload dynamically
+      //
+      // facility is NOT sent to Uniware body.
+      // It is sent through the Facility header.
+      // --------------------------------------------------------
+      const payload = {
+        shippingPackageCode:
+          String(
+            shippingPackageCode
+          ).trim(),
+      };
+
+      // --------------------------------------------------------
+      // Optional boolean
+      // Preserve false when explicitly supplied.
+      // --------------------------------------------------------
+      if (
+        typeof commitBlockedInventory ===
+        "boolean"
+      ) {
+        payload.commitBlockedInventory =
+          commitBlockedInventory;
+      }
+
+      // --------------------------------------------------------
+      // Optional invoice code
+      // --------------------------------------------------------
+      if (
+        invoiceCode !== undefined &&
+        invoiceCode !== null &&
+        String(invoiceCode).trim()
+      ) {
+        payload.invoiceCode =
+          String(invoiceCode).trim();
+      }
+
+      // --------------------------------------------------------
+      // GST E-Invoice
+      // --------------------------------------------------------
+      if (
+        gstEinvoice &&
+        typeof gstEinvoice ===
+          "object"
+      ) {
+        const gst = {};
+
+        const gstFields = [
+          "irn",
+          "ackNo",
+          "ackDate",
+          "signedInvoice",
+          "signedQrCode",
+        ];
+
+        gstFields.forEach((field) => {
+          if (
+            gstEinvoice[field] !==
+              undefined &&
+            gstEinvoice[field] !==
+              null &&
+            String(
+              gstEinvoice[field]
+            ).trim()
+          ) {
+            gst[field] = String(
+              gstEinvoice[field]
+            ).trim();
+          }
+        });
+
+        if (
+          Object.keys(gst).length > 0
+        ) {
+          payload.gstEinvoice = gst;
+        }
+      }
+
+      // --------------------------------------------------------
+      // channelProductIdToTax
+      //
+      // Expected structure:
+      //
+      // {
+      //   "CHANNEL-SKU": {
+      //      channelProductId: "...",
+      //      additionalInfo: "...",
+      //      taxPercentage: 18,
+      //      centralGst: 9,
+      //      stateGst: 9,
+      //      unionTerritoryGst: 0,
+      //      integratedGst: 0,
+      //      compensationCess: 0,
+      //      customFieldValues: [...]
+      //   }
+      // }
+      // --------------------------------------------------------
+      if (
+        channelProductIdToTax &&
+        typeof channelProductIdToTax ===
+          "object" &&
+        !Array.isArray(
+          channelProductIdToTax
+        )
+      ) {
+        const taxMap = {};
+
+        for (const [
+          mapKey,
+          taxDetails,
+        ] of Object.entries(
+          channelProductIdToTax
+        )) {
+          if (
+            !taxDetails ||
+            typeof taxDetails !==
+              "object"
+          ) {
+            continue;
+          }
+
+          const channelProductId =
+            String(
+              taxDetails.channelProductId ||
+                mapKey
+            ).trim();
+
+          if (!channelProductId) {
+            continue;
+          }
+
+          const tax = {
+            channelProductId,
+          };
+
+          // ----------------------------------------------
+          // Optional string
+          // ----------------------------------------------
+          if (
+            taxDetails.additionalInfo !==
+              undefined &&
+            taxDetails.additionalInfo !==
+              null &&
+            String(
+              taxDetails.additionalInfo
+            ).trim()
+          ) {
+            tax.additionalInfo =
+              String(
+                taxDetails.additionalInfo
+              ).trim();
+          }
+
+          // ----------------------------------------------
+          // Optional numeric tax fields
+          // Preserve 0.
+          // ----------------------------------------------
+          const numericFields = [
+            "taxPercentage",
+            "centralGst",
+            "stateGst",
+            "unionTerritoryGst",
+            "integratedGst",
+            "compensationCess",
+          ];
+
+          numericFields.forEach(
+            (field) => {
+              if (
+                taxDetails[field] !==
+                  undefined &&
+                taxDetails[field] !==
+                  null &&
+                taxDetails[field] !==
+                  ""
+              ) {
+                const numberValue =
+                  Number(
+                    taxDetails[field]
+                  );
+
+                if (
+                  Number.isFinite(
+                    numberValue
+                  )
+                ) {
+                  tax[field] =
+                    numberValue;
+                }
+              }
+            }
+          );
+
+          // ----------------------------------------------
+          // Custom fields
+          // ----------------------------------------------
+          if (
+            Array.isArray(
+              taxDetails.customFieldValues
+            )
+          ) {
+            const customFields =
+              taxDetails.customFieldValues
+                .map((field) => ({
+                  name:
+                    field?.name !==
+                    undefined
+                      ? String(
+                          field.name
+                        ).trim()
+                      : "",
+                  value:
+                    field?.value !==
+                    undefined &&
+                    field?.value !== null
+                      ? String(
+                          field.value
+                        )
+                      : "",
+                }))
+                .filter(
+                  (field) =>
+                    field.name
+                );
+
+            if (
+              customFields.length > 0
+            ) {
+              tax.customFieldValues =
+                customFields;
+            }
+          }
+
+          taxMap[mapKey] = tax;
+        }
+
+        if (
+          Object.keys(taxMap).length >
+          0
+        ) {
+          payload.channelProductIdToTax =
+            taxMap;
+        }
+      }
+
+      // --------------------------------------------------------
+      // Optional skipDetailing
+      // Preserve false.
+      // --------------------------------------------------------
+      if (
+        typeof skipDetailing ===
+        "boolean"
+      ) {
+        payload.skipDetailing =
+          skipDetailing;
+      }
+
+      // --------------------------------------------------------
+      // Call Uniware
+      // --------------------------------------------------------
+      const response = await axios.post(
+        `${UNIWARE_BASE_URL}/services/rest/v1/oms/shippingPackage/createInvoice`,
+        payload,
+        {
+          headers: {
+            "Content-Type":
+              "application/json",
+            Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+            Facility:
+              String(facility).trim(),
+          },
+        }
+      );
+
+      return res
+        .status(response.status || 200)
+        .json(response.data);
+    } catch (error) {
+      console.error(
+        "Uniware Create Invoice Error:",
+        error.response?.data ||
+          error.message
+      );
+
+      return res
+        .status(
+          error.response?.status || 500
+        )
+        .json(
+          error.response?.data || {
+            successful: false,
+            message:
+              error.message ||
+              "Failed to create invoice.",
+            errors: [],
+            warnings: [],
+          }
+        );
+    }
+  }
+);
+// ============================================================
+// Uniware - Create Invoice With Sale Order Code
+// POST /api/uniware/invoices/create-by-sale-order
+// ============================================================
+
+app.post("/api/uniware/invoices/create-by-sale-order", async (req, res) => {
+  try {
+    const {
+      facility,
+      saleOrderCode,
+      saleOrderItemCodes,
+      commitBlockedInventory,
+      taxInformation,
+    } = req.body || {};
+
+    // ----------------------------------------------------------
+    // Validate Facility
+    // ----------------------------------------------------------
+    if (!facility || !String(facility).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility code is required.",
+        errors: [
+          {
+            fieldName: "facility",
+            message: "Facility code is required.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Validate Sale Order Code
+    // ----------------------------------------------------------
+    if (!saleOrderCode || !String(saleOrderCode).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Sale order code is required.",
+        errors: [
+          {
+            fieldName: "saleOrderCode",
+            message: "Sale order code is required.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Validate Sale Order Item Codes
+    // ----------------------------------------------------------
+    if (!Array.isArray(saleOrderItemCodes)) {
+      return res.status(400).json({
+        successful: false,
+        message: "saleOrderItemCodes must be an array.",
+        errors: [
+          {
+            fieldName: "saleOrderItemCodes",
+            message: "Sale order item codes must be an array.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    const cleanedSaleOrderItemCodes = saleOrderItemCodes
+      .map((code) => String(code ?? "").trim())
+      .filter(Boolean);
+
+    if (cleanedSaleOrderItemCodes.length === 0) {
+      return res.status(400).json({
+        successful: false,
+        message: "At least one sale order item code is required.",
+        errors: [
+          {
+            fieldName: "saleOrderItemCodes",
+            message: "At least one sale order item code is required.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Build payload
+    // ----------------------------------------------------------
+    const payload = {
+      saleOrderCode: String(saleOrderCode).trim(),
+      saleOrderItemCodes: cleanedSaleOrderItemCodes,
+    };
+
+    // Preserve explicit false.
+    if (typeof commitBlockedInventory === "boolean") {
+      payload.commitBlockedInventory = commitBlockedInventory;
+    }
+
+    // ----------------------------------------------------------
+    // Tax Information
+    // ----------------------------------------------------------
+    if (
+      taxInformation &&
+      typeof taxInformation === "object" &&
+      !Array.isArray(taxInformation)
+    ) {
+      if (Array.isArray(taxInformation.productTaxes)) {
+        const productTaxes = [];
+
+        for (const tax of taxInformation.productTaxes) {
+          if (!tax || typeof tax !== "object") {
+            continue;
+          }
+
+          const channelProductId = String(
+            tax.channelProductId ?? ""
+          ).trim();
+
+          if (!channelProductId) {
+            return res.status(400).json({
+              successful: false,
+              message:
+                "channelProductId is required for every product tax entry.",
+              errors: [
+                {
+                  fieldName: "taxInformation.productTaxes.channelProductId",
+                  message:
+                    "channelProductId is required for every product tax entry.",
+                },
+              ],
+              warnings: [],
+            });
+          }
+
+          const productTax = {
+            channelProductId,
+          };
+
+          // Optional string
+          if (
+            tax.additionalInfo !== undefined &&
+            tax.additionalInfo !== null &&
+            String(tax.additionalInfo).trim() !== ""
+          ) {
+            productTax.additionalInfo = String(
+              tax.additionalInfo
+            ).trim();
+          }
+
+          // Optional numeric fields.
+          const numericFields = [
+            "taxPercentage",
+            "centralGst",
+            "stateGst",
+            "unionTerritoryGst",
+            "integratedGst",
+            "compensationCess",
+          ];
+
+          for (const field of numericFields) {
+            if (
+              tax[field] !== undefined &&
+              tax[field] !== null &&
+              tax[field] !== ""
+            ) {
+              const value = Number(tax[field]);
+
+              if (!Number.isFinite(value)) {
+                return res.status(400).json({
+                  successful: false,
+                  message: `${field} must be a valid number.`,
+                  errors: [
+                    {
+                      fieldName: `taxInformation.productTaxes.${field}`,
+                      message: `${field} must be a valid number.`,
+                    },
+                  ],
+                  warnings: [],
+                });
+              }
+
+              productTax[field] = value;
+            }
+          }
+
+          // Optional custom fields
+          if (Array.isArray(tax.customFieldValues)) {
+            const customFieldValues = [];
+
+            for (const customField of tax.customFieldValues) {
+              if (!customField || typeof customField !== "object") {
+                continue;
+              }
+
+              const name = String(customField.name ?? "").trim();
+
+              if (!name) {
+                return res.status(400).json({
+                  successful: false,
+                  message:
+                    "Custom field name is required for every tax custom field.",
+                  errors: [
+                    {
+                      fieldName:
+                        "taxInformation.productTaxes.customFieldValues.name",
+                      message: "Custom field name is required.",
+                    },
+                  ],
+                  warnings: [],
+                });
+              }
+
+              const fieldValue =
+                customField.value === undefined ||
+                customField.value === null
+                  ? ""
+                  : String(customField.value);
+
+              customFieldValues.push({
+                name,
+                value: fieldValue,
+              });
+            }
+
+            if (customFieldValues.length > 0) {
+              productTax.customFieldValues = customFieldValues;
+            }
+          }
+
+          productTaxes.push(productTax);
+        }
+
+        if (productTaxes.length > 0) {
+          payload.taxInformation = {
+            productTaxes,
+          };
+        }
+      }
+    }
+
+    // ----------------------------------------------------------
+    // Call Uniware
+    // ----------------------------------------------------------
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/invoice/createInvoiceBySaleOrderCode`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          Facility: String(facility).trim(),
+        },
+      }
+    );
+
+    return res.status(response.status || 200).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Create Invoice By Sale Order Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message:
+          error.message || "Failed to create invoice by sale order code.",
+        errors: [],
+        warnings: [],
+      }
+    );
+  }
+});
+// ============================================================
+// Uniware - Create Invoice and Generate Label
+// POST /api/uniware/shipping-packages/create-invoice-label
+// ============================================================
+
+app.post(
+  "/api/uniware/shipping-packages/create-invoice-label",
+  async (req, res) => {
+    try {
+      const {
+        facility,
+        shippingPackageCode,
+        generateUniwareShippingLabel,
+      } = req.body || {};
+
+      // --------------------------------------------------------
+      // Validate Facility
+      // --------------------------------------------------------
+      if (!facility || !String(facility).trim()) {
+        return res.status(400).json({
+          successful: false,
+          message: "Facility code is required.",
+          errors: [
+            {
+              fieldName: "facility",
+              message: "Facility code is required.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate Shipping Package Code
+      // --------------------------------------------------------
+      if (
+        !shippingPackageCode ||
+        !String(shippingPackageCode).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: "Shipping package code is required.",
+          errors: [
+            {
+              fieldName: "shippingPackageCode",
+              message:
+                "Shipping package code is required.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate generateUniwareShippingLabel
+      // --------------------------------------------------------
+      if (
+        typeof generateUniwareShippingLabel !==
+        "boolean"
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "generateUniwareShippingLabel must be a boolean.",
+          errors: [
+            {
+              fieldName:
+                "generateUniwareShippingLabel",
+              message:
+                "generateUniwareShippingLabel must be true or false.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      // --------------------------------------------------------
+      // Uniware Payload
+      // --------------------------------------------------------
+      const payload = {
+        shippingPackageCode:
+          String(shippingPackageCode).trim(),
+        generateUniwareShippingLabel,
+      };
+
+      // --------------------------------------------------------
+      // Call Uniware
+      // --------------------------------------------------------
+      const response = await axios.post(
+        `${UNIWARE_BASE_URL}/services/rest/v1/oms/shippingPackage/createInvoiceAndGenerateLabel`,
+        payload,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+            Facility: String(facility).trim(),
+          },
+        }
+      );
+
+      return res
+        .status(response.status || 200)
+        .json(response.data);
+    } catch (error) {
+      console.error(
+        "Uniware Create Invoice And Generate Label Error:",
+        error.response?.data || error.message
+      );
+
+      return res.status(
+        error.response?.status || 500
+      ).json(
+        error.response?.data || {
+          successful: false,
+          message:
+            error.message ||
+            "Failed to create invoice and generate shipping label.",
+          errors: [],
+          warnings: [],
+        }
+      );
+    }
+  }
+);
+// ============================================================
+// Uniware - Create Invoice With Details
+// POST /api/uniware/invoices/create-with-details
+// ============================================================
+
+app.post(
+  "/api/uniware/invoices/create-with-details",
+  async (req, res) => {
+    try {
+      const {
+        facility,
+        saleOrderCode,
+        invoice,
+        shippingProviderCode,
+        trackingNumber,
+      } = req.body || {};
+
+      // --------------------------------------------------------
+      // Validate Facility
+      // --------------------------------------------------------
+      if (!facility || !String(facility).trim()) {
+        return res.status(400).json({
+          successful: false,
+          message: "Facility code is required.",
+          errors: [
+            {
+              fieldName: "facility",
+              message: "Facility code is required.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate Sale Order Code
+      // --------------------------------------------------------
+      if (!saleOrderCode || !String(saleOrderCode).trim()) {
+        return res.status(400).json({
+          successful: false,
+          message: "Sale order code is required.",
+          errors: [
+            {
+              fieldName: "saleOrderCode",
+              message: "Sale order code is required.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      // --------------------------------------------------------
+      // invoice is optional according to the docs.
+      // But when supplied, it must be an object.
+      // --------------------------------------------------------
+      if (
+        invoice !== undefined &&
+        invoice !== null &&
+        (typeof invoice !== "object" ||
+          Array.isArray(invoice))
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: "invoice must be an object.",
+          errors: [
+            {
+              fieldName: "invoice",
+              message: "invoice must be an object.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      // --------------------------------------------------------
+      // Build invoice object
+      // --------------------------------------------------------
+      const buildInvoice = (source) => {
+        if (!source) {
+          return undefined;
+        }
+
+        const result = {};
+
+        // String fields
+        const stringFields = [
+          "code",
+          "displayCode",
+          "channelCode",
+          "fromPartyCode",
+          "toPartyCode",
+          "destinationStateCode",
+          "destinationCountryCode",
+          "url",
+        ];
+
+        for (const field of stringFields) {
+          if (
+            source[field] !== undefined &&
+            source[field] !== null &&
+            String(source[field]).trim() !== ""
+          ) {
+            result[field] = String(
+              source[field]
+            ).trim();
+          }
+        }
+
+        // Date
+        if (
+          source.channelCreated !== undefined &&
+          source.channelCreated !== null &&
+          String(source.channelCreated).trim() !== ""
+        ) {
+          result.channelCreated =
+            source.channelCreated;
+        }
+
+        // Enum fields
+        const allowedSources = [
+          "SHIPPING_PACKAGE",
+          "PURCHASE_ORDER",
+          "GATEPASS",
+        ];
+
+        if (
+          source.source !== undefined &&
+          source.source !== null &&
+          String(source.source).trim() !== ""
+        ) {
+          const value = String(
+            source.source
+          ).trim();
+
+          if (!allowedSources.includes(value)) {
+            throw new Error(
+              `Invalid invoice.source. Allowed values: ${allowedSources.join(
+                ", "
+              )}`
+            );
+          }
+
+          result.source = value;
+        }
+
+        const allowedTypes = [
+          "SALE",
+          "PURCHASE",
+          "GATEPASS",
+          "SALE_RETURN",
+          "PURCHASE_RETURN",
+          "GATEPASS_RETURN",
+          "DELIVERY_CHALLAN",
+        ];
+
+        if (
+          source.type !== undefined &&
+          source.type !== null &&
+          String(source.type).trim() !== ""
+        ) {
+          const value = String(
+            source.type
+          ).trim();
+
+          if (!allowedTypes.includes(value)) {
+            throw new Error(
+              `Invalid invoice.type. Allowed values: ${allowedTypes.join(
+                ", "
+              )}`
+            );
+          }
+
+          result.type = value;
+        }
+
+        // Preserve explicit booleans
+        const booleanFields = [
+          "productManagementSwitchedOff",
+          "taxExempted",
+          "cformProvided",
+        ];
+
+        for (const field of booleanFields) {
+          if (typeof source[field] === "boolean") {
+            result[field] = source[field];
+          }
+        }
+
+        // ------------------------------------------------------
+        // GST e-invoice
+        // ------------------------------------------------------
+        if (
+          source.gstEinvoice &&
+          typeof source.gstEinvoice === "object" &&
+          !Array.isArray(source.gstEinvoice)
+        ) {
+          const gstEinvoice = {};
+
+          const gstFields = [
+            "irn",
+            "ackNo",
+            "ackDate",
+            "signedInvoice",
+            "signedQrCode",
+          ];
+
+          for (const field of gstFields) {
+            if (
+              source.gstEinvoice[field] !==
+                undefined &&
+              source.gstEinvoice[field] !==
+                null &&
+              String(
+                source.gstEinvoice[field]
+              ).trim() !== ""
+            ) {
+              gstEinvoice[field] = String(
+                source.gstEinvoice[field]
+              );
+            }
+          }
+
+          if (
+            Object.keys(gstEinvoice).length > 0
+          ) {
+            result.gstEinvoice = gstEinvoice;
+          }
+        }
+
+        // ------------------------------------------------------
+        // Invoice Items
+        // ------------------------------------------------------
+        if (Array.isArray(source.invoiceItems)) {
+          result.invoiceItems =
+            source.invoiceItems.map(
+              (item, itemIndex) => {
+                if (
+                  !item ||
+                  typeof item !== "object" ||
+                  Array.isArray(item)
+                ) {
+                  throw new Error(
+                    `invoiceItems[${itemIndex}] must be an object.`
+                  );
+                }
+
+                const invoiceItem = {};
+
+                // String fields
+                const itemStringFields = [
+                  "skuCode",
+                  "bundleSkuCode",
+                  "channelProductId",
+                  "sellerSkuCode",
+                  "additionalInfo",
+                  "itemDetails",
+                ];
+
+                for (const field of itemStringFields) {
+                  if (
+                    item[field] !==
+                      undefined &&
+                    item[field] !== null &&
+                    String(
+                      item[field]
+                    ).trim() !== ""
+                  ) {
+                    invoiceItem[field] =
+                      String(
+                        item[field]
+                      ).trim();
+                  }
+                }
+
+                // Sale order item codes
+                if (
+                  item.saleOrderItemCodes !==
+                  undefined
+                ) {
+                  if (
+                    !Array.isArray(
+                      item.saleOrderItemCodes
+                    )
+                  ) {
+                    throw new Error(
+                      `invoiceItems[${itemIndex}].saleOrderItemCodes must be an array.`
+                    );
+                  }
+
+                  const codes =
+                    item.saleOrderItemCodes
+                      .map((code) =>
+                        String(
+                          code ?? ""
+                        ).trim()
+                      )
+                      .filter(Boolean);
+
+                  if (codes.length > 0) {
+                    invoiceItem.saleOrderItemCodes =
+                      codes;
+                  }
+                }
+
+                // ------------------------------------------------
+                // Sale Order Items
+                // ------------------------------------------------
+                if (
+                  item.saleOrderItems !==
+                  undefined
+                ) {
+                  if (
+                    !Array.isArray(
+                      item.saleOrderItems
+                    )
+                  ) {
+                    throw new Error(
+                      `invoiceItems[${itemIndex}].saleOrderItems must be an array.`
+                    );
+                  }
+
+                  invoiceItem.saleOrderItems =
+                    item.saleOrderItems.map(
+                      (
+                        saleOrderItem,
+                        soiIndex
+                      ) => {
+                        if (
+                          !saleOrderItem ||
+                          typeof saleOrderItem !==
+                            "object" ||
+                          Array.isArray(
+                            saleOrderItem
+                          )
+                        ) {
+                          throw new Error(
+                            `invoiceItems[${itemIndex}].saleOrderItems[${soiIndex}] must be an object.`
+                          );
+                        }
+
+                        const soi = {};
+
+                        // code is mandatory when
+                        // saleOrderItems is supplied
+                        if (
+                          !saleOrderItem.code ||
+                          !String(
+                            saleOrderItem.code
+                          ).trim()
+                        ) {
+                          throw new Error(
+                            `invoiceItems[${itemIndex}].saleOrderItems[${soiIndex}].code is required.`
+                          );
+                        }
+
+                        soi.code =
+                          String(
+                            saleOrderItem.code
+                          ).trim();
+
+                        const soiStringFields = [
+                          "status",
+                          "shelfCode",
+                          "reason",
+                        ];
+
+                        for (const field of soiStringFields) {
+                          if (
+                            saleOrderItem[
+                              field
+                            ] !== undefined &&
+                            saleOrderItem[
+                              field
+                            ] !== null &&
+                            String(
+                              saleOrderItem[
+                                field
+                              ]
+                            ).trim() !== ""
+                          ) {
+                            soi[field] =
+                              String(
+                                saleOrderItem[
+                                  field
+                                ]
+                              ).trim();
+                          }
+                        }
+
+                        return soi;
+                      }
+                    );
+                }
+
+                // ------------------------------------------------
+                // Numeric invoice item fields
+                // ------------------------------------------------
+                const numericFields = [
+                  "unitPrice",
+                  "subtotal",
+                  "discount",
+                  "shippingCharges",
+                  "cashOnDeliveryCharges",
+                  "shippingMethodCharges",
+                  "total",
+                  "prepaidAmount",
+                  "voucherValue",
+                  "serviceTax",
+                  "additionalTax",
+                  "giftWrapCharges",
+                  "storeCredit",
+                  "quantity",
+                ];
+
+                for (const field of numericFields) {
+                  if (
+                    item[field] !==
+                      undefined &&
+                    item[field] !== null &&
+                    item[field] !== ""
+                  ) {
+                    const value = Number(
+                      item[field]
+                    );
+
+                    if (
+                      !Number.isFinite(value)
+                    ) {
+                      throw new Error(
+                        `invoiceItems[${itemIndex}].${field} must be a valid number.`
+                      );
+                    }
+
+                    invoiceItem[field] =
+                      value;
+                  }
+                }
+
+                // ------------------------------------------------
+                // taxPercentageDetail
+                // ------------------------------------------------
+                if (
+                  item.taxPercentageDetail &&
+                  typeof item.taxPercentageDetail ===
+                    "object" &&
+                  !Array.isArray(
+                    item.taxPercentageDetail
+                  )
+                ) {
+                  const tax =
+                    item.taxPercentageDetail;
+
+                  const taxDetail = {};
+
+                  if (
+                    tax.taxTypeCode !==
+                      undefined &&
+                    tax.taxTypeCode !==
+                      null &&
+                    String(
+                      tax.taxTypeCode
+                    ).trim() !== ""
+                  ) {
+                    taxDetail.taxTypeCode =
+                      String(
+                        tax.taxTypeCode
+                      ).trim();
+                  }
+
+                  const taxNumericFields = [
+                    "vat",
+                    "cst",
+                    "cstFormc",
+                    "taxPercentage",
+                    "serviceTax",
+                    "additionalTax",
+                    "centralGst",
+                    "stateGst",
+                    "unionTerritoryGst",
+                    "integratedGst",
+                    "compensationCess",
+                  ];
+
+                  for (const field of taxNumericFields) {
+                    if (
+                      tax[field] !==
+                        undefined &&
+                      tax[field] !== null &&
+                      tax[field] !== ""
+                    ) {
+                      const value = Number(
+                        tax[field]
+                      );
+
+                      if (
+                        !Number.isFinite(
+                          value
+                        )
+                      ) {
+                        throw new Error(
+                          `invoiceItems[${itemIndex}].taxPercentageDetail.${field} must be a valid number.`
+                        );
+                      }
+
+                      taxDetail[field] =
+                        value;
+                    }
+                  }
+
+                  if (
+                    Object.keys(taxDetail)
+                      .length > 0
+                  ) {
+                    invoiceItem.taxPercentageDetail =
+                      taxDetail;
+                  }
+                }
+
+                // ------------------------------------------------
+                // Invoice item custom fields
+                // ------------------------------------------------
+                if (
+                  Array.isArray(
+                    item.customFieldValues
+                  )
+                ) {
+                  const customFields = [];
+
+                  for (
+                    const field of item.customFieldValues
+                  ) {
+                    if (
+                      !field ||
+                      typeof field !==
+                        "object"
+                    ) {
+                      continue;
+                    }
+
+                    const name = String(
+                      field.name ?? ""
+                    ).trim();
+
+                    if (!name) {
+                      throw new Error(
+                        `invoiceItems[${itemIndex}].customFieldValues.name is required.`
+                      );
+                    }
+
+                    customFields.push({
+                      name,
+                      value:
+                        field.value ===
+                          undefined ||
+                        field.value === null
+                          ? ""
+                          : String(
+                              field.value
+                            ),
+                    });
+                  }
+
+                  if (
+                    customFields.length > 0
+                  ) {
+                    invoiceItem.customFieldValues =
+                      customFields;
+                  }
+                }
+
+                // ------------------------------------------------
+                // total is mandatory
+                // quantity is mandatory
+                // ------------------------------------------------
+                if (
+                  item.total === undefined ||
+                  item.total === null ||
+                  item.total === ""
+                ) {
+                  throw new Error(
+                    `invoiceItems[${itemIndex}].total is required.`
+                  );
+                }
+
+                if (
+                  item.quantity ===
+                    undefined ||
+                  item.quantity === null ||
+                  item.quantity === ""
+                ) {
+                  throw new Error(
+                    `invoiceItems[${itemIndex}].quantity is required.`
+                  );
+                }
+
+                return invoiceItem;
+              }
+            );
+        }
+
+        return result;
+      };
+
+      let invoicePayload;
+
+      try {
+        invoicePayload =
+          buildInvoice(invoice);
+      } catch (validationError) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            validationError.message,
+          errors: [
+            {
+              fieldName: "invoice",
+              message:
+                validationError.message,
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      // --------------------------------------------------------
+      // Final Uniware payload
+      // --------------------------------------------------------
+      const payload = {
+        saleOrderCode:
+          String(saleOrderCode).trim(),
+      };
+
+      if (invoicePayload) {
+        payload.invoice = invoicePayload;
+      }
+
+      if (
+        shippingProviderCode !==
+          undefined &&
+        shippingProviderCode !== null &&
+        String(shippingProviderCode).trim() !==
+          ""
+      ) {
+        payload.shippingProviderCode =
+          String(
+            shippingProviderCode
+          ).trim();
+      }
+
+      if (
+        trackingNumber !== undefined &&
+        trackingNumber !== null &&
+        String(trackingNumber).trim() !== ""
+      ) {
+        payload.trackingNumber =
+          String(trackingNumber).trim();
+      }
+
+      // --------------------------------------------------------
+      // Call Uniware
+      // --------------------------------------------------------
+      const response = await axios.post(
+        `${UNIWARE_BASE_URL}/services/rest/v1/createInvoiceWithDetails`,
+        payload,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+            Facility: String(facility).trim(),
+          },
+        }
+      );
+
+      return res
+        .status(response.status || 200)
+        .json(response.data);
+    } catch (error) {
+      console.error(
+        "Uniware Create Invoice With Details Error:",
+        error.response?.data ||
+          error.message
+      );
+
+      return res
+        .status(
+          error.response?.status || 500
+        )
+        .json(
+          error.response?.data || {
+            successful: false,
+            message:
+              error.message ||
+              "Failed to create invoice with details.",
+            errors: [],
+            warnings: [],
+          }
+        );
+    }
+  }
+);
+app.post("/api/uniware/invoices/create-by-sale-order", async (req, res) => {
+  try {
+    const {
+      facility,
+      saleOrderCode,
+      saleOrderItemCodes,
+      commitBlockedInventory,
+      taxInformation,
+    } = req.body || {};
+
+    if (!facility || !String(facility).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility is required.",
+        errors: [
+          {
+            fieldName: "facility",
+            message: "Facility is required.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    if (!saleOrderCode || !String(saleOrderCode).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Sale order code is required.",
+        errors: [
+          {
+            fieldName: "saleOrderCode",
+            message: "Sale order code is required.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    if (
+      !Array.isArray(saleOrderItemCodes) ||
+      saleOrderItemCodes.length === 0
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "At least one sale order item code is required.",
+        errors: [
+          {
+            fieldName: "saleOrderItemCodes",
+            message: "At least one sale order item code is required.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    const itemCodes = saleOrderItemCodes
+      .map((code) => String(code || "").trim())
+      .filter(Boolean);
+
+    if (itemCodes.length === 0) {
+      return res.status(400).json({
+        successful: false,
+        message: "At least one valid sale order item code is required.",
+        errors: [
+          {
+            fieldName: "saleOrderItemCodes",
+            message: "At least one valid sale order item code is required.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    const payload = {
+      saleOrderCode: String(saleOrderCode).trim(),
+      saleOrderItemCodes: itemCodes,
+    };
+
+    if (typeof commitBlockedInventory === "boolean") {
+      payload.commitBlockedInventory = commitBlockedInventory;
+    }
+
+    if (taxInformation && typeof taxInformation === "object") {
+      if (
+        Array.isArray(taxInformation.productTaxes) &&
+        taxInformation.productTaxes.length > 0
+      ) {
+        const productTaxes = taxInformation.productTaxes.map((tax) => {
+          const item = {};
+
+          if (tax.channelProductId !== undefined) {
+            item.channelProductId = String(tax.channelProductId).trim();
+          }
+
+          if (tax.additionalInfo !== undefined && String(tax.additionalInfo).trim()) {
+            item.additionalInfo = String(tax.additionalInfo).trim();
+          }
+
+          const numericFields = [
+            "taxPercentage",
+            "centralGst",
+            "stateGst",
+            "unionTerritoryGst",
+            "integratedGst",
+            "compensationCess",
+          ];
+
+          numericFields.forEach((field) => {
+            if (
+              tax[field] !== undefined &&
+              tax[field] !== null &&
+              tax[field] !== ""
+            ) {
+              const value = Number(tax[field]);
+
+              if (Number.isFinite(value)) {
+                item[field] = value;
+              }
+            }
+          });
+
+          if (Array.isArray(tax.customFieldValues)) {
+            const customFields = tax.customFieldValues
+              .map((field) => {
+                if (!field?.name || !String(field.name).trim()) {
+                  return null;
+                }
+
+                const result = {
+                  name: String(field.name).trim(),
+                };
+
+                if (
+                  field.value !== undefined &&
+                  field.value !== null &&
+                  String(field.value).trim() !== ""
+                ) {
+                  result.value = String(field.value);
+                }
+
+                return result;
+              })
+              .filter(Boolean);
+
+            if (customFields.length > 0) {
+              item.customFieldValues = customFields;
+            }
+          }
+
+          return item;
+        });
+
+        payload.taxInformation = {
+          productTaxes,
+        };
+      }
+    }
+
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/invoice/createInvoiceBySaleOrderCode`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          Facility: String(facility).trim(),
+        },
+      }
+    );
+
+    return res.status(response.status || 200).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Create Invoice By Sale Order Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message: error.message || "Failed to create invoice.",
+        errors: [],
+        warnings: [],
+      }
+    );
+  }
+});
+app.post(
+  "/api/uniware/shipping-packages/create-invoice-label",
+  async (req, res) => {
+    try {
+      const {
+        facility,
+        shippingPackageCode,
+        generateUniwareShippingLabel,
+      } = req.body || {};
+
+      if (!facility || !String(facility).trim()) {
+        return res.status(400).json({
+          successful: false,
+          message: "Facility is required.",
+          errors: [
+            {
+              fieldName: "facility",
+              message: "Facility is required.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      if (
+        !shippingPackageCode ||
+        !String(shippingPackageCode).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: "Shipping package code is required.",
+          errors: [
+            {
+              fieldName: "shippingPackageCode",
+              message: "Shipping package code is required.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      if (typeof generateUniwareShippingLabel !== "boolean") {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "generateUniwareShippingLabel must be a boolean.",
+          errors: [
+            {
+              fieldName: "generateUniwareShippingLabel",
+              message:
+                "generateUniwareShippingLabel must be a boolean.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      const payload = {
+        shippingPackageCode: String(
+          shippingPackageCode
+        ).trim(),
+        generateUniwareShippingLabel,
+      };
+
+      const response = await axios.post(
+        `${UNIWARE_BASE_URL}/services/rest/v1/oms/shippingPackage/createInvoiceAndGenerateLabel`,
+        payload,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+            Facility: String(facility).trim(),
+          },
+        }
+      );
+
+      return res.status(response.status || 200).json(response.data);
+    } catch (error) {
+      console.error(
+        "Uniware Create Invoice And Label Error:",
+        error.response?.data || error.message
+      );
+
+      return res.status(error.response?.status || 500).json(
+        error.response?.data || {
+          successful: false,
+          message:
+            error.message ||
+            "Failed to create invoice and generate label.",
+          errors: [],
+          warnings: [],
+        }
+      );
+    }
+  }
+);
+app.get("/api/uniware/invoices/pdf", async (req, res) => {
+  try {
+    const { facility, invoiceCodes } = req.query;
+
+    if (!facility || !String(facility).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility is required.",
+        errors: [
+          {
+            fieldName: "facility",
+            message: "Facility is required.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    if (!invoiceCodes || !String(invoiceCodes).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Invoice code is required.",
+        errors: [
+          {
+            fieldName: "invoiceCodes",
+            message: "Invoice code is required.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    const invoiceCode = String(invoiceCodes).trim();
+
+    const response = await axios.get(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/invoice/show`,
+      {
+        params: {
+          invoiceCodes: invoiceCode,
+        },
+        headers: {
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          Facility: String(facility).trim(),
+        },
+        responseType: "arraybuffer",
+      }
+    );
+
+    res.status(response.status || 200);
+
+    res.set({
+      "Content-Type":
+        response.headers["content-type"] ||
+        "application/pdf",
+      "Content-Disposition": `inline; filename="${invoiceCode}.pdf"`,
+    });
+
+    return res.send(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Get Invoice PDF Error:",
+      error.response?.data || error.message
+    );
+
+    const statusCode = error.response?.status || 500;
+
+    // Uniware errors may come back as JSON instead of PDF.
+    if (error.response?.data) {
+      try {
+        const contentType =
+          error.response.headers?.["content-type"] || "";
+
+        if (contentType.includes("application/json")) {
+          const errorText = Buffer.from(
+            error.response.data
+          ).toString("utf8");
+
+          return res
+            .status(statusCode)
+            .type("application/json")
+            .send(errorText);
+        }
+      } catch {
+        // Fall through to generic error response.
+      }
+    }
+
+    return res.status(statusCode).json({
+      successful: false,
+      message:
+        error.message ||
+        "Failed to fetch invoice PDF.",
+      errors: [],
+      warnings: [],
+    });
+  }
+});
+// ============================================================
+// UNIWARE - GET INVOICE LABEL
+// POST /services/rest/v1/oms/shippingPackage/getInvoiceLabel
+// ============================================================
+
+app.post("/api/uniware/shipping-packages/get-invoice-label", async (req, res) => {
+  try {
+    const { facility, shippingPackageCode } = req.body || {};
+
+    if (!facility || !String(facility).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility code is required.",
+      });
+    }
+
+    if (
+      !shippingPackageCode ||
+      !String(shippingPackageCode).trim()
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "Shipping package code is required.",
+      });
+    }
+
+    const payload = {
+      shippingPackageCode: String(shippingPackageCode).trim(),
+    };
+
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/shippingPackage/getInvoiceLabel`,
+      payload,
+      {
+        headers: {
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          "Content-Type": "application/json",
+          Facility: String(facility).trim(),
+        },
+      }
+    );
+
+    const data = response.data || {};
+
+    return res.status(response.status || 200).json(data);
+  } catch (error) {
+    console.error(
+      "Uniware Get Invoice Label Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status || 500).json(
+        error.response.data || {
+          successful: false,
+          message: "Uniware returned an error.",
+        }
+      );
+    }
+
+    return res.status(500).json({
+      successful: false,
+      message: error.message || "Failed to get invoice label.",
+    });
+  }
+});
+// ============================================================
+// UNIWARE - GET SHIPPING LABEL PDF
+// GET /services/rest/v1/oms/shipment/show
+// ============================================================
+
+app.get("/api/uniware/shipping-packages/shipping-label-pdf", async (req, res) => {
+  try {
+    const { facility, shippingPackageCodes } = req.query;
+
+    if (!facility || !String(facility).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility code is required.",
+      });
+    }
+
+    if (
+      !shippingPackageCodes ||
+      !String(shippingPackageCodes).trim()
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "Shipping package code is required.",
+      });
+    }
+
+    const shippingPackageCode = String(shippingPackageCodes).trim();
+
+    const response = await axios.get(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/shipment/show`,
+      {
+        params: {
+          shippingPackageCodes: shippingPackageCode,
+        },
+        headers: {
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          "Content-Type": "application/json",
+          Facility: String(facility).trim(),
+        },
+        responseType: "arraybuffer",
+      }
+    );
+
+    res.set({
+      "Content-Type":
+        response.headers["content-type"] || "application/pdf",
+      "Content-Disposition": `inline; filename="${shippingPackageCode}-shipping-label.pdf"`,
+    });
+
+    return res.send(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Get Shipping Label PDF Error:",
+      error.response?.data || error.message
+    );
+
+    const contentType =
+      error.response?.headers?.["content-type"] || "";
+
+    // If Uniware returned JSON error data
+    if (
+      error.response?.data &&
+      contentType.includes("application/json")
+    ) {
+      let errorData = error.response.data;
+
+      try {
+        if (Buffer.isBuffer(errorData)) {
+          errorData = JSON.parse(errorData.toString("utf8"));
+        } else if (typeof errorData === "string") {
+          errorData = JSON.parse(errorData);
+        }
+      } catch {
+        // Keep original errorData
+      }
+
+      return res.status(error.response.status || 500).json(
+        errorData || {
+          successful: false,
+          message: "Uniware returned an error.",
+        }
+      );
+    }
+
+    return res.status(error.response?.status || 500).json({
+      successful: false,
+      message:
+        error.message || "Failed to get shipping label PDF.",
+    });
+  }
+});
+// ============================================================
+// UNIWARE - CHECK SERVICEABILITY
+// POST /services/rest/v1/oms/saleOrder/getServiceability
+// Level: Tenant
+// ============================================================
+
+app.post("/api/uniware/sale-orders/serviceability", async (req, res) => {
+  try {
+    const { pincode, cashOnDelivery } = req.body || {};
+
+    // --------------------------------------------------------
+    // Validate pincode
+    // --------------------------------------------------------
+    if (!pincode || !String(pincode).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Pincode is required.",
+      });
+    }
+
+    const normalizedPincode = String(pincode).trim();
+
+    if (!/^\d{6,}$/.test(normalizedPincode)) {
+      return res.status(400).json({
+        successful: false,
+        message: "Pincode must contain at least 6 digits.",
+      });
+    }
+
+    // --------------------------------------------------------
+    // Validate cashOnDelivery
+    // --------------------------------------------------------
+    if (typeof cashOnDelivery !== "boolean") {
+      return res.status(400).json({
+        successful: false,
+        message: "cashOnDelivery must be a boolean.",
+      });
+    }
+
+    // --------------------------------------------------------
+    // Uniware request payload
+    // --------------------------------------------------------
+    const payload = {
+      pincode: normalizedPincode,
+      cashOnDelivery,
+    };
+
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/saleOrder/getServiceability`,
+      payload,
+      {
+        headers: {
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    return res.status(response.status || 200).json(
+      response.data || {}
+    );
+  } catch (error) {
+    console.error(
+      "Uniware Check Serviceability Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status || 500).json(
+        error.response.data || {
+          successful: false,
+          message: "Uniware returned an error.",
+        }
+      );
+    }
+
+    return res.status(500).json({
+      successful: false,
+      message:
+        error.message || "Failed to check serviceability.",
+    });
+  }
+});
 // ================= SERVER START =================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
