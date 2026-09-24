@@ -7556,6 +7556,1933 @@ app.post("/api/uniware/sale-orders/set-priority", async (req, res) => {
     );
   }
 });
+
+// ==========================================
+// UNIWARE - VERIFY SALE ORDER
+// ==========================================
+app.post("/api/uniware/sale-orders/verify", async (req, res) => {
+  try {
+    const { saleOrderCode } = req.body;
+
+    // Validate Sale Order Code
+    if (!saleOrderCode || !saleOrderCode.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Sale order code is required.",
+      });
+    }
+
+    const payload = {
+      saleOrderCode: saleOrderCode.trim(),
+    };
+
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/saleOrder/verify`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Verify Sale Order Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message: error.message || "Failed to verify sale order.",
+      }
+    );
+  }
+});
+
+// ==========================================
+// UNIWARE - SEARCH SALE ORDERS
+// ==========================================
+app.post("/api/uniware/sale-orders/search", async (req, res) => {
+  try {
+    const {
+      displayOrderCode,
+      status,
+      channel,
+      customerEmailOrMobile,
+      customerName,
+      cashOnDelivery,
+      fromDate,
+      toDate,
+      dateType,
+      facilityCodes,
+      returnStatuses,
+      searchOptions,
+      updatedSinceInMinutes,
+      onHold,
+    } = req.body;
+
+    const payload = {};
+
+    // ------------------------------------------
+    // Basic filters
+    // ------------------------------------------
+    if (
+      typeof displayOrderCode === "string" &&
+      displayOrderCode.trim()
+    ) {
+      payload.displayOrderCode = displayOrderCode.trim();
+    }
+
+    if (typeof status === "string" && status.trim()) {
+      payload.status = status.trim();
+    }
+
+    if (typeof channel === "string" && channel.trim()) {
+      payload.channel = channel.trim();
+    }
+
+    if (
+      typeof customerEmailOrMobile === "string" &&
+      customerEmailOrMobile.trim()
+    ) {
+      payload.customerEmailOrMobile =
+        customerEmailOrMobile.trim();
+    }
+
+    if (
+      typeof customerName === "string" &&
+      customerName.trim()
+    ) {
+      payload.customerName = customerName.trim();
+    }
+
+    // Preserve false because false is meaningful.
+    if (typeof cashOnDelivery === "boolean") {
+      payload.cashOnDelivery = cashOnDelivery;
+    }
+
+    if (typeof onHold === "boolean") {
+      payload.onHold = onHold;
+    }
+
+    // ------------------------------------------
+    // Date filters
+    // ------------------------------------------
+    if (typeof fromDate === "string" && fromDate.trim()) {
+      payload.fromDate = fromDate.trim();
+    }
+
+    if (typeof toDate === "string" && toDate.trim()) {
+      payload.toDate = toDate.trim();
+    }
+
+    if (typeof dateType === "string" && dateType.trim()) {
+      const allowedDateTypes = [
+        "CREATED",
+        "UPDATED",
+        "FULFILLMENT_TAT",
+      ];
+
+      const normalizedDateType = dateType.trim().toUpperCase();
+
+      if (!allowedDateTypes.includes(normalizedDateType)) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "Invalid dateType. Allowed values: CREATED, UPDATED, FULFILLMENT_TAT.",
+        });
+      }
+
+      payload.dateType = normalizedDateType;
+    }
+
+    // ------------------------------------------
+    // Facility codes
+    // ------------------------------------------
+    if (Array.isArray(facilityCodes)) {
+      const cleanedFacilities = facilityCodes
+        .map((item) => String(item).trim())
+        .filter(Boolean);
+
+      if (cleanedFacilities.length > 0) {
+        payload.facilityCodes = cleanedFacilities;
+      }
+    }
+
+    // ------------------------------------------
+    // Return statuses
+    // ------------------------------------------
+    if (Array.isArray(returnStatuses)) {
+      const cleanedReturnStatuses = returnStatuses
+        .map((item) => String(item).trim())
+        .filter(Boolean);
+
+      if (cleanedReturnStatuses.length > 0) {
+        payload.returnStatuses = cleanedReturnStatuses;
+      }
+    }
+
+    // ------------------------------------------
+    // Updated since minutes
+    // ------------------------------------------
+    if (
+      updatedSinceInMinutes !== undefined &&
+      updatedSinceInMinutes !== null &&
+      updatedSinceInMinutes !== ""
+    ) {
+      const minutes = Number(updatedSinceInMinutes);
+
+      if (!Number.isInteger(minutes) || minutes < 0) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "updatedSinceInMinutes must be a non-negative integer.",
+        });
+      }
+
+      payload.updatedSinceInMinutes = minutes;
+    }
+
+    // ------------------------------------------
+    // Search options
+    // ------------------------------------------
+    if (
+      searchOptions &&
+      typeof searchOptions === "object" &&
+      !Array.isArray(searchOptions)
+    ) {
+      const options = {};
+
+      if (
+        typeof searchOptions.searchKey === "string" &&
+        searchOptions.searchKey.trim()
+      ) {
+        options.searchKey = searchOptions.searchKey.trim();
+      }
+
+      const integerFields = [
+        "displayLength",
+        "displayStart",
+        "columns",
+        "sortingCols",
+        "sortColumnIndex",
+      ];
+
+      for (const field of integerFields) {
+        if (
+          searchOptions[field] !== undefined &&
+          searchOptions[field] !== null &&
+          searchOptions[field] !== ""
+        ) {
+          const value = Number(searchOptions[field]);
+
+          if (!Number.isInteger(value) || value < 0) {
+            return res.status(400).json({
+              successful: false,
+              message: `${field} must be a non-negative integer.`,
+            });
+          }
+
+          options[field] = value;
+        }
+      }
+
+      if (
+        typeof searchOptions.sortDirection === "string" &&
+        searchOptions.sortDirection.trim()
+      ) {
+        options.sortDirection =
+          searchOptions.sortDirection.trim();
+      }
+
+      if (
+        typeof searchOptions.columnNames === "string" &&
+        searchOptions.columnNames.trim()
+      ) {
+        options.columnNames =
+          searchOptions.columnNames.trim();
+      }
+
+      if (typeof searchOptions.getCount === "boolean") {
+        options.getCount = searchOptions.getCount;
+      }
+
+      if (Object.keys(options).length > 0) {
+        payload.searchOptions = options;
+      }
+    }
+
+    // ------------------------------------------
+    // Uniware API call
+    // ------------------------------------------
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/saleOrder/search`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Search Sale Orders Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message:
+          error.message || "Failed to search sale orders.",
+      }
+    );
+  }
+});
+
+// ==========================================
+// UNIWARE - UPDATE SALE ORDER ADDRESS
+// ==========================================
+app.post("/api/uniware/sale-orders/update", async (req, res) => {
+  try {
+    const { saleOrderAddress } = req.body;
+
+    // ------------------------------------------
+    // Validate root object
+    // ------------------------------------------
+    if (
+      !saleOrderAddress ||
+      typeof saleOrderAddress !== "object" ||
+      Array.isArray(saleOrderAddress)
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "saleOrderAddress is required.",
+      });
+    }
+
+    // ------------------------------------------
+    // Validate sale order code
+    // ------------------------------------------
+    if (
+      !saleOrderAddress.saleOrderCode ||
+      !String(saleOrderAddress.saleOrderCode).trim()
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "Sale order code is required.",
+      });
+    }
+
+    // ------------------------------------------
+    // Validate addresses
+    // ------------------------------------------
+    if (!Array.isArray(saleOrderAddress.addresses)) {
+      return res.status(400).json({
+        successful: false,
+        message: "addresses must be an array.",
+      });
+    }
+
+    if (saleOrderAddress.addresses.length === 0) {
+      return res.status(400).json({
+        successful: false,
+        message: "At least one address is required.",
+      });
+    }
+
+    // ------------------------------------------
+    // Validate each address
+    // ------------------------------------------
+    const cleanedAddresses =
+      saleOrderAddress.addresses.map((address, index) => {
+        if (!address || typeof address !== "object") {
+          throw new Error(
+            `Address at index ${index} must be an object.`
+          );
+        }
+
+        const requiredFields = [
+          "id",
+          "name",
+          "addressLine1",
+          "city",
+          "state",
+          "phone",
+        ];
+
+        for (const field of requiredFields) {
+          if (
+            address[field] === undefined ||
+            address[field] === null ||
+            String(address[field]).trim() === ""
+          ) {
+            throw new Error(
+              `${field} is required for address ${index + 1}.`
+            );
+          }
+        }
+
+        if (String(address.name).length > 100) {
+          throw new Error(
+            `Address ${index + 1}: name cannot exceed 100 characters.`
+          );
+        }
+
+        if (String(address.addressLine1).length > 500) {
+          throw new Error(
+            `Address ${index + 1}: addressLine1 cannot exceed 500 characters.`
+          );
+        }
+
+        if (String(address.city).length > 100) {
+          throw new Error(
+            `Address ${index + 1}: city cannot exceed 100 characters.`
+          );
+        }
+
+        if (String(address.state).length > 45) {
+          throw new Error(
+            `Address ${index + 1}: state cannot exceed 45 characters.`
+          );
+        }
+
+        if (
+          address.pincode !== undefined &&
+          address.pincode !== null &&
+          String(address.pincode).trim()
+        ) {
+          const pincode = String(address.pincode).trim();
+
+          if (pincode.length < 6) {
+            throw new Error(
+              `Address ${index + 1}: pincode must contain at least 6 digits.`
+            );
+          }
+        }
+
+        const cleaned = {
+          id: String(address.id).trim(),
+          name: String(address.name).trim(),
+          addressLine1: String(address.addressLine1).trim(),
+          city: String(address.city).trim(),
+          state: String(address.state).trim(),
+          phone: String(address.phone).trim(),
+        };
+
+        // Optional fields
+        if (
+          address.addressLine2 !== undefined &&
+          address.addressLine2 !== null &&
+          String(address.addressLine2).trim()
+        ) {
+          cleaned.addressLine2 =
+            String(address.addressLine2).trim();
+        }
+
+        if (
+          address.country !== undefined &&
+          address.country !== null &&
+          String(address.country).trim()
+        ) {
+          cleaned.country =
+            String(address.country).trim();
+        }
+
+        if (
+          address.pincode !== undefined &&
+          address.pincode !== null &&
+          String(address.pincode).trim()
+        ) {
+          cleaned.pincode =
+            String(address.pincode).trim();
+        }
+
+        if (
+          address.email !== undefined &&
+          address.email !== null &&
+          String(address.email).trim()
+        ) {
+          cleaned.email =
+            String(address.email).trim();
+        }
+
+        return cleaned;
+      });
+
+    // ------------------------------------------
+    // Build Uniware payload
+    // ------------------------------------------
+    const payload = {
+      saleOrderAddress: {
+        saleOrderCode:
+          String(saleOrderAddress.saleOrderCode).trim(),
+
+        addresses: cleanedAddresses,
+      },
+    };
+
+    // ------------------------------------------
+    // Billing address
+    // ------------------------------------------
+    if (
+      saleOrderAddress.billingAddress &&
+      typeof saleOrderAddress.billingAddress === "object" &&
+      saleOrderAddress.billingAddress.referenceId
+    ) {
+      payload.saleOrderAddress.billingAddress = {
+        referenceId: String(
+          saleOrderAddress.billingAddress.referenceId
+        ).trim(),
+      };
+    }
+
+    // ------------------------------------------
+    // Shipping address
+    // ------------------------------------------
+    if (
+      saleOrderAddress.shippingAddress &&
+      typeof saleOrderAddress.shippingAddress === "object" &&
+      saleOrderAddress.shippingAddress.referenceId
+    ) {
+      payload.saleOrderAddress.shippingAddress = {
+        referenceId: String(
+          saleOrderAddress.shippingAddress.referenceId
+        ).trim(),
+      };
+    }
+
+    // ------------------------------------------
+    // Item-level shipping addresses
+    // ------------------------------------------
+    if (
+      Array.isArray(
+        saleOrderAddress.saleOrderAddressItems
+      ) &&
+      saleOrderAddress.saleOrderAddressItems.length > 0
+    ) {
+      payload.saleOrderAddress.saleOrderAddressItems =
+        saleOrderAddress.saleOrderAddressItems.map(
+          (item, index) => {
+            if (
+              !item ||
+              !item.saleOrderItemCode ||
+              !item.shippingAddress ||
+              !item.shippingAddress.referenceId
+            ) {
+              throw new Error(
+                `Invalid saleOrderAddressItems entry at index ${index}.`
+              );
+            }
+
+            return {
+              saleOrderItemCode: String(
+                item.saleOrderItemCode
+              ).trim(),
+
+              shippingAddress: {
+                referenceId: String(
+                  item.shippingAddress.referenceId
+                ).trim(),
+              },
+            };
+          }
+        );
+    }
+
+    // ------------------------------------------
+    // Call Uniware
+    // ------------------------------------------
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/saleOrder/edit`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Update Sale Order Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message:
+          error.message || "Failed to update sale order.",
+      }
+    );
+  }
+});
+
+// ============================================================
+// UNIWARE - UPDATE SALE ORDER METADATA
+// POST /api/uniware/sale-orders/update-metadata
+// ============================================================
+
+app.post("/api/uniware/sale-orders/update-metadata", async (req, res) => {
+  try {
+    const {
+      saleOrderCode,
+      priority,
+      customFieldValues,
+    } = req.body || {};
+
+    // -----------------------------
+    // Validation
+    // -----------------------------
+    if (!saleOrderCode || !String(saleOrderCode).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Sale order code is required.",
+        errors: [
+          {
+            fieldName: "saleOrderCode",
+            message: "Sale order code is required.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // Priority is optional, but if supplied it must be an integer.
+    if (
+      priority !== undefined &&
+      priority !== null &&
+      priority !== "" &&
+      !Number.isInteger(Number(priority))
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "Priority must be an integer.",
+        errors: [
+          {
+            fieldName: "priority",
+            message: "Priority must be an integer.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // Validate custom fields if supplied
+    if (customFieldValues !== undefined && customFieldValues !== null) {
+      if (!Array.isArray(customFieldValues)) {
+        return res.status(400).json({
+          successful: false,
+          message: "customFieldValues must be an array.",
+          errors: [
+            {
+              fieldName: "customFieldValues",
+              message: "customFieldValues must be an array.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      for (let i = 0; i < customFieldValues.length; i++) {
+        const field = customFieldValues[i];
+
+        if (!field || !String(field.name || "").trim()) {
+          return res.status(400).json({
+            successful: false,
+            message: `Custom field name is required at index ${i}.`,
+            errors: [
+              {
+                fieldName: `customFieldValues[${i}].name`,
+                message: "Custom field name is required.",
+              },
+            ],
+            warnings: [],
+          });
+        }
+      }
+    }
+
+    // -----------------------------
+    // Build Uniware payload
+    // -----------------------------
+    const payload = {
+      saleOrderCode: String(saleOrderCode).trim(),
+    };
+
+    // Preserve priority = 0
+    if (priority !== undefined && priority !== null && priority !== "") {
+      payload.priority = Number(priority);
+    }
+
+    // Custom fields are optional
+    if (Array.isArray(customFieldValues)) {
+      payload.customFieldValues = customFieldValues
+        .filter((field) => field && String(field.name || "").trim())
+        .map((field) => {
+          const customField = {
+            name: String(field.name).trim(),
+          };
+
+          // Value is optional
+          if (
+            field.value !== undefined &&
+            field.value !== null &&
+            field.value !== ""
+          ) {
+            customField.value = String(field.value);
+          }
+
+          return customField;
+        });
+    }
+
+    // -----------------------------
+    // Call Uniware
+    // Tenant-level API
+    // NO Facility header
+    // -----------------------------
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/saleOrder/editSaleOrderMetadata`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+        },
+      }
+    );
+
+    return res.status(response.status || 200).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Update Sale Order Metadata Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message: error.message || "Failed to update sale order metadata.",
+        errors: [],
+        warnings: [],
+      }
+    );
+  }
+});
+
+// ============================================================
+// UNIWARE - UPDATE SALE ORDER ITEM METADATA
+// POST /api/uniware/sale-orders/update-item-metadata
+// ============================================================
+
+app.post(
+  "/api/uniware/sale-orders/update-item-metadata",
+  async (req, res) => {
+    try {
+      const {
+        saleOrderCode,
+        saleOrderItemCode,
+        customFieldValues,
+      } = req.body || {};
+
+      // --------------------------------------------------------
+      // Validate Sale Order Code
+      // --------------------------------------------------------
+      if (!saleOrderCode || !String(saleOrderCode).trim()) {
+        return res.status(400).json({
+          successful: false,
+          message: "Sale order code is required.",
+          errors: [
+            {
+              fieldName: "saleOrderCode",
+              message: "Sale order code is required.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate Sale Order Item Code
+      // --------------------------------------------------------
+      if (
+        !saleOrderItemCode ||
+        !String(saleOrderItemCode).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: "Sale order item code is required.",
+          errors: [
+            {
+              fieldName: "saleOrderItemCode",
+              message: "Sale order item code is required.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate Custom Fields
+      // --------------------------------------------------------
+      if (
+        customFieldValues !== undefined &&
+        customFieldValues !== null
+      ) {
+        if (!Array.isArray(customFieldValues)) {
+          return res.status(400).json({
+            successful: false,
+            message: "customFieldValues must be an array.",
+            errors: [
+              {
+                fieldName: "customFieldValues",
+                message: "customFieldValues must be an array.",
+              },
+            ],
+            warnings: [],
+          });
+        }
+
+        for (let i = 0; i < customFieldValues.length; i++) {
+          const field = customFieldValues[i];
+
+          if (!field || !String(field.name || "").trim()) {
+            return res.status(400).json({
+              successful: false,
+              message: `Custom field name is required at index ${i}.`,
+              errors: [
+                {
+                  fieldName: `customFieldValues[${i}].name`,
+                  message: "Custom field name is required.",
+                },
+              ],
+              warnings: [],
+            });
+          }
+        }
+      }
+
+      // --------------------------------------------------------
+      // Build Uniware Payload
+      // --------------------------------------------------------
+      const payload = {
+        saleOrderCode: String(saleOrderCode).trim(),
+        saleOrderItemCode: String(saleOrderItemCode).trim(),
+      };
+
+      // Only send custom fields when supplied.
+      if (Array.isArray(customFieldValues)) {
+        payload.customFieldValues = customFieldValues
+          .filter(
+            (field) =>
+              field &&
+              String(field.name || "").trim()
+          )
+          .map((field) => {
+            const customField = {
+              name: String(field.name).trim(),
+            };
+
+            // Value is optional according to Uniware.
+            if (
+              field.value !== undefined &&
+              field.value !== null &&
+              field.value !== ""
+            ) {
+              customField.value = String(field.value);
+            }
+
+            return customField;
+          });
+      }
+
+      // --------------------------------------------------------
+      // Call Uniware
+      // Tenant-level API
+      // NO Facility header
+      // --------------------------------------------------------
+      const response = await axios.post(
+        `${UNIWARE_BASE_URL}/services/rest/v1/oms/saleOrder/editSaleOrderItemMetadata`,
+        payload,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          },
+        }
+      );
+
+      return res
+        .status(response.status || 200)
+        .json(response.data);
+    } catch (error) {
+      console.error(
+        "Uniware Update Sale Order Item Metadata Error:",
+        error.response?.data || error.message
+      );
+
+      return res
+        .status(error.response?.status || 500)
+        .json(
+          error.response?.data || {
+            successful: false,
+            message:
+              error.message ||
+              "Failed to update sale order item metadata.",
+            errors: [],
+            warnings: [],
+          }
+        );
+    }
+  }
+);
+// ============================================================
+// UNIWARE - HOLD SALE ORDER
+// POST /api/uniware/sale-orders/hold
+// ============================================================
+
+app.post("/api/uniware/sale-orders/hold", async (req, res) => {
+  try {
+    const { saleOrderCode } = req.body || {};
+
+    // --------------------------------------------------------
+    // Validation
+    // --------------------------------------------------------
+    if (!saleOrderCode || !String(saleOrderCode).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Sale order code is required.",
+        errors: [
+          {
+            fieldName: "saleOrderCode",
+            message: "Sale order code is required.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // --------------------------------------------------------
+    // Build payload
+    // --------------------------------------------------------
+    const payload = {
+      saleOrderCode: String(saleOrderCode).trim(),
+    };
+
+    // --------------------------------------------------------
+    // Call Uniware
+    // Tenant-level API
+    // NO Facility header
+    // --------------------------------------------------------
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/saleOrder/hold`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+        },
+      }
+    );
+
+    return res
+      .status(response.status || 200)
+      .json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Hold Sale Order Error:",
+      error.response?.data || error.message
+    );
+
+    return res
+      .status(error.response?.status || 500)
+      .json(
+        error.response?.data || {
+          successful: false,
+          message:
+            error.message ||
+            "Failed to hold sale order.",
+          errors: [],
+          warnings: [],
+        }
+      );
+  }
+});
+// ============================================================
+// UNIWARE - UNHOLD SALE ORDER
+// POST /api/uniware/sale-orders/unhold
+// ============================================================
+
+app.post("/api/uniware/sale-orders/unhold", async (req, res) => {
+  try {
+    const { saleOrderCode } = req.body || {};
+
+    // --------------------------------------------------------
+    // Validation
+    // --------------------------------------------------------
+    if (!saleOrderCode || !String(saleOrderCode).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Sale order code is required.",
+        errors: [
+          {
+            fieldName: "saleOrderCode",
+            message: "Sale order code is required.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // --------------------------------------------------------
+    // Uniware request payload
+    // --------------------------------------------------------
+    const payload = {
+      saleOrderCode: String(saleOrderCode).trim(),
+    };
+
+    // --------------------------------------------------------
+    // Call Uniware
+    // Tenant-level API
+    // NO Facility header
+    // --------------------------------------------------------
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/saleOrder/unhold`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+        },
+      }
+    );
+
+    return res
+      .status(response.status || 200)
+      .json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Unhold Sale Order Error:",
+      error.response?.data || error.message
+    );
+
+    return res
+      .status(error.response?.status || 500)
+      .json(
+        error.response?.data || {
+          successful: false,
+          message:
+            error.message ||
+            "Failed to unhold sale order.",
+          errors: [],
+          warnings: [],
+        }
+      );
+  }
+});
+// Hold Sale Order Items
+app.post("/api/uniware/sale-orders/hold-items", async (req, res) => {
+  try {
+    const { saleOrderCode, saleOrderItemCodes } = req.body || {};
+
+    // Validate saleOrderCode
+    if (!saleOrderCode || !String(saleOrderCode).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Sale order code is required.",
+        errors: [
+          {
+            fieldName: "saleOrderCode",
+            message: "Sale order code is required.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // Validate saleOrderItemCodes
+    if (
+      !Array.isArray(saleOrderItemCodes) ||
+      saleOrderItemCodes.length === 0
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "At least one sale order item code is required.",
+        errors: [
+          {
+            fieldName: "saleOrderItemCodes",
+            message: "At least one sale order item code is required.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    const cleanedItemCodes = saleOrderItemCodes
+      .map((code) => String(code || "").trim())
+      .filter(Boolean);
+
+    if (cleanedItemCodes.length === 0) {
+      return res.status(400).json({
+        successful: false,
+        message: "At least one valid sale order item code is required.",
+        errors: [
+          {
+            fieldName: "saleOrderItemCodes",
+            message: "At least one valid sale order item code is required.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    const payload = {
+      saleOrderCode: String(saleOrderCode).trim(),
+      saleOrderItemCodes: cleanedItemCodes,
+    };
+
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/saleOrder/holdSaleOrderItems`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+        },
+      }
+    );
+
+    return res.status(response.status || 200).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Hold Sale Order Items Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message: error.message || "Failed to hold sale order items.",
+        errors: [],
+        warnings: [],
+      }
+    );
+  }
+});
+// Unhold Sale Order Items
+app.post("/api/uniware/sale-orders/unhold-items", async (req, res) => {
+  try {
+    const { saleOrderCode, saleOrderItemCodes } = req.body || {};
+
+    // Validate sale order code
+    if (!saleOrderCode || !String(saleOrderCode).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Sale order code is required.",
+        errors: [
+          {
+            fieldName: "saleOrderCode",
+            message: "Sale order code is required.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // Validate item codes
+    if (
+      !Array.isArray(saleOrderItemCodes) ||
+      saleOrderItemCodes.length === 0
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "At least one sale order item code is required.",
+        errors: [
+          {
+            fieldName: "saleOrderItemCodes",
+            message: "At least one sale order item code is required.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    const cleanedItemCodes = saleOrderItemCodes
+      .map((code) => String(code || "").trim())
+      .filter(Boolean);
+
+    if (cleanedItemCodes.length === 0) {
+      return res.status(400).json({
+        successful: false,
+        message: "At least one valid sale order item code is required.",
+        errors: [
+          {
+            fieldName: "saleOrderItemCodes",
+            message: "At least one valid sale order item code is required.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    const payload = {
+      saleOrderCode: String(saleOrderCode).trim(),
+      saleOrderItemCodes: cleanedItemCodes,
+    };
+
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/saleOrder/unholdSaleOrderItems`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+        },
+      }
+    );
+
+    return res.status(response.status || 200).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Unhold Sale Order Items Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message:
+          error.message || "Failed to unhold sale order items.",
+        errors: [],
+        warnings: [],
+      }
+    );
+  }
+});
+// Cancel Sale Order
+app.post("/api/uniware/sale-orders/cancel", async (req, res) => {
+  try {
+    const {
+      saleOrderCode,
+      saleOrderItemCodes,
+      cancelPartially,
+      cancelOnChannel,
+      cancelledBySeller,
+      cancellationReason,
+    } = req.body || {};
+
+    // Validate sale order code
+    if (!saleOrderCode || !String(saleOrderCode).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Sale order code is required.",
+        errors: [
+          {
+            fieldName: "saleOrderCode",
+            message: "Sale order code is required.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // Validate item codes when supplied
+    let cleanedItemCodes;
+
+    if (saleOrderItemCodes !== undefined) {
+      if (!Array.isArray(saleOrderItemCodes)) {
+        return res.status(400).json({
+          successful: false,
+          message: "Sale order item codes must be an array.",
+          errors: [
+            {
+              fieldName: "saleOrderItemCodes",
+              message: "Sale order item codes must be an array.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      cleanedItemCodes = saleOrderItemCodes
+        .map((code) => String(code || "").trim())
+        .filter(Boolean);
+
+      if (cleanedItemCodes.length === 0) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "At least one valid sale order item code is required when item codes are supplied.",
+          errors: [
+            {
+              fieldName: "saleOrderItemCodes",
+              message:
+                "At least one valid sale order item code is required.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+    }
+
+    // Validate cancellation reason length
+    if (
+      cancellationReason !== undefined &&
+      cancellationReason !== null &&
+      String(cancellationReason).length > 100
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "Cancellation reason cannot exceed 100 characters.",
+        errors: [
+          {
+            fieldName: "cancellationReason",
+            message:
+              "Cancellation reason cannot exceed 100 characters.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // cancelOnChannel and cancelledBySeller are mutually exclusive
+    if (
+      cancelOnChannel === true &&
+      cancelledBySeller === true
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "Select either cancelOnChannel or cancelledBySeller, not both.",
+        errors: [
+          {
+            fieldName: "cancelOnChannel",
+            message:
+              "cancelOnChannel and cancelledBySeller cannot both be true.",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    const payload = {
+      saleOrderCode: String(saleOrderCode).trim(),
+    };
+
+    // Optional item codes
+    if (cleanedItemCodes !== undefined) {
+      payload.saleOrderItemCodes = cleanedItemCodes;
+    }
+
+    // Preserve explicit boolean false
+    if (typeof cancelPartially === "boolean") {
+      payload.cancelPartially = cancelPartially;
+    }
+
+    if (typeof cancelOnChannel === "boolean") {
+      payload.cancelOnChannel = cancelOnChannel;
+    }
+
+    if (typeof cancelledBySeller === "boolean") {
+      payload.cancelledBySeller = cancelledBySeller;
+    }
+
+    // Optional cancellation reason
+    if (
+      cancellationReason !== undefined &&
+      cancellationReason !== null &&
+      String(cancellationReason).trim()
+    ) {
+      payload.cancellationReason =
+        String(cancellationReason).trim();
+    }
+
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/saleOrder/cancel`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+        },
+      }
+    );
+
+    return res.status(response.status || 200).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Cancel Sale Order Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message:
+          error.message || "Failed to cancel sale order.",
+        errors: [],
+        warnings: [],
+      }
+    );
+  }
+});
+// Switch Facility Sale Order Items
+app.post(
+  "/api/uniware/sale-orders/switch-facility",
+  async (req, res) => {
+    try {
+      const {
+        facility,
+        facilityCode,
+        saleOrderCode,
+        saleOrderItemCodes,
+      } = req.body || {};
+
+      // Validate Facility header value
+      if (!facility || !String(facility).trim()) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "Facility header value is required.",
+          errors: [
+            {
+              fieldName: "facility",
+              message:
+                "Facility header value is required.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      // Validate destination facility
+      if (
+        !facilityCode ||
+        !String(facilityCode).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "Destination facility code is required.",
+          errors: [
+            {
+              fieldName: "facilityCode",
+              message:
+                "Destination facility code is required.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      // Validate sale order
+      if (
+        !saleOrderCode ||
+        !String(saleOrderCode).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "Sale order code is required.",
+          errors: [
+            {
+              fieldName: "saleOrderCode",
+              message:
+                "Sale order code is required.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      // Validate item codes
+      if (
+        !Array.isArray(saleOrderItemCodes) ||
+        saleOrderItemCodes.length === 0
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "At least one sale order item code is required.",
+          errors: [
+            {
+              fieldName:
+                "saleOrderItemCodes",
+              message:
+                "At least one sale order item code is required.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      const cleanedItemCodes =
+        saleOrderItemCodes
+          .map((code) =>
+            String(code || "").trim()
+          )
+          .filter(Boolean);
+
+      if (cleanedItemCodes.length === 0) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "At least one valid sale order item code is required.",
+          errors: [
+            {
+              fieldName:
+                "saleOrderItemCodes",
+              message:
+                "At least one valid sale order item code is required.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      const payload = {
+        facilityCode: String(
+          facilityCode
+        ).trim(),
+
+        saleOrderCode: String(
+          saleOrderCode
+        ).trim(),
+
+        saleOrderItemCodes:
+          cleanedItemCodes,
+      };
+
+      const response = await axios.post(
+        `${UNIWARE_BASE_URL}/services/rest/v1/oms/saleorder/facility/switch`,
+        payload,
+        {
+          headers: {
+            "Content-Type":
+              "application/json",
+
+            Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+
+            Facility: String(
+              facility
+            ).trim(),
+          },
+        }
+      );
+
+      return res
+        .status(response.status || 200)
+        .json(response.data);
+    } catch (error) {
+      console.error(
+        "Uniware Switch Facility Sale Order Items Error:",
+        error.response?.data ||
+          error.message
+      );
+
+      return res
+        .status(
+          error.response?.status || 500
+        )
+        .json(
+          error.response?.data || {
+            successful: false,
+            message:
+              error.message ||
+              "Failed to switch sale order item facility.",
+            errors: [],
+            warnings: [],
+          }
+        );
+    }
+  }
+);
+// Add Item Details for Single Sale Order Item
+app.post(
+  "/api/uniware/sale-orders/item-details/add",
+  async (req, res) => {
+    try {
+      const {
+        saleOrderCode,
+        saleOrderItemCode,
+        itemDetails,
+      } = req.body || {};
+
+      // Validate sale order code
+      if (
+        !saleOrderCode ||
+        !String(saleOrderCode).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: "Sale order code is required.",
+          errors: [
+            {
+              fieldName: "saleOrderCode",
+              message:
+                "Sale order code is required.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      // Validate sale order item code
+      if (
+        !saleOrderItemCode ||
+        !String(saleOrderItemCode).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "Sale order item code is required.",
+          errors: [
+            {
+              fieldName: "saleOrderItemCode",
+              message:
+                "Sale order item code is required.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      // Validate itemDetails
+      if (
+        !Array.isArray(itemDetails) ||
+        itemDetails.length === 0
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "At least one item detail is required.",
+          errors: [
+            {
+              fieldName: "itemDetails",
+              message:
+                "At least one item detail is required.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      // Validate and clean item details
+      const cleanedItemDetails =
+        itemDetails.map(
+          (detail, index) => {
+            if (
+              !detail ||
+              typeof detail !== "object"
+            ) {
+              throw new Error(
+                `Item detail ${index + 1} must be an object.`
+              );
+            }
+
+            const name = String(
+              detail.name || ""
+            ).trim();
+
+            const value =
+              detail.value === undefined ||
+              detail.value === null
+                ? ""
+                : String(
+                    detail.value
+                  ).trim();
+
+            if (!name) {
+              throw new Error(
+                `Item detail ${
+                  index + 1
+                } name is required.`
+              );
+            }
+
+            if (!value) {
+              throw new Error(
+                `Item detail ${
+                  index + 1
+                } value is required.`
+              );
+            }
+
+            return {
+              name,
+              value,
+            };
+          }
+        );
+
+      const payload = {
+        saleOrderCode:
+          String(
+            saleOrderCode
+          ).trim(),
+
+        saleOrderItemCode:
+          String(
+            saleOrderItemCode
+          ).trim(),
+
+        itemDetails:
+          cleanedItemDetails,
+      };
+
+      const response = await axios.post(
+        `${UNIWARE_BASE_URL}/services/rest/v1/oms/inflow/saleOrderItem/detail/add`,
+        payload,
+        {
+          headers: {
+            "Content-Type":
+              "application/json",
+            Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          },
+        }
+      );
+
+      return res
+        .status(response.status || 200)
+        .json(response.data);
+    } catch (error) {
+      console.error(
+        "Uniware Add Sale Order Item Details Error:",
+        error.response?.data ||
+          error.message
+      );
+
+      return res
+        .status(
+          error.response?.status || 500
+        )
+        .json(
+          error.response?.data || {
+            successful: false,
+            message:
+              error.message ||
+              "Failed to add sale order item details.",
+            errors: [],
+            warnings: [],
+          }
+        );
+    }
+  }
+);
+// Add Item Details for Multiple Sale Order Items
+app.post(
+  "/api/uniware/sale-orders/item-details/add-bulk",
+  async (req, res) => {
+    try {
+      const {
+        saleOrderCode,
+        saleOrderItemDetailDTOS,
+      } = req.body || {};
+
+      // Validate sale order code
+      if (
+        !saleOrderCode ||
+        !String(saleOrderCode).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: "Sale order code is required.",
+          errors: [
+            {
+              fieldName: "saleOrderCode",
+              message:
+                "Sale order code is required.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      // Validate list
+      if (
+        !Array.isArray(
+          saleOrderItemDetailDTOS
+        ) ||
+        saleOrderItemDetailDTOS.length === 0
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "At least one sale order item detail is required.",
+          errors: [
+            {
+              fieldName:
+                "saleOrderItemDetailDTOS",
+              message:
+                "At least one sale order item detail is required.",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      // Validate and clean each SOI
+      const cleanedItems =
+        saleOrderItemDetailDTOS.map(
+          (item, index) => {
+            if (
+              !item ||
+              typeof item !== "object"
+            ) {
+              throw new Error(
+                `Sale order item detail ${
+                  index + 1
+                } must be an object.`
+              );
+            }
+
+            const saleOrderItemCode =
+              String(
+                item.saleOrderItemCode ||
+                  ""
+              ).trim();
+
+            if (!saleOrderItemCode) {
+              throw new Error(
+                `Sale order item code is required for item ${
+                  index + 1
+                }.`
+              );
+            }
+
+            if (
+              !Array.isArray(
+                item.itemDetails
+              ) ||
+              item.itemDetails.length === 0
+            ) {
+              throw new Error(
+                `At least one item detail is required for sale order item ${saleOrderItemCode}.`
+              );
+            }
+
+            const itemDetails =
+              item.itemDetails.map(
+                (detail, detailIndex) => {
+                  if (
+                    !detail ||
+                    typeof detail !==
+                      "object"
+                  ) {
+                    throw new Error(
+                      `Item detail ${
+                        detailIndex + 1
+                      } for ${saleOrderItemCode} must be an object.`
+                    );
+                  }
+
+                  const name =
+                    String(
+                      detail.name || ""
+                    ).trim();
+
+                  const value =
+                    detail.value ===
+                        undefined ||
+                    detail.value === null
+                      ? ""
+                      : String(
+                          detail.value
+                        ).trim();
+
+                  if (!name) {
+                    throw new Error(
+                      `Item detail ${
+                        detailIndex + 1
+                      } name is required for ${saleOrderItemCode}.`
+                    );
+                  }
+
+                  if (!value) {
+                    throw new Error(
+                      `Item detail ${
+                        detailIndex + 1
+                      } value is required for ${saleOrderItemCode}.`
+                    );
+                  }
+
+                  return {
+                    name,
+                    value,
+                  };
+                }
+              );
+
+            return {
+              saleOrderItemCode,
+              itemDetails,
+            };
+          }
+        );
+
+      const payload = {
+        saleOrderCode:
+          String(
+            saleOrderCode
+          ).trim(),
+
+        saleOrderItemDetailDTOS:
+          cleanedItems,
+      };
+
+      const response = await axios.post(
+        `${UNIWARE_BASE_URL}/services/rest/v1/oms/inflow/saleOrderItem/detail/add/bulk`,
+        payload,
+        {
+          headers: {
+            "Content-Type":
+              "application/json",
+            Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          },
+        }
+      );
+
+      return res
+        .status(response.status || 200)
+        .json(response.data);
+    } catch (error) {
+      console.error(
+        "Uniware Add Sale Order Item Details Bulk Error:",
+        error.response?.data ||
+          error.message
+      );
+
+      return res
+        .status(
+          error.response?.status || 500
+        )
+        .json(
+          error.response?.data || {
+            successful: false,
+            message:
+              error.message ||
+              "Failed to add sale order item details.",
+            errors: [],
+            warnings: [],
+          }
+        );
+    }
+  }
+);
 // ================= SERVER START =================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
