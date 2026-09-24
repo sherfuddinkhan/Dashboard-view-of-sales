@@ -4126,6 +4126,3366 @@ app.post(
     }
   }
 );
+// Create or Update Uniware Item
+app.post("/api/uniware/items/create-or-edit", async (req, res) => {
+  try {
+    const {
+      categoryCode,
+      skuCode,
+      name,
+      type,
+      scanType,
+      description,
+      scanIdentifier,
+      length,
+      width,
+      height,
+      weight,
+      minOrderSize,
+      color,
+      size,
+      brand,
+      ean,
+      upc,
+      isbn,
+      maxRetailPrice,
+      basePrice,
+      costPrice,
+      taxTypeCode,
+      gstTaxTypeCode,
+      hsnCode,
+      imageUrl,
+      productPageUrl,
+      features,
+      tat,
+      tags,
+      itemDetailFieldsText,
+      requiresCustomization,
+      shelfLife,
+      expirable,
+      enabled,
+      determineExpiryFrom,
+      dispatchExpiryTolerance,
+      grnExpiryTolerance,
+      returnExpiryTolerance,
+      expirableFromCategory,
+      expiryDate,
+      taxCalculationType,
+      componentItemTypes,
+      customFieldValues,
+      batchGroupCode,
+    } = req.body;
+
+    // -----------------------------
+    // Validation
+    // -----------------------------
+    if (!skuCode || !String(skuCode).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "SKU code is required.",
+      });
+    }
+
+    const sku = String(skuCode).trim();
+
+    // Uniware SKU rules:
+    // letters/numbers + -, ., _, /
+    // no spaces
+    if (!/^[a-zA-Z0-9._/-]+$/.test(sku)) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "Invalid SKU. Only letters, numbers, dash (-), dot (.), underscore (_) and forward slash (/) are allowed. Spaces are not allowed.",
+      });
+    }
+
+    if (sku.length < 3 || sku.length > 45) {
+      return res.status(400).json({
+        successful: false,
+        message: "SKU must contain between 3 and 45 characters.",
+      });
+    }
+
+    if (!name || !String(name).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Item name is required for create.",
+      });
+    }
+
+    if (String(name).trim().length > 200) {
+      return res.status(400).json({
+        successful: false,
+        message: "Item name cannot exceed 200 characters.",
+      });
+    }
+
+    if (!categoryCode || !String(categoryCode).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "Category code is required. The category must already exist in Uniware.",
+      });
+    }
+
+    // -----------------------------
+    // Helper
+    // -----------------------------
+    const hasValue = (value) =>
+      value !== undefined &&
+      value !== null &&
+      value !== "";
+
+    const toNumber = (value) => {
+      if (!hasValue(value)) return undefined;
+
+      const numberValue = Number(value);
+
+      return Number.isFinite(numberValue)
+        ? numberValue
+        : undefined;
+    };
+
+    const toBoolean = (value) => {
+      if (value === undefined || value === null || value === "") {
+        return undefined;
+      }
+
+      if (typeof value === "boolean") {
+        return value;
+      }
+
+      return String(value).toLowerCase() === "true";
+    };
+
+    // -----------------------------
+    // Build itemType dynamically
+    // -----------------------------
+    const itemType = {
+      categoryCode: String(categoryCode).trim(),
+      skuCode: sku,
+      name: String(name).trim(),
+    };
+
+    // Optional string fields
+    const stringFields = [
+      "type",
+      "scanType",
+      "description",
+      "scanIdentifier",
+      "color",
+      "size",
+      "brand",
+      "ean",
+      "upc",
+      "isbn",
+      "taxTypeCode",
+      "gstTaxTypeCode",
+      "hsnCode",
+      "imageUrl",
+      "productPageUrl",
+      "features",
+      "itemDetailFieldsText",
+      "determineExpiryFrom",
+      "batchGroupCode",
+      "taxCalculationType",
+    ];
+
+    for (const field of stringFields) {
+      if (hasValue(req.body[field])) {
+        itemType[field] = String(req.body[field]).trim();
+      }
+    }
+
+    // Optional numeric fields
+    const numericFields = [
+      "length",
+      "width",
+      "height",
+      "weight",
+      "minOrderSize",
+      "maxRetailPrice",
+      "basePrice",
+      "costPrice",
+      "tat",
+      "shelfLife",
+      "dispatchExpiryTolerance",
+      "grnExpiryTolerance",
+      "returnExpiryTolerance",
+    ];
+
+    for (const field of numericFields) {
+      const value = toNumber(req.body[field]);
+
+      if (value !== undefined) {
+        itemType[field] = value;
+      }
+    }
+
+    // Optional boolean fields
+    const booleanFields = [
+      "requiresCustomization",
+      "expirable",
+      "enabled",
+      "expirableFromCategory",
+    ];
+
+    for (const field of booleanFields) {
+      const value = toBoolean(req.body[field]);
+
+      if (value !== undefined) {
+        itemType[field] = value;
+      }
+    }
+
+    // Tags
+    if (Array.isArray(tags)) {
+      itemType.tags = tags
+        .filter(
+          (tag) =>
+            tag !== undefined &&
+            tag !== null &&
+            String(tag).trim() !== ""
+        )
+        .map((tag) => String(tag).trim());
+    }
+
+    // Expiry date
+    if (hasValue(expiryDate)) {
+      const parsedExpiryDate = new Date(expiryDate);
+
+      if (Number.isNaN(parsedExpiryDate.getTime())) {
+        return res.status(400).json({
+          successful: false,
+          message: "Invalid expiryDate.",
+        });
+      }
+
+      itemType.expiryDate = parsedExpiryDate.toISOString();
+    }
+
+    // Component item types
+    if (Array.isArray(componentItemTypes)) {
+      itemType.componentItemTypes = componentItemTypes
+        .filter((component) => component)
+        .map((component) => {
+          const result = {
+            itemSku: component.itemSku
+              ? String(component.itemSku).trim()
+              : "",
+          };
+
+          if (hasValue(component.quantity)) {
+            result.quantity = Number(component.quantity);
+          }
+
+          if (hasValue(component.price)) {
+            result.price = Number(component.price);
+          }
+
+          return result;
+        });
+    }
+
+    // Custom fields
+    if (Array.isArray(customFieldValues)) {
+      itemType.customFieldValues = customFieldValues
+        .filter(
+          (field) =>
+            field &&
+            field.name &&
+            String(field.name).trim() !== ""
+        )
+        .map((field) => {
+          const result = {
+            name: String(field.name).trim(),
+          };
+
+          if (
+            field.value !== undefined &&
+            field.value !== null
+          ) {
+            result.value = String(field.value);
+          }
+
+          return result;
+        });
+    }
+
+    // -----------------------------
+    // BUNDLE validation
+    // -----------------------------
+    if (itemType.type === "BUNDLE") {
+      if (
+        !Array.isArray(itemType.componentItemTypes) ||
+        itemType.componentItemTypes.length === 0
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "componentItemTypes is required when item type is BUNDLE.",
+        });
+      }
+
+      for (const component of itemType.componentItemTypes) {
+        if (!component.itemSku) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              "Each bundle component must contain itemSku.",
+          });
+        }
+
+        if (
+          component.quantity === undefined ||
+          !Number.isFinite(component.quantity)
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              "Each bundle component must contain a valid quantity.",
+          });
+        }
+
+        if (
+          component.price === undefined ||
+          !Number.isFinite(component.price)
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              "Each bundle component must contain a valid price.",
+          });
+        }
+      }
+
+      if (
+        itemType.taxCalculationType &&
+        ![
+          "PRICE_OF_COMPONENT_SKU",
+          "PRICE_OF_BUNDLE_SKU",
+        ].includes(itemType.taxCalculationType)
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "Invalid taxCalculationType for BUNDLE.",
+        });
+      }
+    }
+
+    // -----------------------------
+    // Uniware API
+    // -----------------------------
+    const url =
+      `${process.env.UNIWARE_BASE_URL}` +
+      `/services/rest/v1/catalog/itemType/createOrEdit`;
+
+    const response = await axios.post(
+      url,
+      {
+        itemType,
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Create/Update Item Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message: "Failed to create or update item in Uniware.",
+        error: error.message,
+      }
+    );
+  }
+});
+
+
+// ============================================================
+// Uniware - Create or Update Multiple Items
+// POST /api/uniware/items/bulk-create-or-edit
+// ============================================================
+
+app.post(
+  "/api/uniware/items/bulk-create-or-edit",
+  async (req, res) => {
+    try {
+      const { itemTypes } = req.body;
+
+      // --------------------------------------------------------
+      // Validate itemTypes
+      // --------------------------------------------------------
+      if (!Array.isArray(itemTypes) || itemTypes.length === 0) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "itemTypes must be a non-empty array.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Helpers
+      // --------------------------------------------------------
+      const hasValue = (value) =>
+        value !== undefined &&
+        value !== null &&
+        value !== "";
+
+      const toNumber = (value) => {
+        if (!hasValue(value)) {
+          return undefined;
+        }
+
+        const numberValue = Number(value);
+
+        return Number.isFinite(numberValue)
+          ? numberValue
+          : undefined;
+      };
+
+      const toBoolean = (value) => {
+        if (
+          value === undefined ||
+          value === null ||
+          value === ""
+        ) {
+          return undefined;
+        }
+
+        if (typeof value === "boolean") {
+          return value;
+        }
+
+        return String(value).toLowerCase() === "true";
+      };
+
+      // --------------------------------------------------------
+      // Build each item
+      // --------------------------------------------------------
+      const normalizedItems = [];
+
+      for (let index = 0; index < itemTypes.length; index++) {
+        const source = itemTypes[index] || {};
+
+        const categoryCode = hasValue(source.categoryCode)
+          ? String(source.categoryCode).trim()
+          : "";
+
+        const skuCode = hasValue(source.skuCode)
+          ? String(source.skuCode).trim()
+          : "";
+
+        const name = hasValue(source.name)
+          ? String(source.name).trim()
+          : "";
+
+        // ----------------------------------------------------
+        // Required fields
+        // ----------------------------------------------------
+        if (!skuCode) {
+          return res.status(400).json({
+            successful: false,
+            message: `Item ${index + 1}: SKU code is required.`,
+            fieldName: `itemTypes[${index}].skuCode`,
+          });
+        }
+
+        if (
+          skuCode.length < 3 ||
+          skuCode.length > 45
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `Item ${index + 1}: SKU code must be between ` +
+              `3 and 45 characters.`,
+            fieldName: `itemTypes[${index}].skuCode`,
+          });
+        }
+
+        if (!/^[a-zA-Z0-9._/-]+$/.test(skuCode)) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `Item ${index + 1}: Invalid SKU. ` +
+              `Only letters, numbers, -, ., _, and / are allowed. ` +
+              `Spaces are not allowed.`,
+            fieldName: `itemTypes[${index}].skuCode`,
+          });
+        }
+
+        if (!categoryCode) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `Item ${index + 1}: Category code is required.`,
+            fieldName: `itemTypes[${index}].categoryCode`,
+          });
+        }
+
+        if (!name) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `Item ${index + 1}: Item name is required.`,
+            fieldName: `itemTypes[${index}].name`,
+          });
+        }
+
+        if (name.length > 200) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `Item ${index + 1}: Item name cannot exceed 200 characters.`,
+            fieldName: `itemTypes[${index}].name`,
+          });
+        }
+
+        // ----------------------------------------------------
+        // Create item object
+        // ----------------------------------------------------
+        const item = {
+          categoryCode,
+          skuCode,
+          name,
+        };
+
+        // ----------------------------------------------------
+        // Optional string fields
+        // ----------------------------------------------------
+        const stringFields = [
+          "type",
+          "description",
+          "scanIdentifier",
+          "color",
+          "size",
+          "brand",
+          "ean",
+          "upc",
+          "isbn",
+          "taxTypeCode",
+          "gstTaxTypeCode",
+          "hsnCode",
+          "imageUrl",
+          "productPageUrl",
+          "features",
+          "itemDetailFieldsText",
+        ];
+
+        for (const field of stringFields) {
+          if (hasValue(source[field])) {
+            item[field] = String(source[field]).trim();
+          }
+        }
+
+        // ----------------------------------------------------
+        // Optional numeric fields
+        // ----------------------------------------------------
+        const numericFields = [
+          "length",
+          "width",
+          "height",
+          "weight",
+          "minOrderSize",
+          "maxRetailPrice",
+          "basePrice",
+          "costPrice",
+          "tat",
+          "shelfLife",
+        ];
+
+        for (const field of numericFields) {
+          const value = toNumber(source[field]);
+
+          if (value !== undefined) {
+            item[field] = value;
+          }
+        }
+
+        // ----------------------------------------------------
+        // Optional boolean fields
+        // ----------------------------------------------------
+        const booleanFields = [
+          "requiresCustomization",
+          "expirable",
+          "enabled",
+        ];
+
+        for (const field of booleanFields) {
+          const value = toBoolean(source[field]);
+
+          if (value !== undefined) {
+            item[field] = value;
+          }
+        }
+
+        // ----------------------------------------------------
+        // Tags
+        // ----------------------------------------------------
+        if (Array.isArray(source.tags)) {
+          item.tags = source.tags
+            .filter(
+              (tag) =>
+                tag !== undefined &&
+                tag !== null &&
+                String(tag).trim() !== ""
+            )
+            .map((tag) => String(tag).trim());
+        }
+
+        // ----------------------------------------------------
+        // Tax calculation type
+        // ----------------------------------------------------
+        if (hasValue(source.taxCalculationType)) {
+          const taxCalculationType =
+            String(
+              source.taxCalculationType
+            ).trim();
+
+          if (
+            ![
+              "PRICE_OF_COMPONENT_SKU",
+              "PRICE_OF_BUNDLE_SKU",
+            ].includes(taxCalculationType)
+          ) {
+            return res.status(400).json({
+              successful: false,
+              message:
+                `Item ${index + 1}: Invalid taxCalculationType.`,
+              fieldName:
+                `itemTypes[${index}].taxCalculationType`,
+            });
+          }
+
+          item.taxCalculationType =
+            taxCalculationType;
+        }
+
+        // ----------------------------------------------------
+        // Component item types
+        // ----------------------------------------------------
+        if (Array.isArray(source.componentItemTypes)) {
+          item.componentItemTypes =
+            source.componentItemTypes
+              .filter(Boolean)
+              .map((component) => ({
+                itemSku: hasValue(component.itemSku)
+                  ? String(component.itemSku).trim()
+                  : "",
+                quantity: toNumber(
+                  component.quantity
+                ),
+                price: toNumber(
+                  component.price
+                ),
+              }));
+
+          // Remove undefined values
+          item.componentItemTypes =
+            item.componentItemTypes.map(
+              (component) => {
+                const result = {
+                  itemSku: component.itemSku,
+                };
+
+                if (
+                  component.quantity !==
+                  undefined
+                ) {
+                  result.quantity =
+                    component.quantity;
+                }
+
+                if (
+                  component.price !==
+                  undefined
+                ) {
+                  result.price =
+                    component.price;
+                }
+
+                return result;
+              }
+            );
+        }
+
+        // ----------------------------------------------------
+        // BUNDLE validation
+        // ----------------------------------------------------
+        if (item.type === "BUNDLE") {
+          if (
+            !Array.isArray(
+              item.componentItemTypes
+            ) ||
+            item.componentItemTypes.length === 0
+          ) {
+            return res.status(400).json({
+              successful: false,
+              message:
+                `Item ${index + 1}: ` +
+                "componentItemTypes is required for BUNDLE items.",
+              fieldName:
+                `itemTypes[${index}].componentItemTypes`,
+            });
+          }
+
+          for (
+            let componentIndex = 0;
+            componentIndex <
+            item.componentItemTypes.length;
+            componentIndex++
+          ) {
+            const component =
+              item.componentItemTypes[
+                componentIndex
+              ];
+
+            if (!component.itemSku) {
+              return res.status(400).json({
+                successful: false,
+                message:
+                  `Item ${index + 1}, component ${
+                    componentIndex + 1
+                  }: itemSku is required.`,
+              });
+            }
+
+            if (
+              component.quantity ===
+                undefined ||
+              component.quantity <= 0
+            ) {
+              return res.status(400).json({
+                successful: false,
+                message:
+                  `Item ${index + 1}, component ${
+                    componentIndex + 1
+                  }: quantity must be greater than 0.`,
+              });
+            }
+
+            if (
+              component.price ===
+                undefined ||
+              component.price < 0
+            ) {
+              return res.status(400).json({
+                successful: false,
+                message:
+                  `Item ${index + 1}, component ${
+                    componentIndex + 1
+                  }: price is required.`,
+              });
+            }
+          }
+
+          if (
+            !item.taxCalculationType
+          ) {
+            item.taxCalculationType =
+              "PRICE_OF_COMPONENT_SKU";
+          }
+        }
+
+        // ----------------------------------------------------
+        // Custom fields
+        // ----------------------------------------------------
+        if (
+          Array.isArray(
+            source.customFieldValues
+          )
+        ) {
+          item.customFieldValues =
+            source.customFieldValues
+              .filter(
+                (field) =>
+                  field &&
+                  hasValue(field.name)
+              )
+              .map((field) => {
+                const customField = {
+                  name: String(
+                    field.name
+                  ).trim(),
+                };
+
+                if (
+                  field.value !==
+                    undefined &&
+                  field.value !== null
+                ) {
+                  customField.value =
+                    String(field.value);
+                }
+
+                return customField;
+              });
+        }
+
+        normalizedItems.push(item);
+      }
+
+      // --------------------------------------------------------
+      // Uniware URL
+      // --------------------------------------------------------
+      const url =
+        `${process.env.UNIWARE_BASE_URL}` +
+        `/services/rest/v1/catalog/itemTypes/createOrEdit`;
+
+      // --------------------------------------------------------
+      // Call Uniware
+      // Tenant-level API
+      // NO Facility header
+      // --------------------------------------------------------
+      const response = await axios.post(
+        url,
+        {
+          itemTypes: normalizedItems,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization:
+              `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`,
+          },
+          timeout: 60000,
+        }
+      );
+
+      return res
+        .status(response.status)
+        .json(response.data);
+    } catch (error) {
+      console.error(
+        "Uniware Bulk Create/Update Items Error:",
+        error.response?.data ||
+          error.message
+      );
+
+      return res
+        .status(
+          error.response?.status || 500
+        )
+        .json(
+          error.response?.data || {
+            successful: false,
+            message:
+              "Failed to create or update items in Uniware.",
+            error: error.message,
+          }
+        );
+    }
+  }
+);
+
+// ============================================================
+// UNiWARE - CREATE OR UPDATE CHANNEL ITEM TYPE
+// ============================================================
+
+app.post("/api/uniware/channel-item-types/create-or-edit", async (req, res) => {
+  try {
+    const {
+      channelCode,
+      channelProductId,
+      sellerSkuCode,
+      skuCode,
+      blockedInventory,
+      live,
+      verified,
+      disabled,
+    } = req.body;
+
+    // --------------------------------------------------------
+    // Validation
+    // --------------------------------------------------------
+
+    if (!channelCode || !channelCode.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Channel Code is required.",
+      });
+    }
+
+    if (!channelProductId || !channelProductId.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Channel Product ID is required.",
+      });
+    }
+
+    if (!sellerSkuCode || !sellerSkuCode.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Seller SKU Code is required.",
+      });
+    }
+
+    if (!skuCode || !skuCode.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Uniware SKU Code is required.",
+      });
+    }
+
+    // --------------------------------------------------------
+    // Build payload
+    // --------------------------------------------------------
+
+    const channelItemType = {
+      channelCode: channelCode.trim(),
+      channelProductId: channelProductId.trim(),
+      sellerSkuCode: sellerSkuCode.trim(),
+      skuCode: skuCode.trim(),
+      blockedInventory:
+        blockedInventory === undefined ||
+        blockedInventory === null ||
+        blockedInventory === ""
+          ? 0
+          : Number(blockedInventory),
+      live: Boolean(live),
+      verified: Boolean(verified),
+      disabled: Boolean(disabled),
+    };
+
+    // --------------------------------------------------------
+    // Uniware API
+    // Tenant level - NO Facility header
+    // --------------------------------------------------------
+
+    const url =
+      `${process.env.UNIWARE_BASE_URL}` +
+      `/services/rest/v1/channel/createChannelItemType`;
+
+    const response = await axios.post(
+      url,
+      {
+        channelItemType,
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Create/Update Channel Item Type Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message: error.message || "Failed to create/update channel item type.",
+      }
+    );
+  }
+});
+// ============================================================
+// UNiWARE - GET ITEM DETAILS
+// ============================================================
+
+app.post("/api/uniware/items/details", async (req, res) => {
+  try {
+    const {
+      skuCode,
+      cartonScanIdentifier,
+      kitSku,
+    } = req.body;
+
+    // --------------------------------------------------------
+    // Validation
+    // --------------------------------------------------------
+
+    if (!skuCode || !String(skuCode).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "SKU Code is required.",
+        errors: [
+          {
+            fieldName: "skuCode",
+            message: "SKU Code is required.",
+          },
+        ],
+      });
+    }
+
+    // --------------------------------------------------------
+    // Build Uniware request payload
+    // --------------------------------------------------------
+
+    const payload = {
+      skuCode: String(skuCode).trim(),
+      kitSku: typeof kitSku === "boolean" ? kitSku : false,
+    };
+
+    // Optional field
+    if (
+      cartonScanIdentifier !== undefined &&
+      cartonScanIdentifier !== null &&
+      String(cartonScanIdentifier).trim() !== ""
+    ) {
+      payload.cartonScanIdentifier =
+        String(cartonScanIdentifier).trim();
+    }
+
+    // --------------------------------------------------------
+    // Uniware API
+    // Tenant level
+    // NO Facility header
+    // --------------------------------------------------------
+
+    const url =
+      `${process.env.UNIWARE_BASE_URL}` +
+      `/services/rest/v1/catalog/itemType/get`;
+
+    const response = await axios.post(
+      url,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Get Item Details Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message:
+          error.message || "Failed to fetch item details.",
+      }
+    );
+  }
+});
+// ============================================================
+// UNiWARE - GET ITEM BARCODE DETAILS
+// ============================================================
+
+app.post("/api/uniware/items/barcode-details", async (req, res) => {
+  try {
+    const {
+      facility,
+      itemCode,
+    } = req.body;
+
+    // --------------------------------------------------------
+    // Validation
+    // --------------------------------------------------------
+
+    if (!facility || !String(facility).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility Code is required.",
+        errors: [
+          {
+            fieldName: "facility",
+            message: "Facility Code is required.",
+          },
+        ],
+      });
+    }
+
+    if (!itemCode || !String(itemCode).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Item Code / Barcode is required.",
+        errors: [
+          {
+            fieldName: "itemCode",
+            message: "Item Code / Barcode is required.",
+          },
+        ],
+      });
+    }
+
+    // --------------------------------------------------------
+    // Uniware request payload
+    // --------------------------------------------------------
+
+    const payload = {
+      itemCode: String(itemCode).trim(),
+    };
+
+    // --------------------------------------------------------
+    // Uniware API
+    // Facility level
+    // --------------------------------------------------------
+
+    const url =
+      `${process.env.UNIWARE_BASE_URL}` +
+      `/services/rest/v1/product/item/get`;
+
+    const response = await axios.post(
+      url,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`,
+          Facility: String(facility).trim(),
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Get Item Barcode Details Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message:
+          error.message ||
+          "Failed to fetch item barcode details.",
+      }
+    );
+  }
+});
+// Search Uniware Item Types / SKUs
+app.post("/api/uniware/items/search", async (req, res) => {
+  try {
+    const {
+      keyword,
+      productCode,
+      categoryCode,
+      getInventorySnapshot,
+      updatedSinceInHour,
+      skuType,
+      searchOptions,
+    } = req.body;
+
+    const payload = {};
+
+    // Optional top-level filters
+    if (keyword?.trim()) {
+      payload.keyword = keyword.trim();
+    }
+
+    if (productCode?.trim()) {
+      payload.productCode = productCode.trim();
+    }
+
+    if (categoryCode?.trim()) {
+      payload.categoryCode = categoryCode.trim();
+    }
+
+    if (typeof getInventorySnapshot === "boolean") {
+      payload.getInventorySnapshot = getInventorySnapshot;
+    }
+
+    if (
+      updatedSinceInHour !== undefined &&
+      updatedSinceInHour !== null &&
+      updatedSinceInHour !== ""
+    ) {
+      payload.updatedSinceInHour = Number(updatedSinceInHour);
+    }
+
+    if (skuType?.trim()) {
+      payload.skuType = skuType.trim();
+    }
+
+    // Optional searchOptions
+    if (searchOptions && typeof searchOptions === "object") {
+      const options = {};
+
+      if (searchOptions.searchKey?.trim()) {
+        options.searchKey = searchOptions.searchKey.trim();
+      }
+
+      if (
+        searchOptions.displayLength !== undefined &&
+        searchOptions.displayLength !== null &&
+        searchOptions.displayLength !== ""
+      ) {
+        options.displayLength = Number(searchOptions.displayLength);
+      }
+
+      if (
+        searchOptions.displayStart !== undefined &&
+        searchOptions.displayStart !== null &&
+        searchOptions.displayStart !== ""
+      ) {
+        options.displayStart = Number(searchOptions.displayStart);
+      }
+
+      if (
+        searchOptions.columns !== undefined &&
+        searchOptions.columns !== null &&
+        searchOptions.columns !== ""
+      ) {
+        options.columns = Number(searchOptions.columns);
+      }
+
+      if (
+        searchOptions.sortingCols !== undefined &&
+        searchOptions.sortingCols !== null &&
+        searchOptions.sortingCols !== ""
+      ) {
+        options.sortingCols = Number(searchOptions.sortingCols);
+      }
+
+      if (
+        searchOptions.sortColumnIndex !== undefined &&
+        searchOptions.sortColumnIndex !== null &&
+        searchOptions.sortColumnIndex !== ""
+      ) {
+        options.sortColumnIndex = Number(searchOptions.sortColumnIndex);
+      }
+
+      if (searchOptions.sortDirection?.trim()) {
+        options.sortDirection = searchOptions.sortDirection.trim();
+      }
+
+      if (searchOptions.columnNames?.trim()) {
+        options.columnNames = searchOptions.columnNames.trim();
+      }
+
+      if (typeof searchOptions.getCount === "boolean") {
+        options.getCount = searchOptions.getCount;
+      }
+
+      if (Object.keys(options).length > 0) {
+        payload.searchOptions = options;
+      }
+    }
+
+    const response = await axios.post(
+      `${process.env.UNIWARE_BASE_URL}/services/rest/v1/product/itemType/search`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`,
+        },
+      }
+    );
+
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Search Items Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message: error.message || "Failed to search Uniware items",
+        errors: [],
+        warnings: [],
+      }
+    );
+  }
+});
+// Get Uniware Inventory Snapshot
+app.post("/api/uniware/inventory/snapshot", async (req, res) => {
+  try {
+    const {
+      facility,
+      itemTypeSKUs,
+      updatedSinceInMinutes,
+    } = req.body;
+
+    // Facility is mandatory
+    if (!facility || !facility.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility code is required.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    // At least one filter must be provided
+    const hasSKUs =
+      Array.isArray(itemTypeSKUs) &&
+      itemTypeSKUs.some(
+        (sku) => typeof sku === "string" && sku.trim()
+      );
+
+    const hasUpdatedSince =
+      updatedSinceInMinutes !== undefined &&
+      updatedSinceInMinutes !== null &&
+      updatedSinceInMinutes !== "";
+
+    if (!hasSKUs && !hasUpdatedSince) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "Provide itemTypeSKUs, updatedSinceInMinutes, or both.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    const payload = {};
+
+    // Maximum 10,000 SKUs
+    if (hasSKUs) {
+      const skus = itemTypeSKUs
+        .filter(
+          (sku) =>
+            typeof sku === "string" &&
+            sku.trim()
+        )
+        .map((sku) => sku.trim());
+
+      if (skus.length > 10000) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "A maximum of 10,000 SKUs can be sent in one request.",
+          errors: [],
+          warnings: [],
+        });
+      }
+
+      payload.itemTypeSKUs = skus;
+    }
+
+    // Maximum 1440 minutes = 24 hours
+    if (hasUpdatedSince) {
+      const minutes = Number(updatedSinceInMinutes);
+
+      if (!Number.isInteger(minutes)) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "updatedSinceInMinutes must be an integer.",
+          errors: [],
+          warnings: [],
+        });
+      }
+
+      if (minutes < 0 || minutes > 1440) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "updatedSinceInMinutes must be between 0 and 1440 minutes.",
+          errors: [],
+          warnings: [],
+        });
+      }
+
+      payload.updatedSinceInMinutes = minutes;
+    }
+
+    const response = await axios.post(
+      `${process.env.UNIWARE_BASE_URL}/services/rest/v1/inventory/inventorySnapshot/get`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`,
+          Facility: facility.trim(),
+        },
+      }
+    );
+
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Inventory Snapshot Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message:
+          error.message ||
+          "Failed to get Uniware inventory snapshot.",
+        errors: [],
+        warnings: [],
+      }
+    );
+  }
+});
+// Adjust Inventory - Single SKU
+app.post("/api/uniware/inventory/adjust", async (req, res) => {
+  try {
+    const {
+      facility,
+      inventoryAdjustment,
+    } = req.body;
+
+    // -----------------------------
+    // Validate Facility
+    // -----------------------------
+    if (!facility || !facility.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility code is required.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    // -----------------------------
+    // Validate adjustment object
+    // -----------------------------
+    if (
+      !inventoryAdjustment ||
+      typeof inventoryAdjustment !== "object"
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "inventoryAdjustment is required.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    const {
+      itemSKU,
+      quantity,
+      shelfCode,
+      inventoryType,
+      transferToShelfCode,
+      sla,
+      adjustmentType,
+      remarks,
+    } = inventoryAdjustment;
+
+    // -----------------------------
+    // Required: itemSKU
+    // -----------------------------
+    if (!itemSKU || !itemSKU.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Item SKU is required.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    // -----------------------------
+    // Required: quantity
+    // -----------------------------
+    if (
+      quantity === undefined ||
+      quantity === null ||
+      quantity === ""
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "Quantity is required.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    const numericQuantity = Number(quantity);
+
+    if (!Number.isFinite(numericQuantity)) {
+      return res.status(400).json({
+        successful: false,
+        message: "Quantity must be a valid number.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    // -----------------------------
+    // Required: shelfCode
+    // -----------------------------
+    if (!shelfCode || !shelfCode.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Shelf code is required.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    // -----------------------------
+    // Required: adjustmentType
+    // -----------------------------
+    const allowedAdjustmentTypes = [
+      "ADD",
+      "REMOVE",
+      "REPLACE",
+      "TRANSFER",
+    ];
+
+    const finalAdjustmentType =
+      adjustmentType?.trim() || "";
+
+    if (
+      !allowedAdjustmentTypes.includes(
+        finalAdjustmentType
+      )
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "Adjustment type must be ADD, REMOVE, REPLACE, or TRANSFER.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    // -----------------------------
+    // Inventory Type
+    // -----------------------------
+    const allowedInventoryTypes = [
+      "GOOD_INVENTORY",
+      "BAD_INVENTORY",
+      "QC_REJECTED",
+      "VIRTUAL_INVENTORY",
+    ];
+
+    const finalInventoryType =
+      inventoryType?.trim() ||
+      "GOOD_INVENTORY";
+
+    if (
+      !allowedInventoryTypes.includes(
+        finalInventoryType
+      )
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "Invalid inventory type.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    // -----------------------------
+    // TRANSFER requires destination shelf
+    // -----------------------------
+    if (
+      finalAdjustmentType === "TRANSFER" &&
+      (!transferToShelfCode ||
+        !transferToShelfCode.trim())
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "transferToShelfCode is required for TRANSFER.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    // -----------------------------
+    // Remarks max 255
+    // -----------------------------
+    if (
+      remarks !== undefined &&
+      remarks !== null &&
+      String(remarks).length > 255
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "Remarks cannot exceed 255 characters.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    // -----------------------------
+    // Build Uniware payload
+    // -----------------------------
+    const adjustment = {
+      itemSKU: itemSKU.trim(),
+      quantity: numericQuantity,
+      shelfCode: shelfCode.trim(),
+      inventoryType: finalInventoryType,
+      adjustmentType: finalAdjustmentType,
+    };
+
+    // TRANSFER destination
+    if (
+      finalAdjustmentType === "TRANSFER" &&
+      transferToShelfCode?.trim()
+    ) {
+      adjustment.transferToShelfCode =
+        transferToShelfCode.trim();
+    }
+
+    // Optional SLA
+    if (
+      sla !== undefined &&
+      sla !== null &&
+      sla !== ""
+    ) {
+      adjustment.sla = Number(sla);
+
+      if (!Number.isFinite(adjustment.sla)) {
+        return res.status(400).json({
+          successful: false,
+          message: "SLA must be a valid number.",
+          errors: [],
+          warnings: [],
+        });
+      }
+    }
+
+    // Optional remarks
+    if (
+      remarks !== undefined &&
+      remarks !== null &&
+      String(remarks).trim()
+    ) {
+      adjustment.remarks =
+        String(remarks).trim();
+    }
+
+    const payload = {
+      inventoryAdjustment: adjustment,
+    };
+
+    // -----------------------------
+    // Call Uniware
+    // -----------------------------
+    const response = await axios.post(
+      `${process.env.UNIWARE_BASE_URL}/services/rest/v1/inventory/adjust`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`,
+          Facility: facility.trim(),
+        },
+      }
+    );
+
+    res.status(response.status).json(
+      response.data
+    );
+  } catch (error) {
+    console.error(
+      "Uniware Adjust Inventory Error:",
+      error.response?.data ||
+        error.message
+    );
+
+    res.status(
+      error.response?.status || 500
+    ).json(
+      error.response?.data || {
+        successful: false,
+        message:
+          error.message ||
+          "Failed to adjust inventory.",
+        errors: [],
+        warnings: [],
+      }
+    );
+  }
+});
+// ============================================================
+// UNIWARE - ADJUST INVENTORY (MULTIPLE / BULK)
+// POST /api/uniware/inventory/adjust-bulk
+// ============================================================
+
+app.post("/api/uniware/inventory/adjust-bulk", async (req, res) => {
+  try {
+    const { facility, inventoryAdjustments, forceAllocate } = req.body;
+
+    // ----------------------------------------------------------
+    // Basic validation
+    // ----------------------------------------------------------
+    if (!facility || !facility.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility header is required."
+      });
+    }
+
+    if (
+      !Array.isArray(inventoryAdjustments) ||
+      inventoryAdjustments.length === 0
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "At least one inventory adjustment is required."
+      });
+    }
+
+    if (!process.env.UNIWARE_BASE_URL) {
+      return res.status(500).json({
+        successful: false,
+        message: "UNIWARE_BASE_URL is not configured."
+      });
+    }
+
+    if (!process.env.UNIWARE_ACCESS_TOKEN) {
+      return res.status(500).json({
+        successful: false,
+        message: "UNIWARE_ACCESS_TOKEN is not configured."
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Allowed values
+    // ----------------------------------------------------------
+    const allowedAdjustmentTypes = [
+      "ADD",
+      "REMOVE",
+      "REPLACE",
+      "TRANSFER"
+    ];
+
+    const allowedInventoryTypes = [
+      "GOOD_INVENTORY",
+      "BAD_INVENTORY",
+      "QC_REJECTED",
+      "VIRTUAL_INVENTORY"
+    ];
+
+    // ----------------------------------------------------------
+    // Validate and normalize each adjustment
+    // ----------------------------------------------------------
+    const normalizedAdjustments = [];
+
+    for (let index = 0; index < inventoryAdjustments.length; index++) {
+      const adjustment = inventoryAdjustments[index] || {};
+
+      const rowNumber = index + 1;
+
+      // itemSKU
+      if (!adjustment.itemSKU || !String(adjustment.itemSKU).trim()) {
+        return res.status(400).json({
+          successful: false,
+          message: `Item SKU is required for adjustment ${rowNumber}.`
+        });
+      }
+
+      // quantity
+      if (
+        adjustment.quantity === undefined ||
+        adjustment.quantity === null ||
+        adjustment.quantity === "" ||
+        Number.isNaN(Number(adjustment.quantity))
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: `Quantity is required and must be numeric for adjustment ${rowNumber}.`
+        });
+      }
+
+      // shelfCode
+      if (!adjustment.shelfCode || !String(adjustment.shelfCode).trim()) {
+        return res.status(400).json({
+          successful: false,
+          message: `Shelf code is required for adjustment ${rowNumber}.`
+        });
+      }
+
+      // adjustmentType
+      const adjustmentType = String(
+        adjustment.adjustmentType || ""
+      ).trim().toUpperCase();
+
+      if (!allowedAdjustmentTypes.includes(adjustmentType)) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            `Invalid adjustmentType for adjustment ${rowNumber}. ` +
+            `Allowed values: ${allowedAdjustmentTypes.join(", ")}.`
+        });
+      }
+
+      // inventoryType
+      const inventoryType = String(
+        adjustment.inventoryType || "GOOD_INVENTORY"
+      )
+        .trim()
+        .toUpperCase();
+
+      if (!allowedInventoryTypes.includes(inventoryType)) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            `Invalid inventoryType for adjustment ${rowNumber}. ` +
+            `Allowed values: ${allowedInventoryTypes.join(", ")}.`
+        });
+      }
+
+      // facilityCode
+      if (
+        !adjustment.facilityCode ||
+        !String(adjustment.facilityCode).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: `facilityCode is required for adjustment ${rowNumber}.`
+        });
+      }
+
+      // TRANSFER requires destination shelf
+      if (
+        adjustmentType === "TRANSFER" &&
+        (!adjustment.transferToShelfCode ||
+          !String(adjustment.transferToShelfCode).trim())
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            `transferToShelfCode is required for TRANSFER ` +
+            `in adjustment ${rowNumber}.`
+        });
+      }
+
+      // remarks max 255
+      if (
+        adjustment.remarks !== undefined &&
+        adjustment.remarks !== null &&
+        String(adjustment.remarks).length > 255
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            `Remarks cannot exceed 255 characters for adjustment ${rowNumber}.`
+        });
+      }
+
+      // --------------------------------------------------------
+      // Build payload dynamically
+      // Do not send unnecessary empty properties.
+      // --------------------------------------------------------
+      const item = {
+        itemSKU: String(adjustment.itemSKU).trim(),
+        quantity: Number(adjustment.quantity),
+        shelfCode: String(adjustment.shelfCode).trim(),
+        inventoryType,
+        adjustmentType,
+        facilityCode: String(adjustment.facilityCode).trim()
+      };
+
+      if (
+        adjustment.transferToShelfCode !== undefined &&
+        adjustment.transferToShelfCode !== null &&
+        String(adjustment.transferToShelfCode).trim()
+      ) {
+        item.transferToShelfCode = String(
+          adjustment.transferToShelfCode
+        ).trim();
+      }
+
+      if (
+        adjustment.sla !== undefined &&
+        adjustment.sla !== null &&
+        adjustment.sla !== ""
+      ) {
+        if (Number.isNaN(Number(adjustment.sla))) {
+          return res.status(400).json({
+            successful: false,
+            message: `SLA must be numeric for adjustment ${rowNumber}.`
+          });
+        }
+
+        item.sla = Number(adjustment.sla);
+      }
+
+      if (
+        adjustment.remarks !== undefined &&
+        adjustment.remarks !== null &&
+        String(adjustment.remarks).trim()
+      ) {
+        item.remarks = String(adjustment.remarks).trim();
+      }
+
+      normalizedAdjustments.push(item);
+    }
+
+    // ----------------------------------------------------------
+    // forceAllocate
+    // ----------------------------------------------------------
+    const finalForceAllocate =
+      forceAllocate === true || forceAllocate === "true";
+
+    const payload = {
+      inventoryAdjustments: normalizedAdjustments,
+      forceAllocate: finalForceAllocate
+    };
+
+    // ----------------------------------------------------------
+    // Uniware request
+    //
+    // Facility header is required by the API.
+    // For a multi-facility request, the individual
+    // facilityCode values identify the adjustment facility.
+    // ----------------------------------------------------------
+    const url =
+      `${process.env.UNIWARE_BASE_URL}` +
+      `/services/rest/v1/inventory/adjust/bulk`;
+
+    const response = await axios.post(url, payload, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`,
+        Facility: facility.trim()
+      },
+      timeout: 60000
+    });
+
+    return res.status(response.status || 200).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware bulk inventory adjustment error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message: error.message || "Failed to adjust inventory."
+      }
+    );
+  }
+});
+
+// ============================================================
+// UNIWARE - ADJUST BATCHWISE INVENTORY (MULTIPLE / BULK)
+// POST /api/uniware/inventory/adjust-batch-bulk
+// ============================================================
+
+app.post(
+  "/api/uniware/inventory/adjust-batch-bulk",
+  async (req, res) => {
+    try {
+      const {
+        facility,
+        inventoryAdjustments,
+        forceAllocate
+      } = req.body;
+
+      // --------------------------------------------------------
+      // Basic validation
+      // --------------------------------------------------------
+      if (!facility || !facility.trim()) {
+        return res.status(400).json({
+          successful: false,
+          message: "Facility header is required."
+        });
+      }
+
+      if (
+        !Array.isArray(inventoryAdjustments) ||
+        inventoryAdjustments.length === 0
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "At least one batchwise inventory adjustment is required."
+        });
+      }
+
+      if (!process.env.UNIWARE_BASE_URL) {
+        return res.status(500).json({
+          successful: false,
+          message:
+            "UNIWARE_BASE_URL is not configured."
+        });
+      }
+
+      if (!process.env.UNIWARE_ACCESS_TOKEN) {
+        return res.status(500).json({
+          successful: false,
+          message:
+            "UNIWARE_ACCESS_TOKEN is not configured."
+        });
+      }
+
+      // --------------------------------------------------------
+      // Allowed values
+      // --------------------------------------------------------
+      const allowedAdjustmentTypes = [
+        "ADD",
+        "REMOVE",
+        "REPLACE",
+        "TRANSFER"
+      ];
+
+      const allowedInventoryTypes = [
+        "GOOD_INVENTORY",
+        "BAD_INVENTORY",
+        "QC_REJECTED",
+        "VIRTUAL_INVENTORY"
+      ];
+
+      const normalizedAdjustments = [];
+
+      // --------------------------------------------------------
+      // Process each adjustment
+      // --------------------------------------------------------
+      for (
+        let index = 0;
+        index < inventoryAdjustments.length;
+        index++
+      ) {
+        const adjustment =
+          inventoryAdjustments[index] || {};
+
+        const rowNumber = index + 1;
+
+        // ------------------------------------------------------
+        // itemSKU
+        // ------------------------------------------------------
+        if (
+          !adjustment.itemSKU ||
+          !String(adjustment.itemSKU).trim()
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `Item SKU is required for adjustment ${rowNumber}.`
+          });
+        }
+
+        // ------------------------------------------------------
+        // quantity
+        // ------------------------------------------------------
+        if (
+          adjustment.quantity === undefined ||
+          adjustment.quantity === null ||
+          adjustment.quantity === "" ||
+          Number.isNaN(Number(adjustment.quantity))
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `Quantity is required and must be numeric ` +
+              `for adjustment ${rowNumber}.`
+          });
+        }
+
+        // ------------------------------------------------------
+        // shelfCode
+        // ------------------------------------------------------
+        if (
+          !adjustment.shelfCode ||
+          !String(adjustment.shelfCode).trim()
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `Shelf code is required for adjustment ${rowNumber}.`
+          });
+        }
+
+        // ------------------------------------------------------
+        // facilityCode
+        // ------------------------------------------------------
+        if (
+          !adjustment.facilityCode ||
+          !String(adjustment.facilityCode).trim()
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `facilityCode is required for adjustment ${rowNumber}.`
+          });
+        }
+
+        // ------------------------------------------------------
+        // adjustmentType
+        // ------------------------------------------------------
+        const adjustmentType = String(
+          adjustment.adjustmentType || ""
+        )
+          .trim()
+          .toUpperCase();
+
+        if (
+          !allowedAdjustmentTypes.includes(
+            adjustmentType
+          )
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `Invalid adjustmentType for adjustment ${rowNumber}. ` +
+              `Allowed values: ${allowedAdjustmentTypes.join(
+                ", "
+              )}.`
+          });
+        }
+
+        // ------------------------------------------------------
+        // inventoryType
+        // ------------------------------------------------------
+        const inventoryType = String(
+          adjustment.inventoryType ||
+            "GOOD_INVENTORY"
+        )
+          .trim()
+          .toUpperCase();
+
+        if (
+          !allowedInventoryTypes.includes(
+            inventoryType
+          )
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `Invalid inventoryType for adjustment ${rowNumber}. ` +
+              `Allowed values: ${allowedInventoryTypes.join(
+                ", "
+              )}.`
+          });
+        }
+
+        // ------------------------------------------------------
+        // TRANSFER validation
+        // ------------------------------------------------------
+        if (
+          adjustmentType === "TRANSFER" &&
+          (
+            !adjustment.transferToShelfCode ||
+            !String(
+              adjustment.transferToShelfCode
+            ).trim()
+          )
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `transferToShelfCode is required for ` +
+              `TRANSFER in adjustment ${rowNumber}.`
+          });
+        }
+
+        // ------------------------------------------------------
+        // remarks validation
+        // ------------------------------------------------------
+        if (
+          adjustment.remarks !== undefined &&
+          adjustment.remarks !== null &&
+          String(adjustment.remarks).length > 255
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `Remarks cannot exceed 255 characters ` +
+              `for adjustment ${rowNumber}.`
+          });
+        }
+
+        // ------------------------------------------------------
+        // BATCH MODE
+        //
+        // Mode 1:
+        // Existing batchCode
+        //
+        // Mode 2:
+        // New batch details
+        // ------------------------------------------------------
+        const batchCode = adjustment.batchCode
+          ? String(adjustment.batchCode).trim()
+          : "";
+
+        const hasBatchDetails =
+          adjustment.batchDetails &&
+          typeof adjustment.batchDetails ===
+            "object";
+
+        if (!batchCode && !hasBatchDetails) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `Either batchCode or batchDetails is required ` +
+              `for adjustment ${rowNumber}.`
+          });
+        }
+
+        // The Uniware documentation states that batchDetails
+        // should not be supplied when batchCode is passed.
+        if (batchCode && hasBatchDetails) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `Do not send batchDetails when batchCode is ` +
+              `provided for adjustment ${rowNumber}.`
+          });
+        }
+
+        // ------------------------------------------------------
+        // Build the common adjustment
+        // ------------------------------------------------------
+        const item = {
+          itemSKU: String(
+            adjustment.itemSKU
+          ).trim(),
+
+          quantity: Number(
+            adjustment.quantity
+          ),
+
+          shelfCode: String(
+            adjustment.shelfCode
+          ).trim(),
+
+          inventoryType,
+
+          adjustmentType,
+
+          facilityCode: String(
+            adjustment.facilityCode
+          ).trim()
+        };
+
+        // ------------------------------------------------------
+        // transferToShelfCode
+        // ------------------------------------------------------
+        if (
+          adjustment.transferToShelfCode !==
+            undefined &&
+          adjustment.transferToShelfCode !==
+            null &&
+          String(
+            adjustment.transferToShelfCode
+          ).trim()
+        ) {
+          item.transferToShelfCode =
+            String(
+              adjustment.transferToShelfCode
+            ).trim();
+        }
+
+        // ------------------------------------------------------
+        // SLA
+        // ------------------------------------------------------
+        if (
+          adjustment.sla !== undefined &&
+          adjustment.sla !== null &&
+          adjustment.sla !== ""
+        ) {
+          if (
+            Number.isNaN(
+              Number(adjustment.sla)
+            )
+          ) {
+            return res.status(400).json({
+              successful: false,
+              message:
+                `SLA must be numeric for adjustment ${rowNumber}.`
+            });
+          }
+
+          item.sla = Number(
+            adjustment.sla
+          );
+        }
+
+        // ------------------------------------------------------
+        // Remarks
+        // ------------------------------------------------------
+        if (
+          adjustment.remarks !==
+            undefined &&
+          adjustment.remarks !== null &&
+          String(adjustment.remarks).trim()
+        ) {
+          item.remarks = String(
+            adjustment.remarks
+          ).trim();
+        }
+
+        // ------------------------------------------------------
+        // Existing batch
+        // ------------------------------------------------------
+        if (batchCode) {
+          item.batchCode = batchCode;
+        }
+
+        // ------------------------------------------------------
+        // New batch details
+        // ------------------------------------------------------
+        if (hasBatchDetails) {
+          const details =
+            adjustment.batchDetails;
+
+          // According to documentation, these are
+          // mandatory when batchDetails are supplied.
+          const requiredBatchFields = [
+            "mrp",
+            "cost",
+            "mfd",
+            "vendorCode",
+            "expiryDate",
+            "vendorBatchNumber"
+          ];
+
+          for (
+            const field of requiredBatchFields
+          ) {
+            if (
+              details[field] ===
+                undefined ||
+              details[field] ===
+                null ||
+              String(details[field]).trim() ===
+                ""
+            ) {
+              return res.status(400).json({
+                successful: false,
+                message:
+                  `${field} is required in batchDetails ` +
+                  `for adjustment ${rowNumber}.`
+              });
+            }
+          }
+
+          item.batchDetails = {
+            mrp: String(
+              details.mrp
+            ).trim(),
+
+            cost: String(
+              details.cost
+            ).trim(),
+
+            mfd: String(
+              details.mfd
+            ).trim(),
+
+            vendorCode: String(
+              details.vendorCode
+            ).trim(),
+
+            expiryDate: String(
+              details.expiryDate
+            ).trim(),
+
+            vendorBatchNumber: String(
+              details.vendorBatchNumber
+            ).trim()
+          };
+        }
+
+        normalizedAdjustments.push(item);
+      }
+
+      // --------------------------------------------------------
+      // forceAllocate
+      // --------------------------------------------------------
+      const finalForceAllocate =
+        forceAllocate === true ||
+        forceAllocate === "true";
+
+      // --------------------------------------------------------
+      // Final Uniware payload
+      // --------------------------------------------------------
+      const payload = {
+        inventoryAdjustments:
+          normalizedAdjustments,
+        forceAllocate:
+          finalForceAllocate
+      };
+
+      // --------------------------------------------------------
+      // Uniware API
+      // --------------------------------------------------------
+      const url =
+        `${process.env.UNIWARE_BASE_URL}` +
+        `/services/rest/v1/inventory/adjust/bulk`;
+
+      const response = await axios.post(
+        url,
+        payload,
+        {
+          headers: {
+            "Content-Type":
+              "application/json",
+
+            Authorization:
+              `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`,
+
+            Facility:
+              facility.trim()
+          },
+
+          timeout: 60000
+        }
+      );
+
+      return res
+        .status(response.status || 200)
+        .json(response.data);
+    } catch (error) {
+      console.error(
+        "Uniware batchwise inventory adjustment error:",
+        error.response?.data ||
+          error.message
+      );
+
+      return res
+        .status(
+          error.response?.status || 500
+        )
+        .json(
+          error.response?.data || {
+            successful: false,
+            message:
+              error.message ||
+              "Failed to adjust batchwise inventory."
+          }
+        );
+    }
+  }
+);
+
+// ============================================================
+// UNIWARE - MARK INVENTORY FOUND
+// POST /api/uniware/inventory/mark-found
+// Uniware:
+// POST /services/rest/v1/inventory/markQuantityFound
+// Facility-level API
+// ============================================================
+
+app.post("/api/uniware/inventory/mark-found", async (req, res) => {
+  try {
+    const {
+      facility,
+      itemSku,
+      shelfCode,
+      quantityFound,
+      ageingStartDate,
+    } = req.body;
+
+    // --------------------------------------------------------
+    // Validation
+    // --------------------------------------------------------
+    if (!facility || !facility.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility is required.",
+      });
+    }
+
+    if (!itemSku || !itemSku.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "itemSku is required.",
+      });
+    }
+
+    if (!shelfCode || !shelfCode.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "shelfCode is required.",
+      });
+    }
+
+    if (
+      quantityFound === undefined ||
+      quantityFound === null ||
+      quantityFound === ""
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "quantityFound is required.",
+      });
+    }
+
+    const parsedQuantity = Number(quantityFound);
+
+    if (!Number.isInteger(parsedQuantity) || parsedQuantity < 0) {
+      return res.status(400).json({
+        successful: false,
+        message: "quantityFound must be a non-negative integer.",
+      });
+    }
+
+    // --------------------------------------------------------
+    // Build Uniware payload
+    // --------------------------------------------------------
+    const payload = {
+      itemSku: itemSku.trim(),
+      shelfCode: shelfCode.trim(),
+      quantityFound: parsedQuantity,
+    };
+
+    // Optional field
+    if (ageingStartDate && String(ageingStartDate).trim()) {
+      const date = new Date(ageingStartDate);
+
+      if (Number.isNaN(date.getTime())) {
+        return res.status(400).json({
+          successful: false,
+          message: "ageingStartDate must be a valid date-time.",
+        });
+      }
+
+      payload.ageingStartDate = date.toISOString();
+    }
+
+    // --------------------------------------------------------
+    // Call Uniware
+    // --------------------------------------------------------
+    const response = await axios.post(
+      `${process.env.UNIWARE_BASE_URL}/services/rest/v1/inventory/markQuantityFound`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`,
+          Facility: facility.trim(),
+        },
+      }
+    );
+
+    return res.status(200).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Mark Inventory Found Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message: error.message || "Failed to mark inventory as found.",
+      }
+    );
+  }
+});
+
+// ============================================================
+// UNIWARE - GET NEARBY STORE INVENTORY
+// POST /api/uniware/inventory/nearby
+// Uniware:
+// POST /services/rest/v1/oms/nearbyInventory/get
+// Level: Tenant
+// ============================================================
+
+app.post("/api/uniware/inventory/nearby", async (req, res) => {
+  try {
+    const {
+      customerPincode,
+      facilitySearchRadius,
+      facilityOperationalType,
+      facilityStatus,
+      itemType,
+    } = req.body;
+
+    // --------------------------------------------------------
+    // Validation
+    // --------------------------------------------------------
+
+    if (!customerPincode || !String(customerPincode).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Customer pincode is required.",
+      });
+    }
+
+    if (
+      facilitySearchRadius === undefined ||
+      facilitySearchRadius === null ||
+      facilitySearchRadius === ""
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility search radius is required.",
+      });
+    }
+
+    const radius = Number(facilitySearchRadius);
+
+    if (!Number.isFinite(radius) || radius <= 0) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility search radius must be a positive number.",
+      });
+    }
+
+    // Uniware currently limits the radius to 100 km.
+    if (radius > 100) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility search radius cannot exceed 100 km.",
+      });
+    }
+
+    if (!facilityOperationalType || !String(facilityOperationalType).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility operational type is required.",
+      });
+    }
+
+    const allowedOperationalTypes = [
+      "WAREHOUSE",
+      "STORE",
+      "DARKSTORE",
+      "RETAIL_STORE",
+      "FULFILLMENT_CENTER",
+    ];
+
+    const operationalType = String(facilityOperationalType)
+      .trim()
+      .toUpperCase();
+
+    // We don't hard-block undocumented values because
+    // Uniware tenants may have additional operational types.
+    // The value is still sent exactly as entered after trim/uppercase.
+
+    if (!facilityStatus || !String(facilityStatus).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility status is required.",
+      });
+    }
+
+    const status = String(facilityStatus).trim().toUpperCase();
+
+    const allowedStatuses = ["ALL", "ENABLED", "DISABLED"];
+
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility status must be ALL, ENABLED, or DISABLED.",
+      });
+    }
+
+    if (!itemType || typeof itemType !== "object") {
+      return res.status(400).json({
+        successful: false,
+        message: "itemType is required.",
+      });
+    }
+
+    if (!itemType.skuCode || !String(itemType.skuCode).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "SKU code is required.",
+      });
+    }
+
+    if (
+      itemType.quantity === undefined ||
+      itemType.quantity === null ||
+      itemType.quantity === ""
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "Quantity is required.",
+      });
+    }
+
+    const quantity = Number(itemType.quantity);
+
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      return res.status(400).json({
+        successful: false,
+        message: "Quantity must be a positive integer.",
+      });
+    }
+
+    // --------------------------------------------------------
+    // Uniware payload
+    // --------------------------------------------------------
+
+    const payload = {
+      customerPincode: String(customerPincode).trim(),
+      facilitySearchRadius: radius,
+      facilityOperationalType: operationalType,
+      facilityStatus: status,
+      itemType: {
+        skuCode: String(itemType.skuCode).trim(),
+        quantity,
+      },
+    };
+
+    // --------------------------------------------------------
+    // Call Uniware
+    // --------------------------------------------------------
+
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/nearbyInventory/get`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (err) {
+    console.error(
+      "Uniware Nearby Inventory Error:",
+      err.response?.data || err.message
+    );
+
+    return res.status(err.response?.status || 500).json(
+      err.response?.data || {
+        successful: false,
+        message: err.message || "Failed to get nearby store inventory.",
+      }
+    );
+  }
+});
+
+// ============================================================
+// UNIWARE - CREATE CUSTOMER
+// POST /api/uniware/customers/create
+//
+// Uniware:
+// POST /services/rest/v1/oms/customer/create
+//
+// Level: Tenant
+// No Facility header required.
+// ============================================================
+
+app.post("/api/uniware/customers/create", async (req, res) => {
+  try {
+    const { customer } = req.body;
+
+    // --------------------------------------------------------
+    // Basic validation
+    // --------------------------------------------------------
+
+    if (!customer || typeof customer !== "object") {
+      return res.status(400).json({
+        successful: false,
+        message: "Customer object is required.",
+      });
+    }
+
+    if (!customer.code || !String(customer.code).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Customer code is required.",
+      });
+    }
+
+    const customerCode = String(customer.code).trim();
+
+    if (customerCode.length > 45) {
+      return res.status(400).json({
+        successful: false,
+        message: "Customer code cannot exceed 45 characters.",
+      });
+    }
+
+    if (!/^[a-zA-Z0-9-_]+$/.test(customerCode)) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "Customer code can contain only letters, numbers, hyphen and underscore.",
+      });
+    }
+
+    // --------------------------------------------------------
+    // Helper
+    // --------------------------------------------------------
+
+    const cleanString = (value) => {
+      if (value === undefined || value === null) {
+        return undefined;
+      }
+
+      const valueString = String(value).trim();
+
+      return valueString === "" ? undefined : valueString;
+    };
+
+    const cleanBoolean = (value) => {
+      if (value === undefined || value === null || value === "") {
+        return undefined;
+      }
+
+      return Boolean(value);
+    };
+
+    const cleanInteger = (value) => {
+      if (value === undefined || value === null || value === "") {
+        return undefined;
+      }
+
+      const number = Number(value);
+
+      return Number.isInteger(number) ? number : undefined;
+    };
+
+    // --------------------------------------------------------
+    // Build customer
+    // --------------------------------------------------------
+
+    const customerPayload = {
+      code: customerCode,
+    };
+
+    const optionalCustomerFields = [
+      ["name", 100],
+      ["alternateCode", 45],
+      ["pan", 45],
+      ["tin", 45],
+      ["cinNumber", 45],
+      ["cstNumber", 45],
+      ["stNumber", 45],
+      ["gstNumber", 15],
+      ["website", 256],
+      ["uniwareAccessUrl", null],
+      ["uniwareApiUser", null],
+      ["uniwareApiPassword", null],
+    ];
+
+    for (const [field, maxLength] of optionalCustomerFields) {
+      const value = cleanString(customer[field]);
+
+      if (value !== undefined) {
+        if (maxLength && value.length > maxLength) {
+          return res.status(400).json({
+            successful: false,
+            message: `${field} cannot exceed ${maxLength} characters.`,
+          });
+        }
+
+        customerPayload[field] = value;
+      }
+    }
+
+    // --------------------------------------------------------
+    // Boolean fields
+    // --------------------------------------------------------
+
+    for (const field of [
+      "enabled",
+      "taxExempted",
+      "registeredDealer",
+      "providesCform",
+      "dualCompanyRetail",
+    ]) {
+      const value = cleanBoolean(customer[field]);
+
+      if (value !== undefined) {
+        customerPayload[field] = value;
+      }
+    }
+
+    // --------------------------------------------------------
+    // Integer fields
+    // --------------------------------------------------------
+
+    for (const field of [
+      "binaryObjectId",
+      "signatureBinaryObjectId",
+    ]) {
+      const value = cleanInteger(customer[field]);
+
+      if (value !== undefined) {
+        customerPayload[field] = value;
+      }
+    }
+
+    // --------------------------------------------------------
+    // Address builder
+    // --------------------------------------------------------
+
+    const buildAddress = (address, addressName) => {
+      if (!address || typeof address !== "object") {
+        return undefined;
+      }
+
+      const result = {};
+
+      const requiredFields = [
+        "addressLine1",
+        "city",
+        "stateCode",
+        "partyCode",
+        "addressType",
+        "pincode",
+        "phone",
+      ];
+
+      for (const field of requiredFields) {
+        const value = cleanString(address[field]);
+
+        if (!value) {
+          throw new Error(
+            `${addressName}.${field} is required.`
+          );
+        }
+
+        result[field] = value;
+      }
+
+      // Max lengths from Uniware documentation
+      if (result.addressLine1.length > 500) {
+        throw new Error(
+          `${addressName}.addressLine1 cannot exceed 500 characters.`
+        );
+      }
+
+      if (result.city.length > 100) {
+        throw new Error(
+          `${addressName}.city cannot exceed 100 characters.`
+        );
+      }
+
+      if (!/^\d{6,}$/.test(result.pincode)) {
+        throw new Error(
+          `${addressName}.pincode must contain at least 6 digits.`
+        );
+      }
+
+      const optionalFields = [
+        "addressLine2",
+        "countryCode",
+        "latitude",
+        "longitude",
+      ];
+
+      for (const field of optionalFields) {
+        const value = cleanString(address[field]);
+
+        if (value !== undefined) {
+          result[field] = value;
+        }
+      }
+
+      if (result.addressLine2?.length > 500) {
+        throw new Error(
+          `${addressName}.addressLine2 cannot exceed 500 characters.`
+        );
+      }
+
+      return result;
+    };
+
+    // --------------------------------------------------------
+    // Billing Address
+    // --------------------------------------------------------
+
+    if (customer.billingAddress) {
+      customerPayload.billingAddress = buildAddress(
+        customer.billingAddress,
+        "billingAddress"
+      );
+    }
+
+    // --------------------------------------------------------
+    // Shipping Address
+    // --------------------------------------------------------
+
+    if (customer.shippingAddress) {
+      customerPayload.shippingAddress = buildAddress(
+        customer.shippingAddress,
+        "shippingAddress"
+      );
+    }
+
+    // --------------------------------------------------------
+    // Party Contacts
+    // --------------------------------------------------------
+
+    if (Array.isArray(customer.partyContacts)) {
+      customerPayload.partyContacts =
+        customer.partyContacts.map((contact, index) => {
+          if (!contact || typeof contact !== "object") {
+            throw new Error(
+              `partyContacts[${index}] must be an object.`
+            );
+          }
+
+          const contactType = cleanString(
+            contact.contactType
+          );
+
+          const partyCode = cleanString(
+            contact.partyCode
+          );
+
+          const name = cleanString(contact.name);
+          const email = cleanString(contact.email);
+
+          if (!contactType) {
+            throw new Error(
+              `partyContacts[${index}].contactType is required.`
+            );
+          }
+
+          if (!partyCode) {
+            throw new Error(
+              `partyContacts[${index}].partyCode is required.`
+            );
+          }
+
+          if (!name) {
+            throw new Error(
+              `partyContacts[${index}].name is required.`
+            );
+          }
+
+          if (!email) {
+            throw new Error(
+              `partyContacts[${index}].email is required.`
+            );
+          }
+
+          if (name.length > 45) {
+            throw new Error(
+              `partyContacts[${index}].name cannot exceed 45 characters.`
+            );
+          }
+
+          if (email.length > 200) {
+            throw new Error(
+              `partyContacts[${index}].email cannot exceed 200 characters.`
+            );
+          }
+
+          const result = {
+            contactType,
+            partyCode,
+            name,
+            email,
+          };
+
+          const phone = cleanString(contact.phone);
+          const fax = cleanString(contact.fax);
+
+          if (phone !== undefined) {
+            result.phone = phone;
+          }
+
+          if (fax !== undefined) {
+            result.fax = fax;
+          }
+
+          return result;
+        });
+    }
+
+    // --------------------------------------------------------
+    // Final Uniware payload
+    // --------------------------------------------------------
+
+    const payload = {
+      customer: customerPayload,
+    };
+
+    // --------------------------------------------------------
+    // Call Uniware
+    // --------------------------------------------------------
+
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/customer/create`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (err) {
+    console.error(
+      "Uniware Create Customer Error:",
+      err.response?.data || err.message
+    );
+
+    return res.status(err.response?.status || 500).json(
+      err.response?.data || {
+        successful: false,
+        message:
+          err.message || "Failed to create Uniware customer.",
+      }
+    );
+  }
+});
+
+/* =========================================================
+   3. UPDATE CUSTOMER
+   =========================================================
+   Uniware:
+   POST /services/rest/v1/oms/customer/edit
+
+   Level: Tenant
+   ========================================================= */
+
+app.post("/api/uniware/customers/update", async (req, res) => {
+  try {
+    const body = req.body || {};
+
+    if (!cleanString(body.code)) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "Customer code is required for update.",
+      });
+    }
+
+    const code = cleanString(body.code);
+
+    if (code.length > 45) {
+      return res.status(400).json({
+        successful: false,
+        message: "Customer code cannot exceed 45 characters.",
+      });
+    }
+
+    if (!/^[a-zA-Z0-9-_]+$/.test(code)) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "Customer code may contain only letters, numbers, hyphen, and underscore.",
+      });
+    }
+
+    const payload = buildCustomerPayload(body);
+
+    const data = await uniwareRequest(
+      "/services/rest/v1/oms/customer/edit",
+      payload
+    );
+
+    return res.status(200).json(data);
+  } catch (error) {
+    return res.status(
+      error.response?.status || 500
+    ).json(
+      error.response?.data || {
+        successful: false,
+        message:
+          error.message ||
+          "Failed to update customer.",
+      }
+    );
+  }
+});
+// ============================================================
+// UNIWARE - CREATE SALE ORDER
+// POST /api/uniware/sale-orders/create
+// Uniware:
+// POST /services/rest/v1/oms/saleOrder/create
+// ============================================================
+
+app.post("/api/uniware/sale-orders/create", async (req, res) => {
+  try {
+    const { facility, saleOrder } = req.body;
+
+    if (!facility || !facility.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility is required.",
+        errors: [
+          {
+            fieldName: "facility",
+            message: "Uniware Facility code is required."
+          }
+        ]
+      });
+    }
+
+    if (!saleOrder || typeof saleOrder !== "object") {
+      return res.status(400).json({
+        successful: false,
+        message: "saleOrder object is required.",
+        errors: [
+          {
+            fieldName: "saleOrder",
+            message: "saleOrder object is required."
+          }
+        ]
+      });
+    }
+
+    if (
+      saleOrder.code &&
+      String(saleOrder.code).length > 45
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "Sale order code cannot exceed 45 characters."
+      });
+    }
+
+    if (
+      saleOrder.displayOrderCode &&
+      String(saleOrder.displayOrderCode).length > 45
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "Display order code cannot exceed 45 characters."
+      });
+    }
+
+    if (saleOrder.customerName &&
+        String(saleOrder.customerName).length > 100) {
+      return res.status(400).json({
+        successful: false,
+        message: "Customer name cannot exceed 100 characters."
+      });
+    }
+
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/saleOrder/create`,
+      {
+        saleOrder
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          Facility: facility.trim()
+        },
+        timeout: 30000
+      }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Create Sale Order Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message: error.message || "Failed to create sale order."
+      }
+    );
+  }
+});
+
+// ============================================================
+// UNIWARE - GET SALE ORDER
+// POST /api/uniware/sale-orders/get
+//
+// Uniware:
+// POST /services/rest/v1/oms/saleorder/get
+//
+// Tenant-level
+// No Facility header required
+// ============================================================
+
+app.post("/api/uniware/sale-orders/get", async (req, res) => {
+  try {
+    const {
+      code,
+      facilityCodes,
+      paymentDetailRequired,
+    } = req.body;
+
+    // -----------------------------
+    // Validation
+    // -----------------------------
+    if (!code || !String(code).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Sale order code is required.",
+        errors: [
+          {
+            fieldName: "code",
+            message: "Sale order code is required.",
+          },
+        ],
+      });
+    }
+
+    // -----------------------------
+    // Build Uniware payload
+    // -----------------------------
+    const payload = {
+      code: String(code).trim(),
+    };
+
+    if (
+      Array.isArray(facilityCodes) &&
+      facilityCodes.length > 0
+    ) {
+      payload.facilityCodes = facilityCodes
+        .filter(
+          (item) =>
+            item !== null &&
+            item !== undefined &&
+            String(item).trim() !== ""
+        )
+        .map((item) => String(item).trim());
+    }
+
+    // Preserve false if explicitly supplied
+    if (typeof paymentDetailRequired === "boolean") {
+      payload.paymentDetailRequired =
+        paymentDetailRequired;
+    }
+
+    // -----------------------------
+    // Call Uniware
+    // -----------------------------
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/saleorder/get`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json(
+      response.data
+    );
+  } catch (error) {
+    console.error(
+      "Uniware Get Sale Order Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(
+      error.response?.status || 500
+    ).json(
+      error.response?.data || {
+        successful: false,
+        message:
+          error.message ||
+          "Failed to fetch sale order.",
+      }
+    );
+  }
+});
 // ================= SERVER START =================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
