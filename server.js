@@ -19128,6 +19128,240 @@ app.post("/api/uniware/sale-orders/create-alternate-item", async (req, res) => {
       .json(errorData);
   }
 });
+
+// ============================================================
+// ACCEPT ALTERNATE SALE ORDER ITEM
+// Uniware:
+// POST /services/rest/v1/oms/saleOrder/acceptSaleOrderItemAlternate
+// Tenant-level - No Facility header
+// ============================================================
+
+app.post("/api/uniware/sale-orders/accept-alternate-item", async (req, res) => {
+  try {
+    const {
+      saleOrderCode,
+      saleOrderItemCodes,
+      selectedAlternateItemSku,
+    } = req.body;
+
+    // --------------------------------------------------------
+    // Validate sale order code
+    // --------------------------------------------------------
+
+    if (!saleOrderCode || !String(saleOrderCode).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Sale order code is required.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    // --------------------------------------------------------
+    // Validate sale order item codes
+    // --------------------------------------------------------
+
+    if (
+      !Array.isArray(saleOrderItemCodes) ||
+      saleOrderItemCodes.length === 0
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "At least one sale order item code is required.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    const cleanedSaleOrderItemCodes = saleOrderItemCodes
+      .map((code) => String(code || "").trim())
+      .filter(Boolean);
+
+    if (cleanedSaleOrderItemCodes.length === 0) {
+      return res.status(400).json({
+        successful: false,
+        message: "At least one valid sale order item code is required.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    // Remove duplicate item codes
+    const uniqueSaleOrderItemCodes = [
+      ...new Set(cleanedSaleOrderItemCodes),
+    ];
+
+    // --------------------------------------------------------
+    // Validate alternate SKU
+    // --------------------------------------------------------
+
+    if (
+      !selectedAlternateItemSku ||
+      !String(selectedAlternateItemSku).trim()
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "Selected alternate item SKU is required.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    // --------------------------------------------------------
+    // Build Uniware payload
+    // --------------------------------------------------------
+
+    const payload = {
+      saleOrderCode: String(saleOrderCode).trim(),
+      saleOrderItemCodes: uniqueSaleOrderItemCodes,
+      selectedAlternateItemSku:
+        String(selectedAlternateItemSku).trim(),
+    };
+
+    // --------------------------------------------------------
+    // Call Uniware
+    // --------------------------------------------------------
+
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/saleOrder/acceptSaleOrderItemAlternate`,
+      payload,
+      {
+        headers: {
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (err) {
+    console.error(
+      "Uniware Accept Alternate Sale Order Item Error:",
+      err.response?.status || err.message
+    );
+
+    const errorData =
+      err.response?.data || {
+        successful: false,
+        message:
+          err.message ||
+          "Failed to accept alternate sale order item.",
+        errors: [],
+        warnings: [],
+      };
+
+    return res
+      .status(err.response?.status || 500)
+      .json(errorData);
+  }
+});
+
+
+/// ============================================================
+// ALLOCATE COURIER FOR REVERSE PICK-UP
+// Uniware:
+// POST /services/rest/v1/oms/reversePickup/assignReverseProvider
+// Facility-level
+// ============================================================
+
+app.post("/api/uniware/reverse-pickups/allocate-courier", async (req, res) => {
+  try {
+    const {
+      facility,
+      reversePickupCodes,
+    } = req.body;
+
+    // --------------------------------------------------------
+    // Validate Facility
+    // --------------------------------------------------------
+
+    if (!facility || !String(facility).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility is required.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    // --------------------------------------------------------
+    // Validate reverse pickup codes
+    // --------------------------------------------------------
+
+    if (
+      !Array.isArray(reversePickupCodes) ||
+      reversePickupCodes.length === 0
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "At least one reverse pickup code is required.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    const cleanedCodes = reversePickupCodes
+      .map((code) => String(code || "").trim())
+      .filter(Boolean);
+
+    if (cleanedCodes.length === 0) {
+      return res.status(400).json({
+        successful: false,
+        message: "At least one valid reverse pickup code is required.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    // Remove duplicate reverse pickup codes
+    const uniqueCodes = [...new Set(cleanedCodes)];
+
+    // --------------------------------------------------------
+    // Uniware payload
+    // --------------------------------------------------------
+
+    const payload = {
+      reversePickupCodes: uniqueCodes,
+    };
+
+    // --------------------------------------------------------
+    // Call Uniware
+    // --------------------------------------------------------
+
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/reversePickup/assignReverseProvider`,
+      payload,
+      {
+        headers: {
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          "Content-Type": "application/json",
+          Facility: String(facility).trim(),
+        },
+      }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (err) {
+    console.error(
+      "Uniware Allocate Reverse Pickup Courier Error:",
+      err.response?.status || err.message
+    );
+
+    const errorData =
+      err.response?.data || {
+        successful: false,
+        message:
+          err.message ||
+          "Failed to allocate courier for reverse pickup.",
+        errors: [],
+        warnings: [],
+      };
+
+    return res
+      .status(err.response?.status || 500)
+      .json(errorData);
+  }
+});
 // ================= SERVER START =================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
