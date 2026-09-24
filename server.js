@@ -1,6 +1,8 @@
+
 const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
+const app = express();
 const dotenv = require("dotenv");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -8,7 +10,7 @@ const https = require("https");
 const aws4 = require("aws4");
 dotenv.config();
 
-const app = express();
+
 app.use(cors());
 app.use(express.json({ limit: "20mb" }));
 app.get("/", (req, res) => res.send("Amazon SP-API + Flipkart + MyStore Backend Running..."));
@@ -973,22 +975,6 @@ app.get('/api/marketplace/customers', (req,res)=>{
   res.json(marketplaceCustomers);
 });
 ///////////////////khans uniware////////////////
-
-const express = require("express");
-const cors = require("cors");
-const axios = require("axios");
-
-const app = express();
-
-app.use(
-  cors({
-    origin: ["http://localhost:5173", "http://localhost:3000"],
-    credentials: true,
-  })
-);
-
-app.use(express.json());
-
 // ============================================================
 // UNIWARE CONFIGURATION
 // ============================================================
@@ -18196,21 +18182,11 @@ app.post("/api/uniware/returns/search", async (req, res) => {
     );
   }
 });
-
-
-
-
-const axios = require("axios");
-
 // ============================================================
 // UNIWARE CONFIG
 // ============================================================
 
-const UNIWARE_BASE_URL =
-  process.env.UNIWARE_BASE_URL || "https://YOUR-TENANT.unicommerce.com";
 
-const UNIWARE_ACCESS_TOKEN =
-  process.env.UNIWARE_ACCESS_TOKEN || "YOUR_UNIWARE_ACCESS_TOKEN";
 
 function uniwareHeaders(facility) {
   return {

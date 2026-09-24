@@ -8,7 +8,9 @@ import {
   Shirt,
   Globe,
   ShoppingCart,
+  Warehouse,
 } from "lucide-react";
+
 import "./MarketplaceSelector.css";
 
 const marketplaces = [
@@ -32,6 +34,13 @@ const marketplaces = [
     color: "#673AB7",
     path: "/mystore",
     count: "14 APIs",
+  },
+  {
+    name: "Uniware",
+    icon: Warehouse,
+    color: "#2563EB",
+    path: "/uniware",
+    count: "100+ APIs",
   },
   {
     name: "Meesho",
@@ -70,7 +79,7 @@ const marketplaces = [
   },
 ];
 
-const MarketplaceSelector = () => {
+function MarketplaceSelector() {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -78,15 +87,29 @@ const MarketplaceSelector = () => {
     if (path === "/mystore") {
       return location.pathname.startsWith("/mystore");
     }
+
     return location.pathname.startsWith(path);
   };
 
   return (
     <div className="marketplace-wrapper">
+
+      {/* =====================================================
+          HEADER
+      ====================================================== */}
+
       <div className="marketplace-header">
-        <h1>Marketplaces - Option 1</h1>
-        <p>Select a marketplace - Each has Seller → Customer flow</p>
+        <h1>Marketplaces & Integrations</h1>
+
+        <p>
+          Select a marketplace or integration to manage your
+          Seller → Customer → Orders → Inventory flow
+        </p>
       </div>
+
+      {/* =====================================================
+          MARKETPLACE CARDS
+      ====================================================== */}
 
       <div className="marketplace-scroll">
         {marketplaces.map((mp) => {
@@ -96,9 +119,17 @@ const MarketplaceSelector = () => {
           return (
             <button
               key={mp.path}
-              className={`marketplace-card ${active ? "active" : ""}`}
+              type="button"
+              className={`marketplace-card ${
+                active ? "active" : ""
+              }`}
               onClick={() => navigate(mp.path)}
             >
+
+              {/* =================================================
+                  ICON
+              ================================================= */}
+
               <div
                 className="marketplace-icon"
                 style={{
@@ -106,27 +137,66 @@ const MarketplaceSelector = () => {
                   color: mp.color,
                 }}
               >
-                <Icon size={42} strokeWidth={1.8} />
+                <Icon
+                  size={42}
+                  strokeWidth={1.8}
+                />
               </div>
 
-              <div className="marketplace-name">{mp.name}</div>
-              <div className="marketplace-count" style={{ fontSize: "11px", color: "#6b7280" }}>
+              {/* =================================================
+                  NAME
+              ================================================= */}
+
+              <div className="marketplace-name">
+                {mp.name}
+              </div>
+
+              {/* =================================================
+                  API COUNT
+              ================================================= */}
+
+              <div
+                className="marketplace-count"
+                style={{
+                  fontSize: "11px",
+                  color: "#6b7280",
+                }}
+              >
                 {mp.count}
               </div>
 
-              <div className="marketplace-dashboard-text" style={{ color: mp.color }}>
+              {/* =================================================
+                  DASHBOARD LINK TEXT
+              ================================================= */}
+
+              <div
+                className="marketplace-dashboard-text"
+                style={{
+                  color: mp.color,
+                }}
+              >
                 Open Dashboard →
               </div>
 
+              {/* =================================================
+                  ACTIVE INDICATOR
+              ================================================= */}
+
               {active && (
-                <div className="active-indicator" style={{ backgroundColor: mp.color }} />
+                <div
+                  className="active-indicator"
+                  style={{
+                    backgroundColor: mp.color,
+                  }}
+                />
               )}
+
             </button>
           );
         })}
       </div>
     </div>
   );
-};
+}
 
 export default MarketplaceSelector;
