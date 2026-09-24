@@ -19362,6 +19362,2110 @@ app.post("/api/uniware/reverse-pickups/allocate-courier", async (req, res) => {
       .json(errorData);
   }
 });
+
+
+// ============================================================
+// UNiWARE - CREATE EXPORT JOB
+// POST /api/uniware/export-jobs/create
+// Uniware: POST /services/rest/v1/export/job/create
+// Level: Facility
+// ============================================================
+
+app.post("/api/uniware/export-jobs/create", async (req, res) => {
+  try {
+    const {
+      facility,
+      exportJobTypeName,
+      exportColums,
+      exportFilters,
+      scheduleTime,
+      notificationEmail,
+      frequency,
+      cronExpression,
+      reportName,
+    } = req.body;
+
+    // ----------------------------------------------------------
+    // Validate Facility
+    // ----------------------------------------------------------
+    if (!facility || !String(facility).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility is required.",
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Validate report name
+    // ----------------------------------------------------------
+    if (
+      !exportJobTypeName ||
+      !String(exportJobTypeName).trim()
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "exportJobTypeName is required.",
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Validate columns
+    // ----------------------------------------------------------
+    if (
+      !Array.isArray(exportColums) ||
+      exportColums.length === 0
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "exportColums must contain at least one column.",
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Validate frequency
+    // ----------------------------------------------------------
+    if (!frequency || !String(frequency).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "frequency is required.",
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Clean export columns
+    // ----------------------------------------------------------
+    const cleanedColumns = exportColums
+      .map((column) => String(column).trim())
+      .filter(Boolean);
+
+    if (cleanedColumns.length === 0) {
+      return res.status(400).json({
+        successful: false,
+        message: "At least one valid export column is required.",
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Clean export filters
+    // ----------------------------------------------------------
+    let cleanedFilters;
+
+    if (Array.isArray(exportFilters)) {
+      cleanedFilters = exportFilters
+        .map((filter) => {
+          if (!filter || typeof filter !== "object") {
+            return null;
+          }
+
+          const cleaned = {};
+
+          // id is mandatory for each filter
+          if (
+            filter.id !== undefined &&
+            filter.id !== null &&
+            String(filter.id).trim() !== ""
+          ) {
+            const numericId = Number(filter.id);
+
+            if (!Number.isNaN(numericId)) {
+              cleaned.id = numericId;
+            }
+          }
+
+          // Optional text
+          if (
+            filter.text !== undefined &&
+            filter.text !== null &&
+            String(filter.text).trim() !== ""
+          ) {
+            cleaned.text = String(filter.text).trim();
+          }
+
+          // Optional selectedValues
+          if (Array.isArray(filter.selectedValues)) {
+            const values = filter.selectedValues
+              .map((value) => String(value).trim())
+              .filter(Boolean);
+
+            if (values.length > 0) {
+              cleaned.selectedValues = values;
+            }
+          }
+
+          // Optional selectedValue
+          if (
+            filter.selectedValue !== undefined &&
+            filter.selectedValue !== null &&
+            String(filter.selectedValue).trim() !== ""
+          ) {
+            cleaned.selectedValue = String(
+              filter.selectedValue
+            ).trim();
+          }
+
+          // Optional dateTime
+          if (filter.dateTime) {
+            cleaned.dateTime = filter.dateTime;
+          }
+
+          // Optional dateRange
+          if (
+            filter.dateRange &&
+            typeof filter.dateRange === "object"
+          ) {
+            const dateRange = {};
+
+            if (filter.dateRange.start) {
+              dateRange.start = filter.dateRange.start;
+            }
+
+            if (filter.dateRange.end) {
+              dateRange.end = filter.dateRange.end;
+            }
+
+            if (
+              filter.dateRange.textRange &&
+              String(filter.dateRange.textRange).trim()
+            ) {
+              dateRange.textRange = String(
+                filter.dateRange.textRange
+              ).trim();
+            }
+
+            if (Object.keys(dateRange).length > 0) {
+              cleaned.dateRange = dateRange;
+            }
+          }
+
+          // Optional checked
+          if (typeof filter.checked === "boolean") {
+            cleaned.checked = filter.checked;
+          }
+
+          return Object.keys(cleaned).length > 0
+            ? cleaned
+            : null;
+        })
+        .filter(Boolean);
+    }
+
+    // ----------------------------------------------------------
+    // Build Uniware payload
+    // ----------------------------------------------------------
+    const payload = {
+      exportJobTypeName: String(exportJobTypeName).trim(),
+      exportColums: cleanedColumns,
+      frequency: String(frequency).trim(),
+    };
+
+    // Add filters only when supplied
+    if (cleanedFilters && cleanedFilters.length > 0) {
+      payload.exportFilters = cleanedFilters;
+    }
+
+    // Optional scheduleTime
+    if (scheduleTime) {
+      payload.scheduleTime = scheduleTime;
+    }
+
+    // Optional notificationEmail
+    if (
+      notificationEmail &&
+      String(notificationEmail).trim()
+    ) {
+      payload.notificationEmail =
+        String(notificationEmail).trim();
+    }
+
+    // Optional cronExpression
+    if (
+      cronExpression &&
+      String(cronExpression).trim()
+    ) {
+      payload.cronExpression =
+        String(cronExpression).trim();
+    }
+
+    // Optional reportName
+    if (
+      reportName &&
+      String(reportName).trim()
+    ) {
+      payload.reportName =
+        String(reportName).trim();
+    }
+
+    console.log(
+      "Creating Uniware export job:",
+      payload.exportJobTypeName
+    );
+
+    // ----------------------------------------------------------
+    // Call Uniware
+    // ----------------------------------------------------------
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/export/job/create`,
+      payload,
+      {
+        headers: {
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          "Content-Type": "application/json",
+          Facility: String(facility).trim(),
+        },
+        timeout: 60000,
+      }
+    );
+
+    // ----------------------------------------------------------
+    // Return Uniware response
+    // ----------------------------------------------------------
+    return res.status(200).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Create Export Job Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(
+      error.response?.status || 500
+    ).json(
+      error.response?.data || {
+        successful: false,
+        message:
+          "Failed to create Uniware export job.",
+        error: error.message,
+      }
+    );
+  }
+});
+
+// ============================================================
+// UNiWARE - GET EXPORT JOB STATUS
+// POST /api/uniware/export-jobs/status
+// Uniware: POST /services/rest/v1/export/job/status
+// Level: Tenant
+// Facility header: NOT required
+// ============================================================
+
+app.post("/api/uniware/export-jobs/status", async (req, res) => {
+  try {
+    const { jobCode } = req.body;
+
+    // ----------------------------------------------------------
+    // Validate jobCode
+    // ----------------------------------------------------------
+    if (!jobCode || !String(jobCode).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "jobCode is required.",
+      });
+    }
+
+    const payload = {
+      jobCode: String(jobCode).trim(),
+    };
+
+    console.log(
+      "Checking Uniware export job status:",
+      payload.jobCode
+    );
+
+    // ----------------------------------------------------------
+    // Call Uniware
+    // ----------------------------------------------------------
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/export/job/status`,
+      payload,
+      {
+        headers: {
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 60000,
+      }
+    );
+
+    // ----------------------------------------------------------
+    // Return Uniware response
+    // ----------------------------------------------------------
+    return res.status(200).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Get Export Job Status Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(
+      error.response?.status || 500
+    ).json(
+      error.response?.data || {
+        successful: false,
+        message:
+          "Failed to get Uniware export job status.",
+        error: error.message,
+      }
+    );
+  }
+});
+
+// ============================================================
+// UNiWARE - SEARCH FACILITY
+// POST /api/uniware/facilities/search
+// Uniware: POST /services/rest/v1/facility/search
+// Level: Tenant
+// Facility header: NOT required
+// ============================================================
+
+app.post("/api/uniware/facilities/search", async (req, res) => {
+  try {
+    const {
+      facilityStatus,
+      fromDate,
+      toDate,
+      dateType,
+    } = req.body;
+
+    // ----------------------------------------------------------
+    // Validate required fields
+    // ----------------------------------------------------------
+
+    const validStatuses = [
+      "ALL",
+      "ENABLED",
+      "DISABLED",
+    ];
+
+    const validDateTypes = [
+      "CREATED",
+      "UPDATED",
+    ];
+
+    if (
+      !facilityStatus ||
+      !validStatuses.includes(
+        String(facilityStatus).toUpperCase()
+      )
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "facilityStatus is required and must be ALL, ENABLED, or DISABLED.",
+      });
+    }
+
+    if (!fromDate) {
+      return res.status(400).json({
+        successful: false,
+        message: "fromDate is required.",
+      });
+    }
+
+    if (!toDate) {
+      return res.status(400).json({
+        successful: false,
+        message: "toDate is required.",
+      });
+    }
+
+    if (
+      !dateType ||
+      !validDateTypes.includes(
+        String(dateType).toUpperCase()
+      )
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "dateType is required and must be CREATED or UPDATED.",
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Validate dates
+    // ----------------------------------------------------------
+
+    const parsedFromDate = new Date(fromDate);
+    const parsedToDate = new Date(toDate);
+
+    if (Number.isNaN(parsedFromDate.getTime())) {
+      return res.status(400).json({
+        successful: false,
+        message: "fromDate must be a valid date.",
+      });
+    }
+
+    if (Number.isNaN(parsedToDate.getTime())) {
+      return res.status(400).json({
+        successful: false,
+        message: "toDate must be a valid date.",
+      });
+    }
+
+    if (parsedFromDate > parsedToDate) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "fromDate cannot be later than toDate.",
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Build Uniware payload
+    // ----------------------------------------------------------
+
+    const payload = {
+      facilityStatus:
+        String(facilityStatus).toUpperCase(),
+
+      fromDate:
+        parsedFromDate.toISOString(),
+
+      toDate:
+        parsedToDate.toISOString(),
+
+      dateType:
+        String(dateType).toUpperCase(),
+    };
+
+    console.log(
+      "Searching Uniware facilities:",
+      payload
+    );
+
+    // ----------------------------------------------------------
+    // Call Uniware
+    // ----------------------------------------------------------
+
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/facility/search`,
+      payload,
+      {
+        headers: {
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 60000,
+      }
+    );
+
+    // ----------------------------------------------------------
+    // Return Uniware response
+    // ----------------------------------------------------------
+
+    return res.status(200).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Search Facility Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(
+      error.response?.status || 500
+    ).json(
+      error.response?.data || {
+        successful: false,
+        message:
+          "Failed to search Uniware facilities.",
+        error: error.message,
+      }
+    );
+  }
+});
+
+// ============================================================
+// UNIWARE - GET FACILITY DETAILS
+// Uniware: POST /services/rest/v1/facility/get
+// Level: Tenant
+// Facility header: NOT required
+// ============================================================
+
+app.post("/api/uniware/facilities/details", async (req, res) => {
+  try {
+    const { facilityCode } = req.body || {};
+
+    if (!facilityCode || !String(facilityCode).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "facilityCode is required",
+        errors: [
+          {
+            fieldName: "facilityCode",
+            message: "Facility code is required"
+          }
+        ],
+        warnings: []
+      });
+    }
+
+    const payload = {
+      facilityCode: String(facilityCode).trim()
+    };
+
+    const response = await axios.post(
+      `${process.env.UNIWARE_BASE_URL}/services/rest/v1/facility/get`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`
+        }
+      }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Get Facility Details Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message: error.message || "Failed to get facility details",
+        errors: [],
+        warnings: []
+      }
+    );
+  }
+});
+
+// ============================================================
+// UNIWARE - SCAN ITEM FOR GATEPASS
+// Uniware: POST /services/rest/v1/purchase/gatepass/scan/item
+// Level: Facility
+// Facility header: REQUIRED
+// ============================================================
+
+app.post("/api/uniware/gatepasses/scan-item", async (req, res) => {
+  try {
+    const { facility, gatePassCode, itemCode } = req.body || {};
+
+    // ----------------------------------------------------------
+    // Validation
+    // ----------------------------------------------------------
+
+    if (!facility || !String(facility).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "facility is required",
+        errors: [
+          {
+            fieldName: "facility",
+            message: "Facility code is required"
+          }
+        ],
+        warnings: []
+      });
+    }
+
+    if (!gatePassCode || !String(gatePassCode).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "gatePassCode is required",
+        errors: [
+          {
+            fieldName: "gatePassCode",
+            message: "Gatepass code is required"
+          }
+        ],
+        warnings: []
+      });
+    }
+
+    if (!itemCode || !String(itemCode).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "itemCode is required",
+        errors: [
+          {
+            fieldName: "itemCode",
+            message: "Item code is required"
+          }
+        ],
+        warnings: []
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Uniware request payload
+    // ----------------------------------------------------------
+
+    const payload = {
+      gatePassCode: String(gatePassCode).trim(),
+      itemCode: String(itemCode).trim()
+    };
+
+    // ----------------------------------------------------------
+    // Call Uniware
+    // ----------------------------------------------------------
+
+    const response = await axios.post(
+      `${process.env.UNIWARE_BASE_URL}/services/rest/v1/purchase/gatepass/scan/item`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`,
+          Facility: String(facility).trim()
+        }
+      }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Scan Gatepass Item Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message:
+          error.message || "Failed to scan item for gatepass",
+        errors: [],
+        warnings: []
+      }
+    );
+  }
+});
+// ============================================================
+// UNIWARE - CREATE GATEPASS
+// Uniware: POST /services/rest/v1/purchase/gatepass/create
+// Level: Facility
+// Facility header: REQUIRED
+// ============================================================
+
+app.post("/api/uniware/gatepasses/create", async (req, res) => {
+  try {
+    const {
+      facility,
+      wsGatePass,
+      type,
+      partyCode,
+    } = req.body || {};
+
+    // ----------------------------------------------------------
+    // Validate Facility
+    // ----------------------------------------------------------
+
+    if (!facility || !String(facility).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "facility is required",
+        errors: [
+          {
+            fieldName: "facility",
+            message: "Facility code is required",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Validate wsGatePass
+    // ----------------------------------------------------------
+
+    if (!wsGatePass || typeof wsGatePass !== "object") {
+      return res.status(400).json({
+        successful: false,
+        message: "wsGatePass is required",
+        errors: [
+          {
+            fieldName: "wsGatePass",
+            message: "Gatepass details are required",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Validate gatepass code
+    // ----------------------------------------------------------
+
+    if (
+      !wsGatePass.code ||
+      !String(wsGatePass.code).trim()
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "wsGatePass.code is required",
+        errors: [
+          {
+            fieldName: "wsGatePass.code",
+            message: "Gatepass code is required",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Validate type
+    // ----------------------------------------------------------
+
+    const allowedTypes = [
+      "RETURNABLE",
+      "NON_RETURNABLE",
+      "RETURN_TO_VENDOR",
+      "STOCK_TRANSFER",
+    ];
+
+    if (!type || !String(type).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "type is required",
+        errors: [
+          {
+            fieldName: "type",
+            message: "Gatepass type is required",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    const normalizedType = String(type)
+      .trim()
+      .toUpperCase();
+
+    if (!allowedTypes.includes(normalizedType)) {
+      return res.status(400).json({
+        successful: false,
+        message: "Invalid gatepass type",
+        errors: [
+          {
+            fieldName: "type",
+            message:
+              "Allowed values are RETURNABLE, NON_RETURNABLE, RETURN_TO_VENDOR, STOCK_TRANSFER",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Validate party code
+    // ----------------------------------------------------------
+
+    if (!partyCode || !String(partyCode).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "partyCode is required",
+        errors: [
+          {
+            fieldName: "partyCode",
+            message: "Party code is required",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Validate purpose
+    // ----------------------------------------------------------
+
+    if (
+      wsGatePass.purpose !== undefined &&
+      wsGatePass.purpose !== null &&
+      String(wsGatePass.purpose).length > 500
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "purpose cannot exceed 500 characters",
+        errors: [
+          {
+            fieldName: "wsGatePass.purpose",
+            message:
+              "Purpose cannot exceed 500 characters",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Validate reference number
+    // ----------------------------------------------------------
+
+    if (
+      wsGatePass.referenceNumber !== undefined &&
+      wsGatePass.referenceNumber !== null &&
+      String(wsGatePass.referenceNumber).length > 45
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "referenceNumber cannot exceed 45 characters",
+        errors: [
+          {
+            fieldName: "wsGatePass.referenceNumber",
+            message:
+              "Reference number cannot exceed 45 characters",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Build wsGatePass dynamically
+    // ----------------------------------------------------------
+
+    const cleanedGatePass = {
+      code: String(wsGatePass.code).trim(),
+    };
+
+    if (
+      wsGatePass.purpose !== undefined &&
+      wsGatePass.purpose !== null &&
+      String(wsGatePass.purpose).trim() !== ""
+    ) {
+      cleanedGatePass.purpose = String(
+        wsGatePass.purpose
+      ).trim();
+    }
+
+    if (
+      wsGatePass.transferAmount !== undefined &&
+      wsGatePass.transferAmount !== null &&
+      wsGatePass.transferAmount !== ""
+    ) {
+      const amount = Number(wsGatePass.transferAmount);
+
+      if (!Number.isFinite(amount)) {
+        return res.status(400).json({
+          successful: false,
+          message: "transferAmount must be a valid number",
+          errors: [
+            {
+              fieldName: "wsGatePass.transferAmount",
+              message:
+                "Transfer amount must be a valid number",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      cleanedGatePass.transferAmount = amount;
+    }
+
+    if (
+      wsGatePass.referenceNumber !== undefined &&
+      wsGatePass.referenceNumber !== null &&
+      String(wsGatePass.referenceNumber).trim() !== ""
+    ) {
+      cleanedGatePass.referenceNumber = String(
+        wsGatePass.referenceNumber
+      ).trim();
+    }
+
+    // ----------------------------------------------------------
+    // Custom fields
+    // ----------------------------------------------------------
+
+    if (Array.isArray(wsGatePass.customFieldValues)) {
+      const customFieldValues =
+        wsGatePass.customFieldValues
+          .filter(
+            (field) =>
+              field &&
+              field.name &&
+              String(field.name).trim()
+          )
+          .map((field) => ({
+            name: String(field.name).trim(),
+            value:
+              field.value === undefined ||
+              field.value === null
+                ? ""
+                : String(field.value),
+          }));
+
+      if (customFieldValues.length > 0) {
+        cleanedGatePass.customFieldValues =
+          customFieldValues;
+      }
+    }
+
+    // ----------------------------------------------------------
+    // Final Uniware payload
+    // ----------------------------------------------------------
+
+    const payload = {
+      wsGatePass: cleanedGatePass,
+      type: normalizedType,
+      partyCode: String(partyCode).trim(),
+    };
+
+    // ----------------------------------------------------------
+    // Call Uniware
+    // ----------------------------------------------------------
+
+    const response = await axios.post(
+      `${process.env.UNIWARE_BASE_URL}/services/rest/v1/purchase/gatepass/create`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`,
+          Facility: String(facility).trim(),
+        },
+      }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Create Gatepass Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message:
+          error.message || "Failed to create gatepass",
+        errors: [],
+        warnings: [],
+      }
+    );
+  }
+});
+
+
+// ============================================================
+// UNIWARE - COMPLETE GATEPASS
+// POST /api/uniware/gatepasses/complete
+// Uniware: POST /services/rest/v1/purchase/gatepass/complete
+// Level: Facility
+// ============================================================
+
+app.post("/api/uniware/gatepasses/complete", async (req, res) => {
+  try {
+    const { facility, gatePassCode } = req.body;
+
+    // -----------------------------
+    // Validation
+    // -----------------------------
+    if (!facility || !facility.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility is required.",
+        errors: [
+          {
+            fieldName: "facility",
+            message: "Facility is required."
+          }
+        ]
+      });
+    }
+
+    if (!gatePassCode || !gatePassCode.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "gatePassCode is required.",
+        errors: [
+          {
+            fieldName: "gatePassCode",
+            message: "Gatepass code is required."
+          }
+        ]
+      });
+    }
+
+    // -----------------------------
+    // Uniware request body
+    // -----------------------------
+    const payload = {
+      gatePassCode: gatePassCode.trim()
+    };
+
+    // -----------------------------
+    // Call Uniware
+    // -----------------------------
+    const response = await axios.post(
+      `${process.env.UNIWARE_BASE_URL}/services/rest/v1/purchase/gatepass/complete`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`,
+          Facility: facility.trim()
+        }
+      }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Complete Gatepass Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message: error.message || "Failed to complete gatepass.",
+        errors: [],
+        warnings: []
+      }
+    );
+  }
+});
+
+// ============================================================
+// UNIWARE - UPDATE GATEPASS
+// POST /api/uniware/gatepasses/update
+// Uniware: POST /services/rest/v1/purchase/gatepass/edit
+// Level: Facility
+// ============================================================
+
+app.post("/api/uniware/gatepasses/update", async (req, res) => {
+  try {
+    const {
+      facility,
+      gatePassCode,
+      wsGatePass
+    } = req.body;
+
+    // --------------------------------------------------------
+    // Validate Facility
+    // --------------------------------------------------------
+    if (!facility || !facility.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility is required.",
+        errors: [
+          {
+            fieldName: "facility",
+            message: "Facility is required."
+          }
+        ],
+        warnings: []
+      });
+    }
+
+    // --------------------------------------------------------
+    // Validate Gatepass Code
+    // --------------------------------------------------------
+    if (!gatePassCode || !gatePassCode.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "gatePassCode is required.",
+        errors: [
+          {
+            fieldName: "gatePassCode",
+            message: "Gatepass code is required."
+          }
+        ],
+        warnings: []
+      });
+    }
+
+    // --------------------------------------------------------
+    // Validate wsGatePass object
+    // --------------------------------------------------------
+    if (!wsGatePass || typeof wsGatePass !== "object") {
+      return res.status(400).json({
+        successful: false,
+        message: "wsGatePass is required.",
+        errors: [
+          {
+            fieldName: "wsGatePass",
+            message: "Gatepass details are required."
+          }
+        ],
+        warnings: []
+      });
+    }
+
+    // --------------------------------------------------------
+    // Build wsGatePass dynamically
+    // Optional fields are omitted when empty.
+    // --------------------------------------------------------
+    const cleanedGatePass = {};
+
+    if (
+      wsGatePass.code !== undefined &&
+      wsGatePass.code !== null &&
+      String(wsGatePass.code).trim()
+    ) {
+      cleanedGatePass.code = String(wsGatePass.code).trim();
+    }
+
+    if (
+      wsGatePass.purpose !== undefined &&
+      wsGatePass.purpose !== null &&
+      String(wsGatePass.purpose).trim()
+    ) {
+      const purpose = String(wsGatePass.purpose).trim();
+
+      if (purpose.length > 500) {
+        return res.status(400).json({
+          successful: false,
+          message: "Purpose cannot exceed 500 characters.",
+          errors: [
+            {
+              fieldName: "wsGatePass.purpose",
+              message: "Maximum 500 characters allowed."
+            }
+          ],
+          warnings: []
+        });
+      }
+
+      cleanedGatePass.purpose = purpose;
+    }
+
+    if (
+      wsGatePass.transferAmount !== undefined &&
+      wsGatePass.transferAmount !== null &&
+      wsGatePass.transferAmount !== ""
+    ) {
+      const transferAmount = Number(wsGatePass.transferAmount);
+
+      if (!Number.isFinite(transferAmount)) {
+        return res.status(400).json({
+          successful: false,
+          message: "transferAmount must be a valid number.",
+          errors: [
+            {
+              fieldName: "wsGatePass.transferAmount",
+              message: "Transfer amount must be numeric."
+            }
+          ],
+          warnings: []
+        });
+      }
+
+      cleanedGatePass.transferAmount = transferAmount;
+    }
+
+    if (
+      wsGatePass.referenceNumber !== undefined &&
+      wsGatePass.referenceNumber !== null &&
+      String(wsGatePass.referenceNumber).trim()
+    ) {
+      const referenceNumber = String(
+        wsGatePass.referenceNumber
+      ).trim();
+
+      if (referenceNumber.length > 45) {
+        return res.status(400).json({
+          successful: false,
+          message: "Reference number cannot exceed 45 characters.",
+          errors: [
+            {
+              fieldName: "wsGatePass.referenceNumber",
+              message: "Maximum 45 characters allowed."
+            }
+          ],
+          warnings: []
+        });
+      }
+
+      cleanedGatePass.referenceNumber = referenceNumber;
+    }
+
+    // --------------------------------------------------------
+    // Custom Fields
+    // --------------------------------------------------------
+    if (Array.isArray(wsGatePass.customFieldValues)) {
+      const customFieldValues = [];
+
+      for (const field of wsGatePass.customFieldValues) {
+        if (
+          !field ||
+          field.name === undefined ||
+          field.name === null ||
+          !String(field.name).trim()
+        ) {
+          continue;
+        }
+
+        const customField = {
+          name: String(field.name).trim()
+        };
+
+        if (
+          field.value !== undefined &&
+          field.value !== null
+        ) {
+          customField.value = String(field.value);
+        }
+
+        customFieldValues.push(customField);
+      }
+
+      if (customFieldValues.length > 0) {
+        cleanedGatePass.customFieldValues = customFieldValues;
+      }
+    }
+
+    // --------------------------------------------------------
+    // Final Uniware payload
+    // --------------------------------------------------------
+    const payload = {
+      gatePassCode: gatePassCode.trim(),
+      wsGatePass: cleanedGatePass
+    };
+
+    // --------------------------------------------------------
+    // Call Uniware
+    // --------------------------------------------------------
+    const response = await axios.post(
+      `${process.env.UNIWARE_BASE_URL}/services/rest/v1/purchase/gatepass/edit`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`,
+          Facility: facility.trim()
+        }
+      }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Update Gatepass Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message:
+          error.message || "Failed to update gatepass.",
+        errors: [],
+        warnings: []
+      }
+    );
+  }
+});
+
+// ============================================================
+// UNIWARE - REMOVE ITEM FROM GATEPASS
+// POST /api/uniware/gatepasses/remove-item
+// Uniware: POST /services/rest/v1/purchase/gatepass/item/remove
+// Level: Facility
+// Item traceability: Required
+// ============================================================
+
+app.post("/api/uniware/gatepasses/remove-item", async (req, res) => {
+  try {
+    const {
+      facility,
+      gatePassCode,
+      itemCode
+    } = req.body;
+
+    // --------------------------------------------------------
+    // Validate Facility
+    // --------------------------------------------------------
+    if (!facility || !facility.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility is required.",
+        errors: [
+          {
+            fieldName: "facility",
+            message: "Facility is required."
+          }
+        ],
+        warnings: []
+      });
+    }
+
+    // --------------------------------------------------------
+    // Validate Gatepass Code
+    // --------------------------------------------------------
+    if (!gatePassCode || !gatePassCode.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "gatePassCode is required.",
+        errors: [
+          {
+            fieldName: "gatePassCode",
+            message: "Gatepass code is required."
+          }
+        ],
+        warnings: []
+      });
+    }
+
+    // --------------------------------------------------------
+    // Validate Item Code / Barcode
+    // --------------------------------------------------------
+    if (!itemCode || !itemCode.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "itemCode is required.",
+        errors: [
+          {
+            fieldName: "itemCode",
+            message: "Item barcode is required."
+          }
+        ],
+        warnings: []
+      });
+    }
+
+    // --------------------------------------------------------
+    // Uniware payload
+    // --------------------------------------------------------
+    const payload = {
+      gatePassCode: gatePassCode.trim(),
+      itemCode: itemCode.trim()
+    };
+
+    // --------------------------------------------------------
+    // Call Uniware
+    // --------------------------------------------------------
+    const response = await axios.post(
+      `${process.env.UNIWARE_BASE_URL}/services/rest/v1/purchase/gatepass/item/remove`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`,
+          Facility: facility.trim()
+        }
+      }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Remove Gatepass Item Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message:
+          error.message ||
+          "Failed to remove item from gatepass.",
+        errors: [],
+        warnings: []
+      }
+    );
+  }
+});
+// ============================================================
+// UNIWARE - ADD NON-TRACEABLE ITEM TO GATEPASS
+// POST /api/uniware/gatepasses/add-nontraceable-item
+// Uniware:
+// POST /services/rest/v1/purchase/gatepass/nontraceable/addItem
+//
+// Level: Facility
+// ============================================================
+
+app.post(
+  "/api/uniware/gatepasses/add-nontraceable-item",
+  async (req, res) => {
+    try {
+      const {
+        facility,
+        gatePassCode,
+        itemSKU,
+        inventoryType,
+        quantity,
+        unitPrice,
+        shelfCode
+      } = req.body;
+
+      // ------------------------------------------------------
+      // Validate Facility
+      // ------------------------------------------------------
+      if (!facility || !facility.trim()) {
+        return res.status(400).json({
+          successful: false,
+          message: "Facility is required.",
+          errors: [
+            {
+              fieldName: "facility",
+              message: "Facility is required."
+            }
+          ],
+          warnings: []
+        });
+      }
+
+      // ------------------------------------------------------
+      // Validate Gatepass Code
+      // ------------------------------------------------------
+      if (!gatePassCode || !gatePassCode.trim()) {
+        return res.status(400).json({
+          successful: false,
+          message: "gatePassCode is required.",
+          errors: [
+            {
+              fieldName: "gatePassCode",
+              message: "Gatepass code is required."
+            }
+          ],
+          warnings: []
+        });
+      }
+
+      // ------------------------------------------------------
+      // Validate Item SKU
+      // ------------------------------------------------------
+      if (!itemSKU || !itemSKU.trim()) {
+        return res.status(400).json({
+          successful: false,
+          message: "itemSKU is required.",
+          errors: [
+            {
+              fieldName: "itemSKU",
+              message: "Item SKU is required."
+            }
+          ],
+          warnings: []
+        });
+      }
+
+      // ------------------------------------------------------
+      // Validate Inventory Type
+      // ------------------------------------------------------
+      const allowedInventoryTypes = [
+        "GOOD_INVENTORY",
+        "BAD_INVENTORY",
+        "QC_REJECTED",
+        "VIRTUAL_INVENTORY"
+      ];
+
+      if (
+        !inventoryType ||
+        !allowedInventoryTypes.includes(
+          String(inventoryType).trim()
+        )
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "Valid inventoryType is required.",
+          errors: [
+            {
+              fieldName: "inventoryType",
+              message:
+                "Allowed values: GOOD_INVENTORY, BAD_INVENTORY, QC_REJECTED, VIRTUAL_INVENTORY."
+            }
+          ],
+          warnings: []
+        });
+      }
+
+      // ------------------------------------------------------
+      // Validate Quantity
+      // ------------------------------------------------------
+      if (
+        quantity === undefined ||
+        quantity === null ||
+        quantity === ""
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: "quantity is required.",
+          errors: [
+            {
+              fieldName: "quantity",
+              message: "Quantity is required."
+            }
+          ],
+          warnings: []
+        });
+      }
+
+      const parsedQuantity = Number(quantity);
+
+      if (
+        !Number.isInteger(parsedQuantity) ||
+        parsedQuantity < 0
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "quantity must be a valid non-negative integer.",
+          errors: [
+            {
+              fieldName: "quantity",
+              message:
+                "Quantity must be an integer greater than or equal to 0."
+            }
+          ],
+          warnings: []
+        });
+      }
+
+      // ------------------------------------------------------
+      // Build payload
+      // ------------------------------------------------------
+      const payload = {
+        gatePassCode: gatePassCode.trim(),
+        itemSKU: itemSKU.trim(),
+        inventoryType: String(inventoryType).trim(),
+        quantity: parsedQuantity
+      };
+
+      // ------------------------------------------------------
+      // Optional Unit Price
+      // ------------------------------------------------------
+      if (
+        unitPrice !== undefined &&
+        unitPrice !== null &&
+        unitPrice !== ""
+      ) {
+        const parsedUnitPrice = Number(unitPrice);
+
+        if (!Number.isFinite(parsedUnitPrice)) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              "unitPrice must be a valid number.",
+            errors: [
+              {
+                fieldName: "unitPrice",
+                message:
+                  "Unit price must be numeric."
+              }
+            ],
+            warnings: []
+          });
+        }
+
+        payload.unitPrice = parsedUnitPrice;
+      }
+
+      // ------------------------------------------------------
+      // Optional Shelf Code
+      // ------------------------------------------------------
+      if (
+        shelfCode !== undefined &&
+        shelfCode !== null &&
+        String(shelfCode).trim()
+      ) {
+        payload.shelfCode =
+          String(shelfCode).trim();
+      }
+
+      // ------------------------------------------------------
+      // Call Uniware
+      // ------------------------------------------------------
+      const response = await axios.post(
+        `${process.env.UNIWARE_BASE_URL}/services/rest/v1/purchase/gatepass/nontraceable/addItem`,
+        payload,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`,
+            Facility: facility.trim()
+          }
+        }
+      );
+
+      return res
+        .status(response.status)
+        .json(response.data);
+    } catch (error) {
+      console.error(
+        "Uniware Add Non-Traceable Gatepass Item Error:",
+        error.response?.data || error.message
+      );
+
+      return res
+        .status(error.response?.status || 500)
+        .json(
+          error.response?.data || {
+            successful: false,
+            message:
+              error.message ||
+              "Failed to add non-traceable item to gatepass.",
+            errors: [],
+            warnings: []
+          }
+        );
+    }
+  }
+);
+
+// ============================================================
+// UNIWARE - DISCARD GATEPASS
+// POST /api/uniware/gatepasses/discard
+// Uniware:
+// POST /services/rest/v1/purchase/gatepass/discard
+//
+// Level: Facility
+// ============================================================
+
+app.post("/api/uniware/gatepasses/discard", async (req, res) => {
+  try {
+    const {
+      facility,
+      gatePassCode
+    } = req.body;
+
+    // --------------------------------------------------------
+    // Validate Facility
+    // --------------------------------------------------------
+    if (!facility || !facility.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility is required.",
+        errors: [
+          {
+            fieldName: "facility",
+            message: "Facility is required."
+          }
+        ],
+        warnings: []
+      });
+    }
+
+    // --------------------------------------------------------
+    // Validate Gatepass Code
+    // --------------------------------------------------------
+    if (!gatePassCode || !gatePassCode.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "gatePassCode is required.",
+        errors: [
+          {
+            fieldName: "gatePassCode",
+            message: "Gatepass code is required."
+          }
+        ],
+        warnings: []
+      });
+    }
+
+    // --------------------------------------------------------
+    // Uniware payload
+    // --------------------------------------------------------
+    const payload = {
+      gatePassCode: gatePassCode.trim()
+    };
+
+    // --------------------------------------------------------
+    // Call Uniware
+    // --------------------------------------------------------
+    const response = await axios.post(
+      `${process.env.UNIWARE_BASE_URL}/services/rest/v1/purchase/gatepass/discard`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`,
+          Facility: facility.trim()
+        }
+      }
+    );
+
+    return res
+      .status(response.status)
+      .json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Discard Gatepass Error:",
+      error.response?.data || error.message
+    );
+
+    return res
+      .status(error.response?.status || 500)
+      .json(
+        error.response?.data || {
+          successful: false,
+          message:
+            error.message ||
+            "Failed to discard gatepass.",
+          errors: [],
+          warnings: []
+        }
+      );
+  }
+});
+
+// ============================================================
+// UNIWARE - SEARCH GATEPASS
+// POST /api/uniware/gatepasses/search
+//
+// Uniware:
+// POST /services/rest/v1/purchase/gatepass/search
+//
+// Level: Facility
+// Facility header: REQUIRED
+// ============================================================
+
+app.post("/api/uniware/gatepasses/search", async (req, res) => {
+  try {
+    const {
+      facility,
+      fromDate,
+      toDate,
+      type,
+      toParty,
+      statusCode
+    } = req.body;
+
+    // --------------------------------------------------------
+    // Validate Facility
+    // --------------------------------------------------------
+
+    if (!facility || !facility.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility is required.",
+        errors: [
+          {
+            fieldName: "facility",
+            message: "Facility is required."
+          }
+        ],
+        warnings: []
+      });
+    }
+
+    // --------------------------------------------------------
+    // Validate fromDate
+    // --------------------------------------------------------
+
+    if (!fromDate) {
+      return res.status(400).json({
+        successful: false,
+        message: "fromDate is required.",
+        errors: [
+          {
+            fieldName: "fromDate",
+            message: "fromDate is required."
+          }
+        ],
+        warnings: []
+      });
+    }
+
+    // --------------------------------------------------------
+    // Validate toDate
+    // --------------------------------------------------------
+
+    if (!toDate) {
+      return res.status(400).json({
+        successful: false,
+        message: "toDate is required.",
+        errors: [
+          {
+            fieldName: "toDate",
+            message: "toDate is required."
+          }
+        ],
+        warnings: []
+      });
+    }
+
+    // --------------------------------------------------------
+    // Validate date values
+    // --------------------------------------------------------
+
+    const from = new Date(fromDate);
+    const to = new Date(toDate);
+
+    if (Number.isNaN(from.getTime())) {
+      return res.status(400).json({
+        successful: false,
+        message: "Invalid fromDate.",
+        errors: [
+          {
+            fieldName: "fromDate",
+            message: "fromDate must be a valid date."
+          }
+        ],
+        warnings: []
+      });
+    }
+
+    if (Number.isNaN(to.getTime())) {
+      return res.status(400).json({
+        successful: false,
+        message: "Invalid toDate.",
+        errors: [
+          {
+            fieldName: "toDate",
+            message: "toDate must be a valid date."
+          }
+        ],
+        warnings: []
+      });
+    }
+
+    if (from > to) {
+      return res.status(400).json({
+        successful: false,
+        message: "fromDate cannot be greater than toDate.",
+        errors: [
+          {
+            fieldName: "fromDate",
+            message: "fromDate must be earlier than or equal to toDate."
+          }
+        ],
+        warnings: []
+      });
+    }
+
+    // --------------------------------------------------------
+    // Validate Gatepass Type
+    // --------------------------------------------------------
+
+    const validTypes = [
+      "RETURNABLE",
+      "NON_RETURNABLE",
+      "RETURN_TO_VENDOR",
+      "STOCK_TRANSFER"
+    ];
+
+    if (type && !validTypes.includes(type)) {
+      return res.status(400).json({
+        successful: false,
+        message: "Invalid gatepass type.",
+        errors: [
+          {
+            fieldName: "type",
+            message: `type must be one of: ${validTypes.join(", ")}`
+          }
+        ],
+        warnings: []
+      });
+    }
+
+    // --------------------------------------------------------
+    // Validate Gatepass Status
+    // --------------------------------------------------------
+
+    const validStatuses = [
+      "CREATED",
+      "CLOSED",
+      "DISCARDED",
+      "RETURN_AWAITED"
+    ];
+
+    if (
+      statusCode &&
+      !validStatuses.includes(statusCode)
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "Invalid gatepass status.",
+        errors: [
+          {
+            fieldName: "statusCode",
+            message:
+              `statusCode must be one of: ${validStatuses.join(", ")}`
+          }
+        ],
+        warnings: []
+      });
+    }
+
+    // --------------------------------------------------------
+    // Build Uniware payload
+    // Only send optional values when supplied
+    // --------------------------------------------------------
+
+    const payload = {
+      fromDate: from.toISOString(),
+      toDate: to.toISOString()
+    };
+
+    if (type && type.trim()) {
+      payload.type = type.trim();
+    }
+
+    if (toParty && toParty.trim()) {
+      payload.toParty = toParty.trim();
+    }
+
+    if (statusCode && statusCode.trim()) {
+      payload.statusCode = statusCode.trim();
+    }
+
+    // --------------------------------------------------------
+    // Call Uniware
+    // --------------------------------------------------------
+
+    const response = await axios.post(
+      `${process.env.UNIWARE_BASE_URL}/services/rest/v1/purchase/gatepass/search`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`,
+          Facility: facility.trim()
+        }
+      }
+    );
+
+    return res
+      .status(response.status)
+      .json(response.data);
+
+  } catch (error) {
+    console.error(
+      "Uniware Search Gatepass Error:",
+      error.response?.data || error.message
+    );
+
+    return res
+      .status(error.response?.status || 500)
+      .json(
+        error.response?.data || {
+          successful: false,
+          message:
+            error.message ||
+            "Failed to search gatepasses.",
+          errors: [],
+          warnings: []
+        }
+      );
+  }
+});
+
+// ============================================================
+// UNIWARE - GET GATEPASS
+// POST /api/uniware/gatepasses/get
+//
+// Uniware:
+// POST /services/rest/v1/purchase/gatepass/get
+//
+// Level: Facility
+// Facility header: REQUIRED
+// ============================================================
+
+app.post("/api/uniware/gatepasses/get", async (req, res) => {
+  try {
+    const {
+      facility,
+      gatePassCodes
+    } = req.body;
+
+    // --------------------------------------------------------
+    // Validate Facility
+    // --------------------------------------------------------
+
+    if (!facility || !facility.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility is required.",
+        errors: [
+          {
+            fieldName: "facility",
+            message: "Facility is required."
+          }
+        ],
+        warnings: []
+      });
+    }
+
+    // --------------------------------------------------------
+    // Validate Gatepass Codes
+    // --------------------------------------------------------
+
+    if (!Array.isArray(gatePassCodes)) {
+      return res.status(400).json({
+        successful: false,
+        message: "gatePassCodes must be an array.",
+        errors: [
+          {
+            fieldName: "gatePassCodes",
+            message: "gatePassCodes must be an array."
+          }
+        ],
+        warnings: []
+      });
+    }
+
+    // Remove blank values, trim and deduplicate
+    const cleanedGatePassCodes = [
+      ...new Set(
+        gatePassCodes
+          .filter(
+            (code) =>
+              typeof code === "string" &&
+              code.trim()
+          )
+          .map((code) => code.trim())
+      )
+    ];
+
+    if (cleanedGatePassCodes.length === 0) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "At least one gatepass code is required.",
+        errors: [
+          {
+            fieldName: "gatePassCodes",
+            message:
+              "Provide at least one valid gatepass code."
+          }
+        ],
+        warnings: []
+      });
+    }
+
+    // --------------------------------------------------------
+    // Uniware payload
+    // --------------------------------------------------------
+
+    const payload = {
+      gatePassCodes: cleanedGatePassCodes
+    };
+
+    // --------------------------------------------------------
+    // Call Uniware
+    // --------------------------------------------------------
+
+    const response = await axios.post(
+      `${process.env.UNIWARE_BASE_URL}/services/rest/v1/purchase/gatepass/get`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`,
+          Facility: facility.trim()
+        }
+      }
+    );
+
+    return res
+      .status(response.status)
+      .json(response.data);
+
+  } catch (error) {
+    console.error(
+      "Uniware Get Gatepass Error:",
+      error.response?.data || error.message
+    );
+
+    return res
+      .status(error.response?.status || 500)
+      .json(
+        error.response?.data || {
+          successful: false,
+          message:
+            error.message ||
+            "Failed to get gatepass details.",
+          errors: [],
+          warnings: []
+        }
+      );
+  }
+});
 // ================= SERVER START =================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
