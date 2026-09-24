@@ -7486,6 +7486,76 @@ app.post("/api/uniware/sale-orders/get", async (req, res) => {
     );
   }
 });
+
+// ==========================================
+// UNIWARE - SET SALE ORDER PRIORITY
+// ==========================================
+app.post("/api/uniware/sale-orders/set-priority", async (req, res) => {
+  try {
+    const { facility, saleOrderCode, priority } = req.body;
+
+    // Validate Facility
+    if (!facility || !facility.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility is required.",
+      });
+    }
+
+    // Validate Sale Order Code
+    if (!saleOrderCode || !saleOrderCode.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Sale order code is required.",
+      });
+    }
+
+    // Validate Priority
+    if (
+      priority === undefined ||
+      priority === null ||
+      priority === "" ||
+      !Number.isInteger(Number(priority))
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "Priority must be an integer.",
+      });
+    }
+
+    const payload = {
+      saleOrderCode: saleOrderCode.trim(),
+      priority: Number(priority),
+    };
+
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/saleOrder/setPriority`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          Facility: facility.trim(),
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Set Sale Order Priority Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message: error.message || "Failed to set sale order priority.",
+      }
+    );
+  }
+});
 // ================= SERVER START =================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
