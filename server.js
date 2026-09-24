@@ -13437,6 +13437,3031 @@ app.post("/api/uniware/sale-orders/serviceability", async (req, res) => {
     });
   }
 });
+// ============================================================
+// UNIWARE - CREATE INVOICE AND ALLOCATE SHIPPING PROVIDER
+// POST /services/rest/v1/oms/shippingPackage/
+//      createInvoiceAndAllocateShippingProvider
+// ============================================================
+
+app.post(
+  "/api/uniware/shipping-packages/create-invoice-allocate-provider",
+  async (req, res) => {
+    try {
+      const {
+        shippingPackageCode,
+        gstEinvoice,
+        taxInformation,
+        fetchInvoiceDetail,
+      } = req.body || {};
+
+      // --------------------------------------------------------
+      // Validate shipping package code
+      // --------------------------------------------------------
+      if (
+        !shippingPackageCode ||
+        !String(shippingPackageCode).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: "Shipping package code is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // gstEinvoice is mandatory according to Uniware docs
+      // --------------------------------------------------------
+      if (
+        !gstEinvoice ||
+        typeof gstEinvoice !== "object" ||
+        Array.isArray(gstEinvoice)
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: "gstEinvoice is required.",
+        });
+      }
+
+      const requiredGstFields = [
+        "irn",
+        "ackNo",
+        "ackDate",
+        "signedInvoice",
+        "signedQrCode",
+      ];
+
+      const missingGstFields = requiredGstFields.filter(
+        (field) =>
+          gstEinvoice[field] === undefined ||
+          gstEinvoice[field] === null ||
+          String(gstEinvoice[field]).trim() === ""
+      );
+
+      if (missingGstFields.length > 0) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "The following gstEinvoice fields are required.",
+          missingFields: missingGstFields,
+        });
+      }
+
+      // --------------------------------------------------------
+      // Build GST e-invoice
+      // --------------------------------------------------------
+      const normalizedGstEinvoice = {
+        irn: String(gstEinvoice.irn).trim(),
+        ackNo: String(gstEinvoice.ackNo).trim(),
+        ackDate: String(gstEinvoice.ackDate).trim(),
+        signedInvoice: String(gstEinvoice.signedInvoice).trim(),
+        signedQrCode: String(gstEinvoice.signedQrCode).trim(),
+      };
+
+      // --------------------------------------------------------
+      // Build payload
+      // --------------------------------------------------------
+      const payload = {
+        shippingPackageCode:
+          String(shippingPackageCode).trim(),
+
+        gstEinvoice: normalizedGstEinvoice,
+      };
+
+      // --------------------------------------------------------
+      // Optional tax information
+      // --------------------------------------------------------
+      if (
+        taxInformation &&
+        typeof taxInformation === "object" &&
+        !Array.isArray(taxInformation)
+      ) {
+        if (
+          taxInformation.productTaxes !== undefined &&
+          !Array.isArray(taxInformation.productTaxes)
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message: "taxInformation.productTaxes must be an array.",
+          });
+        }
+
+        payload.taxInformation = {
+          productTaxes:
+            Array.isArray(taxInformation.productTaxes)
+              ? taxInformation.productTaxes.map((tax) => {
+                  const normalizedTax = {};
+
+                  if (
+                    tax.channelProductId !== undefined &&
+                    tax.channelProductId !== null &&
+                    String(tax.channelProductId).trim() !== ""
+                  ) {
+                    normalizedTax.channelProductId =
+                      String(tax.channelProductId).trim();
+                  }
+
+                  if (
+                    tax.additionalInfo !== undefined &&
+                    tax.additionalInfo !== null &&
+                    String(tax.additionalInfo).trim() !== ""
+                  ) {
+                    normalizedTax.additionalInfo =
+                      String(tax.additionalInfo).trim();
+                  }
+
+                  if (
+                    tax.taxPercentage !== undefined &&
+                    tax.taxPercentage !== null &&
+                    tax.taxPercentage !== ""
+                  ) {
+                    normalizedTax.taxPercentage =
+                      Number(tax.taxPercentage);
+                  }
+
+                  if (
+                    tax.centralGst !== undefined &&
+                    tax.centralGst !== null &&
+                    tax.centralGst !== ""
+                  ) {
+                    normalizedTax.centralGst =
+                      Number(tax.centralGst);
+                  }
+
+                  if (
+                    tax.stateGst !== undefined &&
+                    tax.stateGst !== null &&
+                    tax.stateGst !== ""
+                  ) {
+                    normalizedTax.stateGst =
+                      Number(tax.stateGst);
+                  }
+
+                  if (
+                    tax.unionTerritoryGst !== undefined &&
+                    tax.unionTerritoryGst !== null &&
+                    tax.unionTerritoryGst !== ""
+                  ) {
+                    normalizedTax.unionTerritoryGst =
+                      Number(tax.unionTerritoryGst);
+                  }
+
+                  if (
+                    tax.integratedGst !== undefined &&
+                    tax.integratedGst !== null &&
+                    tax.integratedGst !== ""
+                  ) {
+                    normalizedTax.integratedGst =
+                      Number(tax.integratedGst);
+                  }
+
+                  if (
+                    tax.compensationCess !== undefined &&
+                    tax.compensationCess !== null &&
+                    tax.compensationCess !== ""
+                  ) {
+                    normalizedTax.compensationCess =
+                      Number(tax.compensationCess);
+                  }
+
+                  if (Array.isArray(tax.customFieldValues)) {
+                    normalizedTax.customFieldValues =
+                      tax.customFieldValues
+                        .filter(
+                          (field) =>
+                            field &&
+                            field.name !== undefined &&
+                            String(field.name).trim() !== ""
+                        )
+                        .map((field) => ({
+                          name: String(field.name).trim(),
+                          ...(field.value !== undefined &&
+                          field.value !== null
+                            ? {
+                                value: String(field.value),
+                              }
+                            : {}),
+                        }));
+                  }
+
+                  return normalizedTax;
+                })
+              : [],
+        };
+      }
+
+      // --------------------------------------------------------
+      // Optional fetchInvoiceDetail
+      // Preserve explicit false.
+      // --------------------------------------------------------
+      if (typeof fetchInvoiceDetail === "boolean") {
+        payload.fetchInvoiceDetail = fetchInvoiceDetail;
+      }
+
+      // --------------------------------------------------------
+      // Call Uniware
+      // --------------------------------------------------------
+      const response = await axios.post(
+        `${UNIWARE_BASE_URL}/services/rest/v1/oms/shippingPackage/createInvoiceAndAllocateShippingProvider`,
+        payload,
+        {
+          headers: {
+            Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      return res.status(response.status || 200).json(
+        response.data || {}
+      );
+    } catch (error) {
+      console.error(
+        "Uniware Create Invoice & Allocate Shipping Provider Error:",
+        error.response?.data || error.message
+      );
+
+      if (error.response) {
+        return res
+          .status(error.response.status || 500)
+          .json(
+            error.response.data || {
+              successful: false,
+              message: "Uniware returned an error.",
+            }
+          );
+      }
+
+      return res.status(500).json({
+        successful: false,
+        message:
+          error.message ||
+          "Failed to create invoice and allocate shipping provider.",
+      });
+    }
+  }
+);
+// ============================================================
+// Uniware - Allocate Shipping Provider
+// POST /services/rest/v1/oms/shippingPackage/allocateShippingProvider
+// Facility-level API
+// ============================================================
+
+app.post("/api/uniware/shipping-packages/allocate-provider", async (req, res) => {
+  try {
+    const {
+      facility,
+      shippingPackageCode,
+      shippingLabelMandatory,
+      shippingProviderCode,
+      shippingCourier,
+      trackingNumber,
+      trackingLink,
+      generateUniwareShippingLabel,
+    } = req.body;
+
+    // ----------------------------------------------------------
+    // Validation
+    // ----------------------------------------------------------
+    if (!facility || !String(facility).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility is required.",
+      });
+    }
+
+    if (
+      !shippingPackageCode ||
+      !String(shippingPackageCode).trim()
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "Shipping Package Code is required.",
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Build payload dynamically.
+    // Do not send optional empty strings.
+    // Preserve explicit false values.
+    // ----------------------------------------------------------
+    const payload = {
+      shippingPackageCode: String(shippingPackageCode).trim(),
+    };
+
+    if (shippingLabelMandatory !== undefined && shippingLabelMandatory !== null) {
+      payload.shippingLabelMandatory = Boolean(shippingLabelMandatory);
+    }
+
+    if (
+      shippingProviderCode !== undefined &&
+      shippingProviderCode !== null &&
+      String(shippingProviderCode).trim()
+    ) {
+      payload.shippingProviderCode = String(shippingProviderCode).trim();
+    }
+
+    if (
+      shippingCourier !== undefined &&
+      shippingCourier !== null &&
+      String(shippingCourier).trim()
+    ) {
+      payload.shippingCourier = String(shippingCourier).trim();
+    }
+
+    if (
+      trackingNumber !== undefined &&
+      trackingNumber !== null &&
+      String(trackingNumber).trim()
+    ) {
+      payload.trackingNumber = String(trackingNumber).trim();
+    }
+
+    if (
+      trackingLink !== undefined &&
+      trackingLink !== null &&
+      String(trackingLink).trim()
+    ) {
+      payload.trackingLink = String(trackingLink).trim();
+    }
+
+    if (
+      generateUniwareShippingLabel !== undefined &&
+      generateUniwareShippingLabel !== null
+    ) {
+      payload.generateUniwareShippingLabel = Boolean(
+        generateUniwareShippingLabel
+      );
+    }
+
+    // ----------------------------------------------------------
+    // Uniware API call
+    // ----------------------------------------------------------
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/shippingPackage/allocateShippingProvider`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          Facility: String(facility).trim(),
+        },
+      }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Allocate Shipping Provider Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message: error.message || "Failed to allocate shipping provider.",
+      }
+    );
+  }
+});
+// ============================================================
+// Uniware - Create Shipping Manifest
+// POST /services/rest/v1/oms/shippingManifest/create
+// Tenant-level API
+// ============================================================
+
+app.post("/api/uniware/shipping-manifests/create", async (req, res) => {
+  try {
+    const {
+      channel,
+      shippingProviderCode,
+      shippingProviderName,
+      shippingMethodCode,
+      comments,
+      thirdPartyShipping,
+      customFieldValues,
+      shippingProviderIsAggregator,
+      shippingCourier,
+    } = req.body;
+
+    // ----------------------------------------------------------
+    // Validation
+    // ----------------------------------------------------------
+    if (!channel || !String(channel).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Channel is required.",
+      });
+    }
+
+    if (thirdPartyShipping === undefined || thirdPartyShipping === null) {
+      return res.status(400).json({
+        successful: false,
+        message: "thirdPartyShipping is required.",
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Build Uniware payload
+    // Optional empty values are omitted.
+    // Explicit false values are preserved.
+    // ----------------------------------------------------------
+    const payload = {
+      channel: String(channel).trim(),
+      thirdPartyShipping: Boolean(thirdPartyShipping),
+    };
+
+    if (
+      shippingProviderCode !== undefined &&
+      shippingProviderCode !== null &&
+      String(shippingProviderCode).trim()
+    ) {
+      payload.shippingProviderCode =
+        String(shippingProviderCode).trim();
+    }
+
+    if (
+      shippingProviderName !== undefined &&
+      shippingProviderName !== null &&
+      String(shippingProviderName).trim()
+    ) {
+      payload.shippingProviderName =
+        String(shippingProviderName).trim();
+    }
+
+    if (
+      shippingMethodCode !== undefined &&
+      shippingMethodCode !== null &&
+      String(shippingMethodCode).trim()
+    ) {
+      payload.shippingMethodCode =
+        String(shippingMethodCode).trim();
+    }
+
+    if (
+      comments !== undefined &&
+      comments !== null &&
+      String(comments).trim()
+    ) {
+      payload.comments = String(comments).trim();
+    }
+
+    // ----------------------------------------------------------
+    // Custom fields
+    // ----------------------------------------------------------
+    if (Array.isArray(customFieldValues) && customFieldValues.length > 0) {
+      const cleanedCustomFields = customFieldValues
+        .filter(
+          (field) =>
+            field &&
+            field.name !== undefined &&
+            field.name !== null &&
+            String(field.name).trim()
+        )
+        .map((field) => {
+          const item = {
+            name: String(field.name).trim(),
+          };
+
+          if (
+            field.value !== undefined &&
+            field.value !== null
+          ) {
+            item.value = String(field.value);
+          }
+
+          return item;
+        });
+
+      if (cleanedCustomFields.length > 0) {
+        payload.customFieldValues = cleanedCustomFields;
+      }
+    }
+
+    // ----------------------------------------------------------
+    // Aggregator flag
+    // ----------------------------------------------------------
+    if (
+      shippingProviderIsAggregator !== undefined &&
+      shippingProviderIsAggregator !== null
+    ) {
+      payload.shippingProviderIsAggregator = Boolean(
+        shippingProviderIsAggregator
+      );
+    }
+
+    // ----------------------------------------------------------
+    // Courier
+    // Relevant when provider is an aggregator.
+    // ----------------------------------------------------------
+    if (
+      shippingCourier !== undefined &&
+      shippingCourier !== null &&
+      String(shippingCourier).trim()
+    ) {
+      payload.shippingCourier =
+        String(shippingCourier).trim();
+    }
+
+    // ----------------------------------------------------------
+    // Uniware API
+    // Tenant-level => NO Facility header
+    // ----------------------------------------------------------
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/shippingManifest/create`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+        },
+      }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Create Shipping Manifest Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message:
+          error.message ||
+          "Failed to create shipping manifest.",
+      }
+    );
+  }
+});
+// ============================================================
+// Uniware - Add Shipping Package to Manifest
+// POST /services/rest/v1/oms/shippingManifest/addShippingPackage
+// Tenant-level API
+// ============================================================
+
+app.post(
+  "/api/uniware/shipping-manifests/add-shipping-package",
+  async (req, res) => {
+    try {
+      const {
+        shippingManifestCode,
+        shippingPackageCodes,
+      } = req.body;
+
+      // --------------------------------------------------------
+      // Validation
+      // --------------------------------------------------------
+      if (
+        !shippingManifestCode ||
+        !String(shippingManifestCode).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: "Shipping Manifest Code is required.",
+        });
+      }
+
+      if (!Array.isArray(shippingPackageCodes)) {
+        return res.status(400).json({
+          successful: false,
+          message: "shippingPackageCodes must be an array.",
+        });
+      }
+
+      const cleanedShippingPackageCodes =
+        shippingPackageCodes
+          .filter(
+            (code) =>
+              code !== undefined &&
+              code !== null &&
+              String(code).trim()
+          )
+          .map((code) => String(code).trim());
+
+      if (cleanedShippingPackageCodes.length === 0) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "At least one Shipping Package Code is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Uniware payload
+      // --------------------------------------------------------
+      const payload = {
+        shippingManifestCode:
+          String(shippingManifestCode).trim(),
+
+        shippingPackageCodes:
+          cleanedShippingPackageCodes,
+      };
+
+      // --------------------------------------------------------
+      // Uniware API
+      // Tenant-level => NO Facility header
+      // --------------------------------------------------------
+      const response = await axios.post(
+        `${UNIWARE_BASE_URL}/services/rest/v1/oms/shippingManifest/addShippingPackage`,
+        payload,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          },
+        }
+      );
+
+      return res.status(response.status).json(response.data);
+    } catch (error) {
+      console.error(
+        "Uniware Add Shipping Package to Manifest Error:",
+        error.response?.data || error.message
+      );
+
+      return res.status(error.response?.status || 500).json(
+        error.response?.data || {
+          successful: false,
+          message:
+            error.message ||
+            "Failed to add shipping package(s) to manifest.",
+        }
+      );
+    }
+  }
+);
+// ============================================================
+// Uniware - Create and Complete Shipping Manifest
+// POST /services/rest/v1/oms/shippingManifest/createclose
+// Facility-level API
+// ============================================================
+
+app.post(
+  "/api/uniware/shipping-manifests/create-complete",
+  async (req, res) => {
+    try {
+      const {
+        facility,
+        channel,
+        shippingProviderCode,
+        shippingProviderName,
+        shippingMethodCode,
+        comments,
+        thirdPartyShipping,
+        customFieldValues,
+        shippingPackageCodes,
+        shippingProviderIsAggregator,
+        shippingCourier,
+      } = req.body;
+
+      // --------------------------------------------------------
+      // Facility validation
+      // --------------------------------------------------------
+      if (!facility || !String(facility).trim()) {
+        return res.status(400).json({
+          successful: false,
+          message: "Facility is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Channel is optional according to the API table
+      // --------------------------------------------------------
+
+      // --------------------------------------------------------
+      // Shipping package codes
+      // --------------------------------------------------------
+      if (
+        shippingPackageCodes !== undefined &&
+        shippingPackageCodes !== null
+      ) {
+        if (!Array.isArray(shippingPackageCodes)) {
+          return res.status(400).json({
+            successful: false,
+            message: "shippingPackageCodes must be an array.",
+          });
+        }
+      }
+
+      // --------------------------------------------------------
+      // Clean package codes
+      // --------------------------------------------------------
+      const cleanedShippingPackageCodes =
+        Array.isArray(shippingPackageCodes)
+          ? shippingPackageCodes
+              .filter(
+                (code) =>
+                  code !== undefined &&
+                  code !== null &&
+                  String(code).trim()
+              )
+              .map((code) => String(code).trim())
+          : undefined;
+
+      // --------------------------------------------------------
+      // Build payload dynamically.
+      // Do not send empty optional values.
+      // Preserve explicit false values.
+      // --------------------------------------------------------
+      const payload = {};
+
+      if (channel !== undefined && channel !== null) {
+        const value = String(channel).trim();
+
+        if (value) {
+          payload.channel = value;
+        }
+      }
+
+      if (
+        shippingProviderCode !== undefined &&
+        shippingProviderCode !== null
+      ) {
+        const value =
+          String(shippingProviderCode).trim();
+
+        if (value) {
+          payload.shippingProviderCode = value;
+        }
+      }
+
+      if (
+        shippingProviderName !== undefined &&
+        shippingProviderName !== null
+      ) {
+        const value =
+          String(shippingProviderName).trim();
+
+        if (value) {
+          payload.shippingProviderName = value;
+        }
+      }
+
+      if (
+        shippingMethodCode !== undefined &&
+        shippingMethodCode !== null
+      ) {
+        const value =
+          String(shippingMethodCode).trim();
+
+        if (value) {
+          payload.shippingMethodCode = value;
+        }
+      }
+
+      if (
+        comments !== undefined &&
+        comments !== null
+      ) {
+        const value = String(comments);
+
+        if (value.trim()) {
+          payload.comments = value;
+        }
+      }
+
+      // Important:
+      // false must NOT be removed.
+      if (thirdPartyShipping !== undefined) {
+        payload.thirdPartyShipping =
+          Boolean(thirdPartyShipping);
+      }
+
+      if (Array.isArray(customFieldValues)) {
+        const cleanedCustomFields =
+          customFieldValues
+            .filter(
+              (field) =>
+                field &&
+                field.name !== undefined &&
+                String(field.name).trim()
+            )
+            .map((field) => ({
+              name: String(field.name).trim(),
+              ...(field.value !== undefined &&
+              field.value !== null
+                ? {
+                    value: String(field.value),
+                  }
+                : {}),
+            }));
+
+        if (cleanedCustomFields.length > 0) {
+          payload.customFieldValues =
+            cleanedCustomFields;
+        }
+      }
+
+      if (
+        Array.isArray(cleanedShippingPackageCodes) &&
+        cleanedShippingPackageCodes.length > 0
+      ) {
+        payload.shippingPackageCodes =
+          cleanedShippingPackageCodes;
+      }
+
+      // Important:
+      // false must NOT be removed.
+      if (
+        shippingProviderIsAggregator !== undefined
+      ) {
+        payload.shippingProviderIsAggregator =
+          Boolean(shippingProviderIsAggregator);
+      }
+
+      if (
+        shippingCourier !== undefined &&
+        shippingCourier !== null
+      ) {
+        const value =
+          String(shippingCourier).trim();
+
+        if (value) {
+          payload.shippingCourier = value;
+        }
+      }
+
+      // --------------------------------------------------------
+      // Uniware API
+      // --------------------------------------------------------
+      const response = await axios.post(
+        `${UNIWARE_BASE_URL}/services/rest/v1/oms/shippingManifest/createclose`,
+        payload,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+            Facility: String(facility).trim(),
+          },
+        }
+      );
+
+      return res.status(response.status).json(
+        response.data
+      );
+    } catch (error) {
+      console.error(
+        "Uniware Create and Complete Manifest Error:",
+        error.response?.data || error.message
+      );
+
+      return res.status(
+        error.response?.status || 500
+      ).json(
+        error.response?.data || {
+          successful: false,
+          message:
+            error.message ||
+            "Failed to create and complete shipping manifest.",
+        }
+      );
+    }
+  }
+);
+// ============================================================
+// Uniware - Close Shipping Manifest
+// POST /services/rest/v1/oms/shippingManifest/close
+// Tenant-level API
+// ============================================================
+
+app.post(
+  "/api/uniware/shipping-manifests/close",
+  async (req, res) => {
+    try {
+      const { shippingManifestCode } =
+        req.body;
+
+      // --------------------------------------------------------
+      // Validation
+      // --------------------------------------------------------
+      if (
+        !shippingManifestCode ||
+        !String(shippingManifestCode).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "shippingManifestCode is required.",
+        });
+      }
+
+      const payload = {
+        shippingManifestCode:
+          String(shippingManifestCode).trim(),
+      };
+
+      // --------------------------------------------------------
+      // Call Uniware
+      // Tenant-level API:
+      // NO Facility header
+      // --------------------------------------------------------
+      const response = await axios.post(
+        `${UNIWARE_BASE_URL}/services/rest/v1/oms/shippingManifest/close`,
+        payload,
+        {
+          headers: {
+            "Content-Type":
+              "application/json",
+            Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          },
+        }
+      );
+
+      return res.status(response.status).json(
+        response.data
+      );
+    } catch (error) {
+      console.error(
+        "Uniware Close Shipping Manifest Error:",
+        error.response?.data ||
+          error.message
+      );
+
+      return res.status(
+        error.response?.status || 500
+      ).json(
+        error.response?.data || {
+          successful: false,
+          message:
+            error.message ||
+            "Failed to close shipping manifest.",
+        }
+      );
+    }
+  }
+);
+// ============================================================
+// Uniware - Get Shipping Manifest
+// POST /services/rest/v1/oms/shippingManifest/get
+// Facility-level API
+// ============================================================
+
+app.post(
+  "/api/uniware/shipping-manifests/get",
+  async (req, res) => {
+    try {
+      const {
+        facility,
+        shippingManifestCode,
+      } = req.body;
+
+      // --------------------------------------------------------
+      // Validate Facility
+      // --------------------------------------------------------
+      if (
+        !facility ||
+        !String(facility).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: "Facility is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate Manifest Code
+      // --------------------------------------------------------
+      if (
+        !shippingManifestCode ||
+        !String(shippingManifestCode).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "shippingManifestCode is required.",
+        });
+      }
+
+      const payload = {
+        shippingManifestCode:
+          String(
+            shippingManifestCode
+          ).trim(),
+      };
+
+      // --------------------------------------------------------
+      // Uniware API
+      // Facility header is required
+      // --------------------------------------------------------
+      const response = await axios.post(
+        `${UNIWARE_BASE_URL}/services/rest/v1/oms/shippingManifest/get`,
+        payload,
+        {
+          headers: {
+            "Content-Type":
+              "application/json",
+            Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+            Facility:
+              String(facility).trim(),
+          },
+        }
+      );
+
+      return res
+        .status(response.status)
+        .json(response.data);
+    } catch (error) {
+      console.error(
+        "Uniware Get Shipping Manifest Error:",
+        error.response?.data ||
+          error.message
+      );
+
+      return res.status(
+        error.response?.status || 500
+      ).json(
+        error.response?.data || {
+          successful: false,
+          message:
+            error.message ||
+            "Failed to get shipping manifest.",
+        }
+      );
+    }
+  }
+);
+// ============================================================
+// Uniware - Mark Dispatched Shipping Package
+// POST /services/rest/v1/oms/shippingPackage/dispatch
+// Facility-level API
+// ============================================================
+
+app.post(
+  "/api/uniware/shipping-packages/dispatch",
+  async (req, res) => {
+    try {
+      const {
+        facility,
+        shippingPackageCode,
+      } = req.body;
+
+      // --------------------------------------------------------
+      // Validate Facility
+      // --------------------------------------------------------
+      if (
+        !facility ||
+        !String(facility).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: "Facility is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate Shipping Package Code
+      // --------------------------------------------------------
+      if (
+        !shippingPackageCode ||
+        !String(shippingPackageCode).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "shippingPackageCode is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Uniware request payload
+      // --------------------------------------------------------
+      const payload = {
+        shippingPackageCode:
+          String(
+            shippingPackageCode
+          ).trim(),
+      };
+
+      // --------------------------------------------------------
+      // Call Uniware
+      // --------------------------------------------------------
+      const response = await axios.post(
+        `${UNIWARE_BASE_URL}/services/rest/v1/oms/shippingPackage/dispatch`,
+        payload,
+        {
+          headers: {
+            "Content-Type":
+              "application/json",
+            Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+            Facility:
+              String(facility).trim(),
+          },
+        }
+      );
+
+      return res
+        .status(response.status)
+        .json(response.data);
+    } catch (error) {
+      console.error(
+        "Uniware Mark Dispatched Shipping Package Error:",
+        error.response?.data ||
+          error.message
+      );
+
+      return res.status(
+        error.response?.status || 500
+      ).json(
+        error.response?.data || {
+          successful: false,
+          message:
+            error.message ||
+            "Failed to mark shipping package as dispatched.",
+        }
+      );
+    }
+  }
+);
+// ============================================================
+// Uniware - Force Dispatch Shipping Package
+// POST /services/rest/v1/oms/shippingPackage/forceDispatch
+// Facility-level API
+// ============================================================
+
+app.post(
+  "/api/uniware/shipping-packages/force-dispatch",
+  async (req, res) => {
+    try {
+      const {
+        facility,
+        shippingPackageCode,
+        shippingProviderCode,
+        trackingNumber,
+        skipDetailing,
+        skipChannelInvoicing,
+        invoiceCode,
+        channelProductIdToTax,
+      } = req.body;
+
+      // --------------------------------------------------------
+      // Validate Facility
+      // --------------------------------------------------------
+
+      if (
+        !facility ||
+        !String(facility).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: "Facility is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate Shipping Package Code
+      // --------------------------------------------------------
+
+      if (
+        !shippingPackageCode ||
+        !String(shippingPackageCode).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "shippingPackageCode is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Build Uniware payload dynamically
+      // --------------------------------------------------------
+
+      const payload = {
+        shippingPackageCode:
+          String(
+            shippingPackageCode
+          ).trim(),
+      };
+
+      // Optional string fields
+      if (
+        shippingProviderCode !==
+          undefined &&
+        shippingProviderCode !==
+          null &&
+        String(
+          shippingProviderCode
+        ).trim()
+      ) {
+        payload.shippingProviderCode =
+          String(
+            shippingProviderCode
+          ).trim();
+      }
+
+      if (
+        trackingNumber !==
+          undefined &&
+        trackingNumber !== null &&
+        String(trackingNumber).trim()
+      ) {
+        payload.trackingNumber =
+          String(
+            trackingNumber
+          ).trim();
+      }
+
+      if (
+        invoiceCode !== undefined &&
+        invoiceCode !== null &&
+        String(invoiceCode).trim()
+      ) {
+        payload.invoiceCode =
+          String(
+            invoiceCode
+          ).trim();
+      }
+
+      // --------------------------------------------------------
+      // Boolean fields
+      //
+      // Preserve explicit false.
+      // --------------------------------------------------------
+
+      if (
+        skipDetailing !==
+        undefined
+      ) {
+        payload.skipDetailing =
+          Boolean(skipDetailing);
+      }
+
+      if (
+        skipChannelInvoicing !==
+        undefined
+      ) {
+        payload.skipChannelInvoicing =
+          Boolean(
+            skipChannelInvoicing
+          );
+      }
+
+      // --------------------------------------------------------
+      // Optional channelProductIdToTax
+      // --------------------------------------------------------
+
+      if (
+        channelProductIdToTax !==
+          undefined &&
+        channelProductIdToTax !==
+          null
+      ) {
+        if (
+          typeof channelProductIdToTax !==
+          "object"
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              "channelProductIdToTax must be an object.",
+          });
+        }
+
+        payload.channelProductIdToTax =
+          channelProductIdToTax;
+      }
+
+      // --------------------------------------------------------
+      // Call Uniware
+      // --------------------------------------------------------
+
+      const response = await axios.post(
+        `${UNIWARE_BASE_URL}/services/rest/v1/oms/shippingPackage/forceDispatch`,
+        payload,
+        {
+          headers: {
+            "Content-Type":
+              "application/json",
+            Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+            Facility:
+              String(facility).trim(),
+          },
+        }
+      );
+
+      return res
+        .status(response.status)
+        .json(response.data);
+    } catch (error) {
+      console.error(
+        "Uniware Force Dispatch Shipping Package Error:",
+        error.response?.data ||
+          error.message
+      );
+
+      return res.status(
+        error.response?.status || 500
+      ).json(
+        error.response?.data || {
+          successful: false,
+          message:
+            error.message ||
+            "Failed to force dispatch shipping package.",
+        }
+      );
+    }
+  }
+);
+// ============================================================
+// Uniware - Shipment Create and Mark Dispatched
+// POST /services/rest/v1/oms/shippingPackage/
+//      createAndDispatchBySaleOrderItemCode
+// Facility-level API
+// ============================================================
+
+app.post(
+  "/api/uniware/shipping-packages/create-and-dispatch",
+  async (req, res) => {
+    try {
+      const {
+        facility,
+        saleOrderCode,
+        saleOrderItemInfo,
+        shippingPackageInfo,
+        invoiceInfo,
+      } = req.body;
+
+      // --------------------------------------------------------
+      // Validate Facility
+      // --------------------------------------------------------
+
+      if (
+        !facility ||
+        !String(facility).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: "Facility is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate Sale Order Code
+      // --------------------------------------------------------
+
+      if (
+        !saleOrderCode ||
+        !String(saleOrderCode).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "saleOrderCode is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate Sale Order Item Info
+      // --------------------------------------------------------
+
+      if (
+        !saleOrderItemInfo ||
+        typeof saleOrderItemInfo !== "object"
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "saleOrderItemInfo is required.",
+        });
+      }
+
+      if (
+        !Array.isArray(
+          saleOrderItemInfo.saleOrderItem
+        ) ||
+        saleOrderItemInfo.saleOrderItem
+          .length === 0
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "At least one saleOrderItem is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate Sale Order Items
+      // --------------------------------------------------------
+
+      for (
+        const item of
+          saleOrderItemInfo.saleOrderItem
+      ) {
+        if (
+          !item ||
+          !item.code ||
+          !String(item.code).trim()
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              "Every saleOrderItem must contain a code.",
+          });
+        }
+
+        if (
+          item.customFieldValues !==
+            undefined &&
+          !Array.isArray(
+            item.customFieldValues
+          )
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `customFieldValues for sale order item ${item.code} must be an array.`,
+          });
+        }
+
+        if (
+          Array.isArray(
+            item.customFieldValues
+          )
+        ) {
+          for (
+            const field of
+              item.customFieldValues
+          ) {
+            if (
+              !field ||
+              !field.name ||
+              !String(
+                field.name
+              ).trim()
+            ) {
+              return res.status(400).json({
+                successful: false,
+                message:
+                  `Every custom field for sale order item ${item.code} must contain a name.`,
+              });
+            }
+          }
+        }
+      }
+
+      // --------------------------------------------------------
+      // Build Sale Order Item Info
+      // --------------------------------------------------------
+
+      const cleanedSaleOrderItems =
+        saleOrderItemInfo.saleOrderItem.map(
+          (item) => {
+            const cleaned = {
+              code: String(
+                item.code
+              ).trim(),
+            };
+
+            if (
+              Array.isArray(
+                item.customFieldValues
+              ) &&
+              item.customFieldValues
+                .length > 0
+            ) {
+              cleaned.customFieldValues =
+                item.customFieldValues
+                  .filter(
+                    (field) =>
+                      field &&
+                      field.name &&
+                      String(
+                        field.name
+                      ).trim()
+                  )
+                  .map((field) => ({
+                    name: String(
+                      field.name
+                    ).trim(),
+                    ...(field.value !==
+                    undefined
+                      ? {
+                          value:
+                            field.value,
+                        }
+                      : {}),
+                  }));
+            }
+
+            return cleaned;
+          }
+        );
+
+      // --------------------------------------------------------
+      // Build final payload
+      // --------------------------------------------------------
+
+      const payload = {
+        saleOrderCode:
+          String(
+            saleOrderCode
+          ).trim(),
+
+        saleOrderItemInfo: {
+          saleOrderItem:
+            cleanedSaleOrderItems,
+        },
+      };
+
+      // ========================================================
+      // Shipping Package Info
+      // ========================================================
+
+      if (
+        shippingPackageInfo !==
+          undefined &&
+        shippingPackageInfo !== null
+      ) {
+        if (
+          typeof shippingPackageInfo !==
+            "object" ||
+          Array.isArray(
+            shippingPackageInfo
+          )
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              "shippingPackageInfo must be an object.",
+          });
+        }
+
+        const cleanedShippingPackage =
+          {};
+
+        if (
+          shippingPackageInfo.trackingNumber !==
+            undefined &&
+          shippingPackageInfo.trackingNumber !==
+            null &&
+          String(
+            shippingPackageInfo.trackingNumber
+          ).trim()
+        ) {
+          cleanedShippingPackage.trackingNumber =
+            String(
+              shippingPackageInfo.trackingNumber
+            ).trim();
+        }
+
+        if (
+          shippingPackageInfo.shippingProviderCode !==
+            undefined &&
+          shippingPackageInfo.shippingProviderCode !==
+            null &&
+          String(
+            shippingPackageInfo.shippingProviderCode
+          ).trim()
+        ) {
+          cleanedShippingPackage.shippingProviderCode =
+            String(
+              shippingPackageInfo.shippingProviderCode
+            ).trim();
+        }
+
+        if (
+          shippingPackageInfo.shippingPackageCode !==
+            undefined &&
+          shippingPackageInfo.shippingPackageCode !==
+            null &&
+          String(
+            shippingPackageInfo.shippingPackageCode
+          ).trim()
+        ) {
+          cleanedShippingPackage.shippingPackageCode =
+            String(
+              shippingPackageInfo.shippingPackageCode
+            ).trim();
+        }
+
+        // Preserve explicit false
+        if (
+          shippingPackageInfo.markDispatchedOnChannel !==
+          undefined
+        ) {
+          cleanedShippingPackage.markDispatchedOnChannel =
+            Boolean(
+              shippingPackageInfo.markDispatchedOnChannel
+            );
+        }
+
+        if (
+          Array.isArray(
+            shippingPackageInfo.customFieldValues
+          ) &&
+          shippingPackageInfo.customFieldValues
+            .length > 0
+        ) {
+          for (
+            const field of
+              shippingPackageInfo.customFieldValues
+          ) {
+            if (
+              !field ||
+              !field.name ||
+              !String(
+                field.name
+              ).trim()
+            ) {
+              return res.status(400).json({
+                successful: false,
+                message:
+                  "Every shipping package custom field must contain a name.",
+              });
+            }
+          }
+
+          cleanedShippingPackage.customFieldValues =
+            shippingPackageInfo.customFieldValues
+              .filter(
+                (field) =>
+                  field &&
+                  field.name &&
+                  String(
+                    field.name
+                  ).trim()
+              )
+              .map((field) => ({
+                name: String(
+                  field.name
+                ).trim(),
+                ...(field.value !==
+                undefined
+                  ? {
+                      value:
+                        field.value,
+                    }
+                  : {}),
+              }));
+        }
+
+        payload.shippingPackageInfo =
+          cleanedShippingPackage;
+      }
+
+      // ========================================================
+      // Invoice Info
+      // ========================================================
+
+      if (
+        invoiceInfo !== undefined &&
+        invoiceInfo !== null
+      ) {
+        if (
+          typeof invoiceInfo !==
+            "object" ||
+          Array.isArray(invoiceInfo)
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              "invoiceInfo must be an object.",
+          });
+        }
+
+        const cleanedInvoiceInfo =
+          {};
+
+        if (
+          invoiceInfo.invoiceCode !==
+            undefined &&
+          invoiceInfo.invoiceCode !==
+            null &&
+          String(
+            invoiceInfo.invoiceCode
+          ).trim()
+        ) {
+          cleanedInvoiceInfo.invoiceCode =
+            String(
+              invoiceInfo.invoiceCode
+            ).trim();
+        }
+
+        // ------------------------------------------------------
+        // Tax Information
+        // ------------------------------------------------------
+
+        if (
+          invoiceInfo.taxInformation !==
+            undefined &&
+          invoiceInfo.taxInformation !==
+            null
+        ) {
+          if (
+            typeof invoiceInfo.taxInformation !==
+              "object" ||
+            Array.isArray(
+              invoiceInfo.taxInformation
+            )
+          ) {
+            return res.status(400).json({
+              successful: false,
+              message:
+                "taxInformation must be an object.",
+            });
+          }
+
+          const productTaxes =
+            invoiceInfo
+              .taxInformation
+              .productTaxes;
+
+          if (
+            !Array.isArray(
+              productTaxes
+            ) ||
+            productTaxes.length === 0
+          ) {
+            return res.status(400).json({
+              successful: false,
+              message:
+                "taxInformation.productTaxes must contain at least one product tax.",
+            });
+          }
+
+          for (
+            const tax of productTaxes
+          ) {
+            if (
+              !tax ||
+              !tax.channelProductId ||
+              !String(
+                tax.channelProductId
+              ).trim()
+            ) {
+              return res.status(400).json({
+                successful: false,
+                message:
+                  "Every product tax must contain channelProductId.",
+              });
+            }
+          }
+
+          cleanedInvoiceInfo.taxInformation =
+            {
+              productTaxes:
+                productTaxes.map(
+                  (tax) => {
+                    const cleanedTax =
+                      {
+                        channelProductId:
+                          String(
+                            tax.channelProductId
+                          ).trim(),
+                      };
+
+                    const numericFields = [
+                      "taxPercentage",
+                      "centralGst",
+                      "stateGst",
+                      "unionTerritoryGst",
+                      "integratedGst",
+                      "compensationCess",
+                    ];
+
+                    for (
+                      const field of
+                        numericFields
+                    ) {
+                      if (
+                        tax[field] !==
+                        undefined
+                      ) {
+                        const value =
+                          Number(
+                            tax[field]
+                          );
+
+                        if (
+                          !Number.isFinite(
+                            value
+                          )
+                        ) {
+                          throw new Error(
+                            `${field} must be a valid number.`
+                          );
+                        }
+
+                        cleanedTax[
+                          field
+                        ] = value;
+                      }
+                    }
+
+                    if (
+                      tax.additionalInfo !==
+                        undefined &&
+                      tax.additionalInfo !==
+                        null
+                    ) {
+                      cleanedTax.additionalInfo =
+                        String(
+                          tax.additionalInfo
+                        );
+                    }
+
+                    if (
+                      Array.isArray(
+                        tax.customFieldValues
+                      ) &&
+                      tax.customFieldValues
+                        .length > 0
+                    ) {
+                      cleanedTax.customFieldValues =
+                        tax.customFieldValues
+                          .filter(
+                            (field) =>
+                              field &&
+                              field.name &&
+                              String(
+                                field.name
+                              ).trim()
+                          )
+                          .map(
+                            (field) => ({
+                              name: String(
+                                field.name
+                              ).trim(),
+                              ...(field.value !==
+                              undefined
+                                ? {
+                                    value:
+                                      field.value,
+                                  }
+                                : {}),
+                            })
+                          );
+                    }
+
+                    return cleanedTax;
+                  }
+                ),
+            };
+        }
+
+        payload.invoiceInfo =
+          cleanedInvoiceInfo;
+      }
+
+      // --------------------------------------------------------
+      // Call Uniware
+      // --------------------------------------------------------
+
+      const response =
+        await axios.post(
+          `${UNIWARE_BASE_URL}/services/rest/v1/oms/shippingPackage/createAndDispatchBySaleOrderItemCode`,
+          payload,
+          {
+            headers: {
+              "Content-Type":
+                "application/json",
+              Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+              Facility:
+                String(
+                  facility
+                ).trim(),
+            },
+          }
+        );
+
+      return res
+        .status(response.status)
+        .json(response.data);
+    } catch (error) {
+      console.error(
+        "Uniware Shipment Create and Dispatch Error:",
+        error.response?.data ||
+          error.message
+      );
+
+      return res.status(
+        error.response?.status || 500
+      ).json(
+        error.response?.data || {
+          successful: false,
+          message:
+            error.message ||
+            "Failed to create and dispatch shipping package.",
+        }
+      );
+    }
+  }
+);
+// ============================================================
+// Uniware - Update Tracking Status
+// POST /services/rest/v1/oms/updateShipmentTrackingStatus
+// Facility-level API
+// ============================================================
+
+app.post(
+  "/api/uniware/shipping-packages/update-tracking-status",
+  async (req, res) => {
+    try {
+      const {
+        facility,
+        providerCode,
+        trackingNumber,
+        trackingStatus,
+        statusDate,
+        shipmentTrackingStatusName,
+        rtoTrackingNumber,
+        rtoReason,
+      } = req.body;
+
+      // --------------------------------------------------------
+      // Validate Facility
+      // --------------------------------------------------------
+
+      if (
+        !facility ||
+        !String(facility).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: "Facility is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate mandatory fields
+      // --------------------------------------------------------
+
+      if (
+        !providerCode ||
+        !String(providerCode).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "providerCode is required.",
+        });
+      }
+
+      if (
+        !trackingNumber ||
+        !String(trackingNumber).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "trackingNumber is required.",
+        });
+      }
+
+      if (
+        !trackingStatus ||
+        !String(trackingStatus).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "trackingStatus is required.",
+        });
+      }
+
+      if (
+        !shipmentTrackingStatusName ||
+        !String(
+          shipmentTrackingStatusName
+        ).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "shipmentTrackingStatusName is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Build payload
+      // --------------------------------------------------------
+
+      const payload = {
+        providerCode:
+          String(providerCode).trim(),
+
+        trackingNumber:
+          String(trackingNumber).trim(),
+
+        trackingStatus:
+          String(trackingStatus).trim(),
+
+        shipmentTrackingStatusName:
+          String(
+            shipmentTrackingStatusName
+          ).trim(),
+      };
+
+      // --------------------------------------------------------
+      // Optional status date
+      // --------------------------------------------------------
+
+      if (
+        statusDate !== undefined &&
+        statusDate !== null &&
+        String(statusDate).trim()
+      ) {
+        const parsedDate =
+          new Date(statusDate);
+
+        if (
+          Number.isNaN(
+            parsedDate.getTime()
+          )
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              "statusDate must be a valid date.",
+          });
+        }
+
+        payload.statusDate =
+          parsedDate.toISOString();
+      }
+
+      // --------------------------------------------------------
+      // Optional RTO tracking number
+      // --------------------------------------------------------
+
+      if (
+        rtoTrackingNumber !==
+          undefined &&
+        rtoTrackingNumber !== null &&
+        String(
+          rtoTrackingNumber
+        ).trim()
+      ) {
+        payload.rtoTrackingNumber =
+          String(
+            rtoTrackingNumber
+          ).trim();
+      }
+
+      // --------------------------------------------------------
+      // Optional RTO reason
+      // --------------------------------------------------------
+
+      if (
+        rtoReason !== undefined &&
+        rtoReason !== null &&
+        String(rtoReason).trim()
+      ) {
+        payload.rtoReason =
+          String(rtoReason).trim();
+      }
+
+      // --------------------------------------------------------
+      // Call Uniware
+      // --------------------------------------------------------
+
+      const response =
+        await axios.post(
+          `${UNIWARE_BASE_URL}/services/rest/v1/oms/updateShipmentTrackingStatus`,
+          payload,
+          {
+            headers: {
+              "Content-Type":
+                "application/json",
+              Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+              Facility:
+                String(
+                  facility
+                ).trim(),
+            },
+          }
+        );
+
+      return res
+        .status(response.status)
+        .json(response.data);
+    } catch (error) {
+      console.error(
+        "Uniware Update Tracking Status Error:",
+        error.response?.data ||
+          error.message
+      );
+
+      return res.status(
+        error.response?.status || 500
+      ).json(
+        error.response?.data || {
+          successful: false,
+          message:
+            error.message ||
+            "Failed to update shipment tracking status.",
+        }
+      );
+    }
+  }
+);
+// ============================================================
+// Uniware - Mark Sale Order Item(s) Delivered
+// POST /services/rest/v1/saleOrderItem/markDelivered
+// Facility-level API
+// ============================================================
+
+app.post(
+  "/api/uniware/sale-orders/items/mark-delivered",
+  async (req, res) => {
+    try {
+      const {
+        facility,
+        saleOrderCode,
+        saleOrderItemCodes,
+        podCode,
+      } = req.body;
+
+      // --------------------------------------------------------
+      // Validate Facility
+      // --------------------------------------------------------
+
+      if (
+        !facility ||
+        !String(facility).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: "Facility is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate Sale Order Code
+      // --------------------------------------------------------
+
+      if (
+        !saleOrderCode ||
+        !String(saleOrderCode).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "saleOrderCode is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate Sale Order Item Codes
+      // --------------------------------------------------------
+
+      if (
+        !Array.isArray(
+          saleOrderItemCodes
+        ) ||
+        saleOrderItemCodes.length === 0
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "At least one saleOrderItemCode is required.",
+        });
+      }
+
+      const cleanedItemCodes =
+        saleOrderItemCodes
+          .map((code) =>
+            String(code || "").trim()
+          )
+          .filter(Boolean);
+
+      if (
+        cleanedItemCodes.length === 0
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "At least one valid saleOrderItemCode is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Build Uniware payload
+      // --------------------------------------------------------
+
+      const payload = {
+        saleOrderCode:
+          String(
+            saleOrderCode
+          ).trim(),
+
+        saleOrderItemCodes:
+          cleanedItemCodes,
+      };
+
+      // --------------------------------------------------------
+      // Optional POD code
+      // --------------------------------------------------------
+
+      if (
+        podCode !== undefined &&
+        podCode !== null &&
+        String(podCode).trim()
+      ) {
+        payload.podCode =
+          String(podCode).trim();
+      }
+
+      // --------------------------------------------------------
+      // Call Uniware
+      // --------------------------------------------------------
+
+      const response =
+        await axios.post(
+          `${UNIWARE_BASE_URL}/services/rest/v1/saleOrderItem/markDelivered`,
+          payload,
+          {
+            headers: {
+              "Content-Type":
+                "application/json",
+              Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+              Facility:
+                String(
+                  facility
+                ).trim(),
+            },
+          }
+        );
+
+      return res
+        .status(response.status)
+        .json(response.data);
+    } catch (error) {
+      console.error(
+        "Uniware Mark Item Delivered Error:",
+        error.response?.data ||
+          error.message
+      );
+
+      return res.status(
+        error.response?.status || 500
+      ).json(
+        error.response?.data || {
+          successful: false,
+          message:
+            error.message ||
+            "Failed to mark sale order item(s) as delivered.",
+        }
+      );
+    }
+  }
+);
+// ============================================================
+// Uniware - Create Picklist
+//
+// Endpoint 1:
+// /services/rest/v1/oms/picker/picklist/staging/manual/create
+//
+// Endpoint 2:
+// /services/rest/v1/oms/picker/picklist/manual/create
+//
+// Both are Facility-level APIs.
+// ============================================================
+
+app.post(
+  "/api/uniware/picklists/create",
+  async (req, res) => {
+    try {
+      const {
+        facility,
+        shippingPackageCodes,
+        destination,
+      } = req.body;
+
+      // --------------------------------------------------------
+      // Validate Facility
+      // --------------------------------------------------------
+
+      if (
+        !facility ||
+        !String(facility).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: "Facility is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate shipping package codes
+      // --------------------------------------------------------
+
+      if (
+        !Array.isArray(
+          shippingPackageCodes
+        ) ||
+        shippingPackageCodes.length === 0
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "At least one shippingPackageCode is required.",
+        });
+      }
+
+      const cleanedPackageCodes =
+        shippingPackageCodes
+          .map((code) =>
+            String(code || "").trim()
+          )
+          .filter(Boolean);
+
+      if (
+        cleanedPackageCodes.length === 0
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "At least one valid shippingPackageCode is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Determine endpoint
+      //
+      // destination supplied:
+      //   Endpoint 2
+      //
+      // destination not supplied:
+      //   Endpoint 1
+      // --------------------------------------------------------
+
+      let endpoint;
+      let payload;
+
+      if (
+        destination !== undefined &&
+        destination !== null &&
+        String(destination).trim()
+      ) {
+        const normalizedDestination =
+          String(
+            destination
+          )
+            .trim()
+            .toUpperCase();
+
+        if (
+          !["INVOICING", "STAGING"].includes(
+            normalizedDestination
+          )
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              "destination must be INVOICING or STAGING.",
+          });
+        }
+
+        endpoint =
+          "/services/rest/v1/oms/picker/picklist/manual/create";
+
+        payload = {
+          shippingPackageCodes:
+            cleanedPackageCodes,
+          destination:
+            normalizedDestination,
+        };
+      } else {
+        // ------------------------------------------------------
+        // Endpoint 1
+        // Staging → invoicing destination
+        // ------------------------------------------------------
+
+        endpoint =
+          "/services/rest/v1/oms/picker/picklist/staging/manual/create";
+
+        payload = {
+          shippingPackageCodes:
+            cleanedPackageCodes,
+        };
+      }
+
+      // --------------------------------------------------------
+      // Call Uniware
+      // --------------------------------------------------------
+
+      const response =
+        await axios.post(
+          `${UNIWARE_BASE_URL}${endpoint}`,
+          payload,
+          {
+            headers: {
+              "Content-Type":
+                "application/json",
+              Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+              Facility:
+                String(
+                  facility
+                ).trim(),
+            },
+          }
+        );
+
+      return res
+        .status(response.status)
+        .json(response.data);
+    } catch (error) {
+      console.error(
+        "Uniware Create Picklist Error:",
+        error.response?.data ||
+          error.message
+      );
+
+      return res.status(
+        error.response?.status || 500
+      ).json(
+        error.response?.data || {
+          successful: false,
+          message:
+            error.message ||
+            "Failed to create picklist.",
+        }
+      );
+    }
+  }
+);
+// ============================================================
+// Uniware - Enable Custom Reason Dropdown
+//
+// Endpoint:
+// /services/rest/v1/uiCustomList/createOrUpdate
+//
+// Facility-level API
+//
+// Supports:
+//   editSaleOrder:ReturnReason
+//   editSaleOrder:CancelReason
+// ============================================================
+
+app.post(
+  "/api/uniware/ui-custom-list/create-or-update",
+  async (req, res) => {
+    try {
+      const {
+        facility,
+        name,
+        reasons,
+      } = req.body;
+
+      // --------------------------------------------------------
+      // Validate Facility
+      // --------------------------------------------------------
+
+      if (
+        !facility ||
+        !String(facility).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: "Facility is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate name
+      // --------------------------------------------------------
+
+      const allowedNames = [
+        "editSaleOrder:ReturnReason",
+        "editSaleOrder:CancelReason",
+      ];
+
+      if (
+        !name ||
+        !allowedNames.includes(
+          String(name).trim()
+        )
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "name must be editSaleOrder:ReturnReason or editSaleOrder:CancelReason.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate reasons
+      // --------------------------------------------------------
+
+      if (
+        !reasons ||
+        typeof reasons !== "object" ||
+        Array.isArray(reasons)
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "reasons must be a key-value object.",
+        });
+      }
+
+      const cleanedReasons = {};
+
+      for (
+        const [key, value] of Object.entries(
+          reasons
+        )
+      ) {
+        const cleanKey =
+          String(key).trim();
+
+        const cleanValue =
+          String(value ?? "").trim();
+
+        if (!cleanKey) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              "Reason keys cannot be empty.",
+          });
+        }
+
+        if (!cleanValue) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `Reason value is required for "${cleanKey}".`,
+          });
+        }
+
+        cleanedReasons[cleanKey] =
+          cleanValue;
+      }
+
+      if (
+        Object.keys(
+          cleanedReasons
+        ).length === 0
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "At least one reason is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Uniware expects value as a JSON STRING
+      // --------------------------------------------------------
+
+      const payload = {
+        name: String(name).trim(),
+        value: JSON.stringify(
+          cleanedReasons
+        ),
+      };
+
+      // --------------------------------------------------------
+      // Call Uniware
+      // --------------------------------------------------------
+
+      const response =
+        await axios.post(
+          `${UNIWARE_BASE_URL}/services/rest/v1/uiCustomList/createOrUpdate`,
+          payload,
+          {
+            headers: {
+              "Content-Type":
+                "application/json",
+              Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+              Facility:
+                String(
+                  facility
+                ).trim(),
+            },
+          }
+        );
+
+      return res
+        .status(response.status)
+        .json(response.data);
+    } catch (error) {
+      console.error(
+        "Uniware Custom Reason Dropdown Error:",
+        error.response?.data ||
+          error.message
+      );
+
+      return res.status(
+        error.response?.status || 500
+      ).json(
+        error.response?.data || {
+          successful: false,
+          message:
+            error.message ||
+            "Failed to create or update custom reason dropdown.",
+        }
+      );
+    }
+  }
+);
+// ============================================================
+// Uniware - Update Shipment Seal ID (Multiple)
+//
+// Uniware Endpoint:
+// POST /services/rest/v1/package/updateMultiple
+//
+// Level: Tenant
+// Facility header: REQUIRED according to Uniware documentation
+// ============================================================
+
+app.post(
+  "/api/uniware/shipping-packages/update-seal-id-bulk",
+  async (req, res) => {
+    try {
+      const {
+        facility,
+        packages,
+      } = req.body;
+
+      // --------------------------------------------------------
+      // Validate Facility
+      // --------------------------------------------------------
+
+      if (!facility || !String(facility).trim()) {
+        return res.status(400).json({
+          successful: false,
+          message: "Facility is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate packages
+      // --------------------------------------------------------
+
+      if (
+        !Array.isArray(packages) ||
+        packages.length === 0
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "At least one shipping package is required.",
+        });
+      }
+
+      const cleanedPackages = [];
+
+      const usedPackageCodes = new Set();
+      const usedSealIds = new Set();
+
+      for (let index = 0; index < packages.length; index++) {
+        const item = packages[index] || {};
+
+        const shippingPackageCode =
+          String(
+            item.shippingPackageCode || ""
+          ).trim();
+
+        const shippingPackageTypeCode =
+          String(
+            item.shippingPackageTypeCode || ""
+          ).trim();
+
+        const sptItemSealID =
+          String(
+            item.sptItemSealID || ""
+          ).trim();
+
+        // ------------------------------------------------------
+        // Required fields
+        // ------------------------------------------------------
+
+        if (!shippingPackageCode) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `Package ${index + 1}: shippingPackageCode is required.`,
+          });
+        }
+
+        if (!shippingPackageTypeCode) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `Package ${index + 1}: shippingPackageTypeCode is required.`,
+          });
+        }
+
+        if (!sptItemSealID) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `Package ${index + 1}: sptItemSealID is required.`,
+          });
+        }
+
+        // ------------------------------------------------------
+        // Package code must be unique in bulk request
+        // ------------------------------------------------------
+
+        if (
+          usedPackageCodes.has(
+            shippingPackageCode
+          )
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `Duplicate shippingPackageCode found: ${shippingPackageCode}`,
+          });
+        }
+
+        // ------------------------------------------------------
+        // Seal ID must be unique for each shipping package
+        // ------------------------------------------------------
+
+        if (
+          usedSealIds.has(
+            sptItemSealID
+          )
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              `Duplicate sptItemSealID found: ${sptItemSealID}`,
+          });
+        }
+
+        usedPackageCodes.add(
+          shippingPackageCode
+        );
+
+        usedSealIds.add(
+          sptItemSealID
+        );
+
+        // ------------------------------------------------------
+        // Build package payload
+        // ------------------------------------------------------
+
+        const packagePayload = {
+          shippingPackageCode,
+          shippingPackageTypeCode,
+          sptItemSealID,
+        };
+
+        // ------------------------------------------------------
+        // Optional boolean
+        //
+        // Preserve false.
+        // Omit only when not supplied.
+        // ------------------------------------------------------
+
+        if (
+          item.shipmentActualWeightCalculationRequired !==
+          undefined &&
+          item.shipmentActualWeightCalculationRequired !==
+          null
+        ) {
+          if (
+            typeof item.shipmentActualWeightCalculationRequired !==
+            "boolean"
+          ) {
+            return res.status(400).json({
+              successful: false,
+              message:
+                `Package ${index + 1}: shipmentActualWeightCalculationRequired must be boolean.`,
+            });
+          }
+
+          packagePayload.shipmentActualWeightCalculationRequired =
+            item.shipmentActualWeightCalculationRequired;
+        }
+
+        cleanedPackages.push(
+          packagePayload
+        );
+      }
+
+      // --------------------------------------------------------
+      // Uniware payload
+      // --------------------------------------------------------
+
+      const payload = {
+        packages: cleanedPackages,
+      };
+
+      // --------------------------------------------------------
+      // Call Uniware
+      // --------------------------------------------------------
+
+      const response = await axios.post(
+        `${UNIWARE_BASE_URL}/services/rest/v1/package/updateMultiple`,
+        payload,
+        {
+          headers: {
+            "Content-Type":
+              "application/json",
+            Authorization:
+              `bearer ${UNIWARE_ACCESS_TOKEN}`,
+            Facility:
+              String(facility).trim(),
+          },
+        }
+      );
+
+      return res
+        .status(response.status)
+        .json(response.data);
+    } catch (error) {
+      console.error(
+        "Uniware Update Shipment Seal ID Bulk Error:",
+        error.response?.data ||
+          error.message
+      );
+
+      return res
+        .status(
+          error.response?.status || 500
+        )
+        .json(
+          error.response?.data || {
+            successful: false,
+            message:
+              error.message ||
+              "Failed to update shipment seal IDs.",
+          }
+        );
+    }
+  }
+);
+// ============================================================
+// Uniware - Update Shipment Seal ID (Single)
+//
+// Uniware Endpoint:
+// POST /services/rest/v1/package/update
+//
+// Documentation Level: Tenant
+// Facility header: REQUIRED according to documentation
+// ============================================================
+
+app.post(
+  "/api/uniware/shipping-packages/update-seal-id",
+  async (req, res) => {
+    try {
+      const {
+        facility,
+        shippingPackageCode,
+        shippingPackageTypeCode,
+        sptItemSealID,
+        shipmentActualWeightCalculationRequired,
+      } = req.body;
+
+      // --------------------------------------------------------
+      // Validate Facility
+      // --------------------------------------------------------
+
+      if (!facility || !String(facility).trim()) {
+        return res.status(400).json({
+          successful: false,
+          message: "Facility is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate Shipping Package Code
+      // --------------------------------------------------------
+
+      if (
+        !shippingPackageCode ||
+        !String(shippingPackageCode).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "shippingPackageCode is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate Shipping Package Type Code
+      // --------------------------------------------------------
+
+      if (
+        !shippingPackageTypeCode ||
+        !String(shippingPackageTypeCode).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "shippingPackageTypeCode is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate Seal ID
+      // --------------------------------------------------------
+
+      if (
+        !sptItemSealID ||
+        !String(sptItemSealID).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "sptItemSealID is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Build payload
+      // --------------------------------------------------------
+
+      const payload = {
+        shippingPackageCode:
+          String(
+            shippingPackageCode
+          ).trim(),
+
+        shippingPackageTypeCode:
+          String(
+            shippingPackageTypeCode
+          ).trim(),
+
+        sptItemSealID:
+          String(
+            sptItemSealID
+          ).trim(),
+      };
+
+      // --------------------------------------------------------
+      // Optional boolean
+      //
+      // Preserve false.
+      // Omit only when not supplied.
+      // --------------------------------------------------------
+
+      if (
+        shipmentActualWeightCalculationRequired !==
+          undefined &&
+        shipmentActualWeightCalculationRequired !==
+          null
+      ) {
+        if (
+          typeof shipmentActualWeightCalculationRequired !==
+          "boolean"
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              "shipmentActualWeightCalculationRequired must be boolean.",
+          });
+        }
+
+        payload.shipmentActualWeightCalculationRequired =
+          shipmentActualWeightCalculationRequired;
+      }
+
+      // --------------------------------------------------------
+      // Call Uniware
+      // --------------------------------------------------------
+
+      const response = await axios.post(
+        `${UNIWARE_BASE_URL}/services/rest/v1/package/update`,
+        payload,
+        {
+          headers: {
+            "Content-Type":
+              "application/json",
+
+            Authorization:
+              `bearer ${UNIWARE_ACCESS_TOKEN}`,
+
+            Facility:
+              String(
+                facility
+              ).trim(),
+          },
+        }
+      );
+
+      return res
+        .status(response.status)
+        .json(response.data);
+    } catch (error) {
+      console.error(
+        "Uniware Update Shipment Seal ID Error:",
+        error.response?.data ||
+          error.message
+      );
+
+      return res
+        .status(
+          error.response?.status || 500
+        )
+        .json(
+          error.response?.data || {
+            successful: false,
+            message:
+              error.message ||
+              "Failed to update shipment seal ID.",
+          }
+        );
+    }
+  }
+);
 // ================= SERVER START =================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
