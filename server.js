@@ -972,8 +972,3160 @@ app.post('/api/marketplace/customers', async (req, res) => {
 app.get('/api/marketplace/customers', (req,res)=>{
   res.json(marketplaceCustomers);
 });
+///////////////////khans uniware////////////////
+
+const express = require("express");
+const cors = require("cors");
+const axios = require("axios");
+
+const app = express();
+
+app.use(
+  cors({
+    origin: ["http://localhost:5173", "http://localhost:3000"],
+    credentials: true,
+  })
+);
+
+app.use(express.json());
+
+// ============================================================
+// UNIWARE CONFIGURATION
+// ============================================================
+
+const UNIWARE_TENANT = process.env.UNIWARE_TENANT || "your-tenant";
+
+const UNIWARE_BASE_URL =
+  process.env.UNIWARE_BASE_URL ||
+  `https://${UNIWARE_TENANT}.unicommerce.com`;
+
+const UNIWARE_USERNAME =
+  process.env.UNIWARE_USERNAME || "abc@xyz.com";
+
+const UNIWARE_PASSWORD =
+  process.env.UNIWARE_PASSWORD || "uni@1234";
+
+const UNIWARE_CLIENT_ID =
+  process.env.UNIWARE_CLIENT_ID || "my-trusted-client";
+
+// Keep OAuth token only on Node server
+let uniwareAuth = {
+  accessToken: null,
+  refreshToken: null,
+  tokenType: "bearer",
+  expiresAt: 0,
+};
+
+// ============================================================
+// GET UNIWARE OAUTH TOKEN
+// ============================================================
+
+async function getUniwareAccessToken() {
+  // Reuse existing token if it has not expired.
+  // 60-second buffer avoids using a token immediately before expiry.
+  if (
+    uniwareAuth.accessToken &&
+    Date.now() < uniwareAuth.expiresAt - 60000
+  ) {
+    return uniwareAuth.accessToken;
+  }
+
+  try {
+    const response = await axios.get(
+      `${UNIWARE_BASE_URL}/oauth/token`,
+      {
+        params: {
+          grant_type: "password",
+          client_id: UNIWARE_CLIENT_ID,
+          username: UNIWARE_USERNAME,
+          password: UNIWARE_PASSWORD,
+        },
+
+        headers: {
+          "Content-Type": "application/json",
+        },
+
+        timeout: 30000,
+      }
+    );
+
+    const data = response.data;
+
+    if (!data.access_token) {
+      throw new Error("Uniware did not return an access_token");
+    }
+
+    uniwareAuth = {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token || null,
+      tokenType: data.token_type || "bearer",
+
+      expiresAt:
+        Date.now() +
+        Number(data.expires_in || 3600) * 1000,
+    };
+
+    console.log(
+      `Uniware OAuth token generated. Expires in ${data.expires_in} seconds.`
+    );
+
+    return uniwareAuth.accessToken;
+  } catch (error) {
+    console.error(
+      "Uniware OAuth authentication failed:",
+      error.response?.data || error.message
+    );
+
+    throw new Error(
+      error.response?.data?.error_description ||
+        error.response?.data?.message ||
+        "Unable to authenticate with Uniware"
+    );
+  }
+}
+
+// ============================================================
+// AUTHENTICATE UNIWARE
+// ============================================================
+
+app.get("/api/uniware/auth/token", async (req, res) => {
+  try {
+    const accessToken = await getUniwareAccessToken();
+
+    res.json({
+      success: true,
+      tokenType: uniwareAuth.tokenType,
+      expiresAt: uniwareAuth.expiresAt,
+      expiresIn: Math.max(
+        0,
+        Math.floor(
+          (uniwareAuth.expiresAt - Date.now()) / 1000
+        )
+      ),
+      message: "Uniware authentication successful",
+    });
+  } catch (error) {
+    res.status(401).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+// ============================================================
+// GENERIC UNIWARE API HELPER
+// ============================================================
+
+async function uniwareRequest({
+  method = "GET",
+  url,
+  params,
+  data,
+}) {
+  let accessToken = await getUniwareAccessToken();
+
+  try {
+    return await axios({
+      method,
+      url,
+      params,
+      data,
+
+      headers: {
+        Authorization: `bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+
+      timeout: 30000,
+    });
+  } catch (error) {
+    // If token expired/rejected, authenticate once again
+    if (error.response?.status === 401) {
+      console.log("Uniware token rejected. Refreshing authentication...");
+
+      uniwareAuth = {
+        accessToken: null,
+        refreshToken: null,
+        tokenType: "bearer",
+        expiresAt: 0,
+      };
+
+      accessToken = await getUniwareAccessToken();
+
+      return await axios({
+        method,
+        url,
+        params,
+        data,
+
+        headers: {
+          Authorization: `bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+
+        timeout: 30000,
+      });
+    }
+
+    throw error;
+  }
+}
+// ======================================================
+// CREATE VENDOR
+// ======================================================
+
+app.post("/api/uniware/vendors", async (req, res) => {
+  try {
+    const vendor = req.body;
+
+    if (!vendor?.vendor) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "Request body must contain vendor object",
+      });
+    }
+
+    const response = await uniwareRequest({
+      method: "POST",
+
+      endpoint:
+        "/services/rest/v1/purchase/vendor/create",
+
+      data: vendor,
+    });
+
+    res.status(response.status).json(
+      response.data
+    );
+  } catch (error) {
+    console.error(
+      "Create Vendor Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(
+      error.response?.status || 500
+    ).json({
+      successful: false,
+      message:
+        error.response?.data ||
+        error.message ||
+        "Unable to create vendor",
+    });
+  }
+});
+
+// ======================================================
+// UPDATE VENDOR
+// ======================================================
+
+app.put("/api/uniware/vendors", async (req, res) => {
+  try {
+    const vendor = req.body;
+
+    if (!vendor?.vendor) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "Request body must contain vendor object",
+      });
+    }
+
+    const response = await uniwareRequest({
+      method: "POST",
+
+      endpoint:
+        "/services/rest/v1/purchase/vendor/edit",
+
+      data: vendor,
+    });
+
+    res.status(response.status).json(
+      response.data
+    );
+  } catch (error) {
+    console.error(
+      "Update Vendor Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(
+      error.response?.status || 500
+    ).json({
+      successful: false,
+      message:
+        error.response?.data ||
+        error.message ||
+        "Unable to update vendor",
+    });
+  }
+});
+
+// ============================================================
+// CREATE / UPDATE VENDOR ITEM TYPE
+// ============================================================
+
+app.post(
+  "/api/uniware/vendor-item-types",
+  async (req, res) => {
+    try {
+      const payload = req.body;
+
+      // --------------------------------------------
+      // Basic validation
+      // --------------------------------------------
+
+      if (
+        !payload ||
+        !payload.vendorItemType
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "vendorItemType object is required",
+        });
+      }
+
+      const item =
+        payload.vendorItemType;
+
+      if (!item.vendorCode) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "vendorCode is required",
+        });
+      }
+
+      if (!item.itemTypeSkuCode) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "itemTypeSkuCode is required",
+        });
+      }
+
+      if (
+        item.unitPrice === undefined ||
+        item.unitPrice === null ||
+        item.unitPrice === ""
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "unitPrice is required",
+        });
+      }
+
+      // --------------------------------------------
+      // Uniware API
+      // --------------------------------------------
+
+      const response =
+        await uniwareRequest({
+          method: "POST",
+
+          endpoint:
+            "/services/rest/v1/purchase/vendorItemType/createOrEdit",
+
+          data: payload,
+        });
+
+      res
+        .status(response.status)
+        .json(response.data);
+    } catch (error) {
+      console.error(
+        "Vendor Item Type Error:",
+        error.response?.data ||
+          error.message
+      );
+
+      res
+        .status(
+          error.response?.status || 500
+        )
+        .json({
+          successful: false,
+
+          message:
+            error.response?.data ||
+            error.message ||
+            "Unable to create/update vendor item type",
+        });
+    }
+  }
+);
+
+/*
+|--------------------------------------------------------------------------
+| Get Vendor Backorder Items
+|--------------------------------------------------------------------------
+| POST /api/uniware/purchase/vendor-backorder-items
+|
+| React -> Node -> Uniware
+|--------------------------------------------------------------------------
+*/
+app.post(
+  "/api/uniware/purchase/vendor-backorder-items",
+  async (req, res) => {
+    try {
+      const {
+        vendorId = 0,
+        itemTypeName = "",
+        categoryCode = null,
+        noVendors = false,
+        searchOptions = {}
+      } = req.body;
+
+      const payload = {
+        vendorId,
+        itemTypeName,
+        categoryCode,
+        noVendors,
+        searchOptions: {
+          searchKey: searchOptions.searchKey || "",
+          displayLength: Number(searchOptions.displayLength ?? 20),
+          displayStart: Number(searchOptions.displayStart ?? 0),
+          columns: Number(searchOptions.columns ?? 0),
+          sortingCols: Number(searchOptions.sortingCols ?? 0),
+          sortColumnIndex: Number(searchOptions.sortColumnIndex ?? 0),
+          sortDirection: searchOptions.sortDirection || "asc",
+          columnNames: searchOptions.columnNames || "",
+          getCount: searchOptions.getCount ?? true
+        }
+      };
+
+      const response = await axios.post(
+        `${UNIWARE_BASE_URL}/services/rest/v1/purchase/getVendorBackOrderItems`,
+        payload,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`
+          },
+          timeout: 30000
+        }
+      );
+
+      return res.status(200).json(response.data);
+    } catch (error) {
+      console.error(
+        "Uniware Get Vendor Backorder Items Error:",
+        error.response?.data || error.message
+      );
+
+      return res.status(error.response?.status || 500).json({
+        successful: false,
+        message:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to fetch vendor backorder items",
+        errors: error.response?.data?.errors || [],
+        warnings: error.response?.data?.warnings || [],
+        elements: [],
+        totalRecords: 0
+      });
+    }
+  }
+);
 
 
+/*
+|--------------------------------------------------------------------------
+| CREATE PURCHASE ORDER
+|--------------------------------------------------------------------------
+|
+| React
+|   ↓
+| POST /api/uniware/purchase-orders
+|   ↓
+| Node
+|   ↓
+| POST /services/rest/v1/purchase/purchaseOrder/create
+|   ↓
+| Uniware
+|
+|--------------------------------------------------------------------------
+*/
+
+app.post("/api/uniware/purchase-orders", async (req, res) => {
+  try {
+    const {
+      purchaseOrderCode,
+      type = "MANUAL",
+      vendorCode,
+      vendorAgreementName,
+      currencyCode = "INR",
+      expiryDate,
+      deliveryDate,
+      logisticChargesDivisionMethod,
+      logisticCharges = 0,
+      purchaseOrderItems = [],
+      customFieldValues = [],
+    } = req.body;
+
+    // ---------------------------------------------------------
+    // Validation
+    // ---------------------------------------------------------
+
+    if (!vendorCode || !String(vendorCode).trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "vendorCode is required",
+        errors: [
+          {
+            fieldName: "vendorCode",
+            message: "Vendor code is required",
+          },
+        ],
+      });
+    }
+
+    if (
+      !Array.isArray(purchaseOrderItems) ||
+      purchaseOrderItems.length === 0
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "At least one purchase order item is required",
+        errors: [
+          {
+            fieldName: "purchaseOrderItems",
+            message: "Purchase order items are required",
+          },
+        ],
+      });
+    }
+
+    for (let i = 0; i < purchaseOrderItems.length; i++) {
+      const item = purchaseOrderItems[i];
+
+      if (!item.itemSKU || !String(item.itemSKU).trim()) {
+        return res.status(400).json({
+          successful: false,
+          message: `Item SKU is required for item ${i + 1}`,
+        });
+      }
+
+      if (
+        item.quantity === undefined ||
+        item.quantity === null ||
+        Number(item.quantity) <= 0
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: `Quantity must be greater than 0 for item ${i + 1}`,
+        });
+      }
+
+      if (
+        item.unitPrice === undefined ||
+        item.unitPrice === null ||
+        Number(item.unitPrice) < 0
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: `Unit price is required for item ${i + 1}`,
+        });
+      }
+    }
+
+    // ---------------------------------------------------------
+    // Build Uniware payload
+    // ---------------------------------------------------------
+
+    const payload = {
+      purchaseOrderCode:
+        purchaseOrderCode &&
+        String(purchaseOrderCode).trim()
+          ? String(purchaseOrderCode).trim()
+          : undefined,
+
+      type: "MANUAL",
+
+      vendorCode: String(vendorCode).trim(),
+
+      vendorAgreementName:
+        vendorAgreementName &&
+        String(vendorAgreementName).trim()
+          ? String(vendorAgreementName).trim()
+          : undefined,
+
+      currencyCode:
+        currencyCode &&
+        String(currencyCode).trim()
+          ? String(currencyCode).trim()
+          : "INR",
+
+      expiryDate: expiryDate || undefined,
+
+      deliveryDate: deliveryDate || undefined,
+
+      logisticChargesDivisionMethod:
+        logisticChargesDivisionMethod || undefined,
+
+      logisticCharges:
+        logisticCharges === "" ||
+        logisticCharges === null ||
+        logisticCharges === undefined
+          ? 0
+          : Number(logisticCharges),
+
+      purchaseOrderItems: purchaseOrderItems.map((item) => ({
+        itemSKU: String(item.itemSKU).trim(),
+
+        quantity: Number(item.quantity),
+
+        unitPrice: Number(item.unitPrice),
+
+        maxRetailPrice:
+          item.maxRetailPrice === "" ||
+          item.maxRetailPrice === null ||
+          item.maxRetailPrice === undefined
+            ? 0
+            : Number(item.maxRetailPrice),
+
+        discount:
+          item.discount === "" ||
+          item.discount === null ||
+          item.discount === undefined
+            ? 0
+            : Number(item.discount),
+
+        discountPercentage:
+          item.discountPercentage === "" ||
+          item.discountPercentage === null ||
+          item.discountPercentage === undefined
+            ? 0
+            : Number(item.discountPercentage),
+
+        taxTypeCode:
+          item.taxTypeCode &&
+          String(item.taxTypeCode).trim()
+            ? String(item.taxTypeCode).trim()
+            : undefined,
+      })),
+
+      customFieldValues: Array.isArray(customFieldValues)
+        ? customFieldValues
+            .filter((field) => field && field.name)
+            .map((field) => ({
+              name: String(field.name).trim(),
+              value:
+                field.value === null ||
+                field.value === undefined
+                  ? ""
+                  : String(field.value),
+            }))
+        : [],
+    };
+
+    // Remove undefined properties.
+    const cleanPayload = JSON.parse(
+      JSON.stringify(payload)
+    );
+
+    console.log(
+      "\n========== UNIWARE CREATE PURCHASE ORDER =========="
+    );
+
+    console.log(
+      JSON.stringify(cleanPayload, null, 2)
+    );
+
+    // ---------------------------------------------------------
+    // Uniware API call
+    // ---------------------------------------------------------
+
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/purchase/purchaseOrder/create`,
+      cleanPayload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+
+          Facility: UNIWARE_FACILITY_CODE,
+        },
+
+        timeout: 30000,
+      }
+    );
+
+    console.log(
+      "Uniware Response:",
+      JSON.stringify(response.data, null, 2)
+    );
+
+    return res.status(200).json(response.data);
+  } catch (error) {
+    console.error(
+      "\n========== UNIWARE PURCHASE ORDER ERROR =========="
+    );
+
+    console.error(
+      error.response?.data || error.message
+    );
+
+    return res
+      .status(error.response?.status || 500)
+      .json({
+        successful: false,
+
+        message:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to create purchase order",
+
+        errors:
+          error.response?.data?.errors || [],
+
+        warnings:
+          error.response?.data?.warnings || [],
+
+        vendorName:
+          error.response?.data?.vendorName || null,
+
+        purchaseOrderCode:
+          error.response?.data?.purchaseOrderCode || null,
+      });
+  }
+});
+
+
+/*
+|--------------------------------------------------------------------------
+| SEARCH PURCHASE ORDERS
+|--------------------------------------------------------------------------
+|
+| React
+|   ↓
+| POST /api/uniware/purchase-orders/search
+|   ↓
+| Node.js
+|   ↓
+| Uniware
+|
+|--------------------------------------------------------------------------
+*/
+
+app.post(
+  "/api/uniware/purchase-orders/search",
+  async (req, res) => {
+    try {
+      const {
+        approvedBetween,
+        createdBetween,
+      } = req.body;
+
+      // ---------------------------------------------------------
+      // Validate approvedBetween
+      // ---------------------------------------------------------
+
+      if (
+        !approvedBetween ||
+        !approvedBetween.start ||
+        !approvedBetween.end
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "approvedBetween.start and approvedBetween.end are required",
+          errors: [
+            {
+              fieldName: "approvedBetween",
+              message:
+                "Approved date range is required",
+            },
+          ],
+          warnings: [],
+          purchaseOrderCodes: [],
+        });
+      }
+
+      // ---------------------------------------------------------
+      // Validate createdBetween
+      // ---------------------------------------------------------
+
+      if (
+        !createdBetween ||
+        !createdBetween.start ||
+        !createdBetween.end
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "createdBetween.start and createdBetween.end are required",
+          errors: [
+            {
+              fieldName: "createdBetween",
+              message:
+                "Created date range is required",
+            },
+          ],
+          warnings: [],
+          purchaseOrderCodes: [],
+        });
+      }
+
+      // ---------------------------------------------------------
+      // Date validation
+      // ---------------------------------------------------------
+
+      const approvedStart = new Date(
+        approvedBetween.start
+      );
+
+      const approvedEnd = new Date(
+        approvedBetween.end
+      );
+
+      const createdStart = new Date(
+        createdBetween.start
+      );
+
+      const createdEnd = new Date(
+        createdBetween.end
+      );
+
+      if (
+        Number.isNaN(approvedStart.getTime()) ||
+        Number.isNaN(approvedEnd.getTime())
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "Invalid approvedBetween date format",
+          errors: [],
+          warnings: [],
+          purchaseOrderCodes: [],
+        });
+      }
+
+      if (
+        Number.isNaN(createdStart.getTime()) ||
+        Number.isNaN(createdEnd.getTime())
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "Invalid createdBetween date format",
+          errors: [],
+          warnings: [],
+          purchaseOrderCodes: [],
+        });
+      }
+
+      if (approvedStart > approvedEnd) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "Approved start date cannot be after end date",
+          errors: [],
+          warnings: [],
+          purchaseOrderCodes: [],
+        });
+      }
+
+      if (createdStart > createdEnd) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "Created start date cannot be after end date",
+          errors: [],
+          warnings: [],
+          purchaseOrderCodes: [],
+        });
+      }
+
+      // ---------------------------------------------------------
+      // Build Uniware payload
+      // ---------------------------------------------------------
+
+      const payload = {
+        approvedBetween: {
+          start: approvedStart.toISOString(),
+          end: approvedEnd.toISOString(),
+        },
+
+        createdBetween: {
+          start: createdStart.toISOString(),
+          end: createdEnd.toISOString(),
+        },
+      };
+
+      console.log(
+        "\n========== SEARCH PURCHASE ORDERS =========="
+      );
+
+      console.log(
+        JSON.stringify(payload, null, 2)
+      );
+
+      // ---------------------------------------------------------
+      // Uniware API
+      // ---------------------------------------------------------
+
+      const response = await axios.post(
+        `${UNIWARE_BASE_URL}/services/rest/v1/purchase/purchaseOrder/getPurchaseOrders`,
+        payload,
+        {
+          headers: {
+            "Content-Type": "application/json",
+
+            Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          },
+
+          timeout: 30000,
+        }
+      );
+
+      console.log(
+        "Uniware Response:",
+        JSON.stringify(response.data, null, 2)
+      );
+
+      return res.status(200).json({
+        successful:
+          response.data?.successful ?? true,
+
+        message:
+          response.data?.message || "",
+
+        errors:
+          response.data?.errors || [],
+
+        warnings:
+          response.data?.warnings || [],
+
+        purchaseOrderCodes:
+          Array.isArray(
+            response.data?.purchaseOrderCodes
+          )
+            ? response.data.purchaseOrderCodes
+            : [],
+      });
+    } catch (error) {
+      console.error(
+        "\n========== SEARCH PURCHASE ORDER ERROR =========="
+      );
+
+      console.error(
+        error.response?.data ||
+          error.message
+      );
+
+      return res
+        .status(error.response?.status || 500)
+        .json({
+          successful: false,
+
+          message:
+            error.response?.data?.message ||
+            error.message ||
+            "Failed to search purchase orders",
+
+          errors:
+            error.response?.data?.errors || [],
+
+          warnings:
+            error.response?.data?.warnings || [],
+
+          purchaseOrderCodes: [],
+        });
+    }
+  }
+);
+
+// ============================================================
+// UNIWARE - APPROVE PURCHASE ORDER
+// POST /api/uniware/purchase-orders/approve
+// ============================================================
+
+app.post("/api/uniware/purchase-orders/approve", async (req, res) => {
+  try {
+    const { purchaseOrderCode, facility } = req.body;
+
+    // -----------------------------
+    // Validation
+    // -----------------------------
+    if (!purchaseOrderCode || !purchaseOrderCode.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "purchaseOrderCode is required",
+        errors: [
+          {
+            fieldName: "purchaseOrderCode",
+            message: "Purchase order code is required",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    if (!facility || !facility.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility is required",
+        errors: [
+          {
+            fieldName: "facility",
+            message: "Uniware facility code is required",
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    if (!process.env.UNIWARE_BASE_URL) {
+      return res.status(500).json({
+        successful: false,
+        message: "UNIWARE_BASE_URL is not configured",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    if (!process.env.UNIWARE_ACCESS_TOKEN) {
+      return res.status(500).json({
+        successful: false,
+        message: "UNIWARE_ACCESS_TOKEN is not configured",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    // -----------------------------
+    // Uniware API URL
+    // -----------------------------
+    const url =
+      `${process.env.UNIWARE_BASE_URL}` +
+      `/services/rest/v1/purchase/purchaseOrder/approve`;
+
+    // -----------------------------
+    // Request payload
+    // -----------------------------
+    const payload = {
+      purchaseOrderCode: purchaseOrderCode.trim(),
+    };
+
+    console.log("==========================================");
+    console.log("UNIWARE APPROVE PURCHASE ORDER");
+    console.log("==========================================");
+    console.log("URL:", url);
+    console.log("Facility:", facility);
+    console.log("Purchase Order:", purchaseOrderCode);
+    console.log("Payload:", payload);
+
+    // -----------------------------
+    // Uniware request
+    // -----------------------------
+    const response = await axios.post(url, payload, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`,
+        Facility: facility.trim(),
+      },
+      timeout: 30000,
+    });
+
+    const data = response.data;
+
+    console.log("Uniware Response:", data);
+
+    // -----------------------------
+    // Return Uniware response
+    // -----------------------------
+    return res.status(200).json({
+      successful: data?.successful ?? false,
+      message: data?.message ?? "",
+      errors: data?.errors ?? [],
+      warnings: data?.warnings ?? [],
+    });
+  } catch (error) {
+    console.error("Approve Purchase Order Error:");
+
+    if (error.response) {
+      console.error("Status:", error.response.status);
+      console.error("Response:", error.response.data);
+
+      return res.status(error.response.status).json({
+        successful: false,
+        message:
+          error.response.data?.message ||
+          "Uniware failed to approve the purchase order",
+        errors: error.response.data?.errors || [
+          {
+            code: error.response.status,
+            message: "Uniware API request failed",
+            description: error.response.statusText,
+          },
+        ],
+        warnings: error.response.data?.warnings || [],
+      });
+    }
+
+    if (error.request) {
+      console.error("No response received from Uniware");
+
+      return res.status(503).json({
+        successful: false,
+        message: "No response received from Uniware",
+        errors: [
+          {
+            message: "Unable to connect to Uniware",
+            description: error.message,
+          },
+        ],
+        warnings: [],
+      });
+    }
+
+    console.error("Error:", error.message);
+
+    return res.status(500).json({
+      successful: false,
+      message: "Failed to approve purchase order",
+      errors: [
+        {
+          message: error.message,
+        },
+      ],
+      warnings: [],
+    });
+  }
+});
+
+// ============================================================
+// UNIWARE - CREATE AND APPROVE PURCHASE ORDER
+// POST /api/uniware/purchase-orders/create-approved
+// ============================================================
+
+app.post(
+  "/api/uniware/purchase-orders/create-approved",
+  async (req, res) => {
+    try {
+      const {
+        facility,
+        purchaseOrderCode,
+        userId,
+        vendorCode,
+        vendorAgreementName,
+        currencyCode,
+        expiryDate,
+        deliveryDate,
+        logisticChargesDivisionMethod,
+        logisticCharges,
+        purchaseOrderItems,
+        customFieldValues,
+      } = req.body;
+
+      // --------------------------------------------------------
+      // Validate Facility
+      // --------------------------------------------------------
+      if (!facility || !facility.trim()) {
+        return res.status(400).json({
+          successful: false,
+          message: "Facility is required",
+          errors: [
+            {
+              fieldName: "facility",
+              message: "Uniware facility code is required",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate Vendor
+      // --------------------------------------------------------
+      if (!vendorCode || !vendorCode.trim()) {
+        return res.status(400).json({
+          successful: false,
+          message: "vendorCode is required",
+          errors: [
+            {
+              fieldName: "vendorCode",
+              message: "Vendor code is required",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate Purchase Order Items
+      // --------------------------------------------------------
+      if (
+        !Array.isArray(purchaseOrderItems) ||
+        purchaseOrderItems.length === 0
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: "At least one purchase order item is required",
+          errors: [
+            {
+              fieldName: "purchaseOrderItems",
+              message: "Purchase order items are required",
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate each item
+      // --------------------------------------------------------
+      for (let i = 0; i < purchaseOrderItems.length; i++) {
+        const item = purchaseOrderItems[i];
+
+        if (!item.itemSKU || !item.itemSKU.trim()) {
+          return res.status(400).json({
+            successful: false,
+            message: `itemSKU is required for item ${i + 1}`,
+            errors: [
+              {
+                fieldName: `purchaseOrderItems[${i}].itemSKU`,
+                message: "Item SKU is required",
+              },
+            ],
+            warnings: [],
+          });
+        }
+
+        if (
+          item.quantity === undefined ||
+          item.quantity === null ||
+          Number(item.quantity) <= 0
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message: `quantity is required for item ${i + 1}`,
+            errors: [
+              {
+                fieldName: `purchaseOrderItems[${i}].quantity`,
+                message: "Quantity must be greater than zero",
+              },
+            ],
+            warnings: [],
+          });
+        }
+
+        if (
+          item.unitPrice === undefined ||
+          item.unitPrice === null ||
+          Number(item.unitPrice) < 0
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message: `unitPrice is required for item ${i + 1}`,
+            errors: [
+              {
+                fieldName: `purchaseOrderItems[${i}].unitPrice`,
+                message: "Unit price is required",
+              },
+            ],
+            warnings: [],
+          });
+        }
+      }
+
+      // --------------------------------------------------------
+      // Environment validation
+      // --------------------------------------------------------
+      if (!process.env.UNIWARE_BASE_URL) {
+        return res.status(500).json({
+          successful: false,
+          message: "UNIWARE_BASE_URL is not configured",
+          errors: [],
+          warnings: [],
+        });
+      }
+
+      if (!process.env.UNIWARE_ACCESS_TOKEN) {
+        return res.status(500).json({
+          successful: false,
+          message: "UNIWARE_ACCESS_TOKEN is not configured",
+          errors: [],
+          warnings: [],
+        });
+      }
+
+      // --------------------------------------------------------
+      // Uniware endpoint
+      // --------------------------------------------------------
+      const url =
+        `${process.env.UNIWARE_BASE_URL}` +
+        `/services/rest/v1/purchase/purchaseOrder/createApproved`;
+
+      // --------------------------------------------------------
+      // Build payload
+      // --------------------------------------------------------
+      const payload = {
+        ...(purchaseOrderCode?.trim()
+          ? {
+              purchaseOrderCode: purchaseOrderCode.trim(),
+            }
+          : {}),
+
+        ...(userId?.trim()
+          ? {
+              userId: userId.trim(),
+            }
+          : {}),
+
+        vendorCode: vendorCode.trim(),
+
+        ...(vendorAgreementName?.trim()
+          ? {
+              vendorAgreementName: vendorAgreementName.trim(),
+            }
+          : {}),
+
+        currencyCode:
+          currencyCode?.trim() || "INR",
+
+        ...(expiryDate
+          ? {
+              expiryDate: new Date(expiryDate).toISOString(),
+            }
+          : {}),
+
+        ...(deliveryDate
+          ? {
+              deliveryDate: new Date(deliveryDate).toISOString(),
+            }
+          : {}),
+
+        ...(logisticChargesDivisionMethod
+          ? {
+              logisticChargesDivisionMethod:
+                logisticChargesDivisionMethod.trim(),
+            }
+          : {}),
+
+        logisticCharges:
+          logisticCharges !== undefined &&
+          logisticCharges !== null &&
+          logisticCharges !== ""
+            ? Number(logisticCharges)
+            : 0,
+
+        purchaseOrderItems: purchaseOrderItems.map((item) => ({
+          itemSKU: item.itemSKU.trim(),
+          quantity: Number(item.quantity),
+          unitPrice: Number(item.unitPrice),
+
+          ...(item.maxRetailPrice !== undefined &&
+          item.maxRetailPrice !== null &&
+          item.maxRetailPrice !== ""
+            ? {
+                maxRetailPrice: Number(item.maxRetailPrice),
+              }
+            : {}),
+
+          ...(item.discount !== undefined &&
+          item.discount !== null &&
+          item.discount !== ""
+            ? {
+                discount: Number(item.discount),
+              }
+            : {}),
+
+          ...(item.discountPercentage !== undefined &&
+          item.discountPercentage !== null &&
+          item.discountPercentage !== ""
+            ? {
+                discountPercentage: Number(
+                  item.discountPercentage
+                ),
+              }
+            : {}),
+
+          ...(item.taxTypeCode?.trim()
+            ? {
+                taxTypeCode: item.taxTypeCode.trim(),
+              }
+            : {}),
+        })),
+
+        ...(Array.isArray(customFieldValues) &&
+        customFieldValues.length > 0
+          ? {
+              customFieldValues: customFieldValues.map((field) => ({
+                name: field.name?.trim() || "",
+                value: field.value ?? "",
+              })),
+            }
+          : {}),
+      };
+
+      // --------------------------------------------------------
+      // Log request
+      // Do NOT log access token
+      // --------------------------------------------------------
+      console.log(
+        "=========================================="
+      );
+      console.log(
+        "UNIWARE CREATE AND APPROVE PURCHASE ORDER"
+      );
+      console.log(
+        "=========================================="
+      );
+      console.log("URL:", url);
+      console.log("Facility:", facility);
+      console.log("Vendor:", vendorCode);
+      console.log("Purchase Order:", purchaseOrderCode);
+      console.log("Payload:", payload);
+
+      // --------------------------------------------------------
+      // Call Uniware
+      // --------------------------------------------------------
+      const response = await axios.post(url, payload, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`,
+          Facility: facility.trim(),
+        },
+        timeout: 30000,
+      });
+
+      const data = response.data;
+
+      console.log(
+        "Uniware Create Approved Response:",
+        data
+      );
+
+      // --------------------------------------------------------
+      // Return response
+      // --------------------------------------------------------
+      return res.status(200).json({
+        successful: data?.successful ?? false,
+        message: data?.message ?? "",
+        errors: data?.errors ?? [],
+        warnings: data?.warnings ?? [],
+        purchaseOrderCode:
+          data?.purchaseOrderCode ?? null,
+      });
+    } catch (error) {
+      console.error(
+        "Create Approved Purchase Order Error:",
+        error.message
+      );
+
+      // --------------------------------------------------------
+      // Uniware returned an HTTP error
+      // --------------------------------------------------------
+      if (error.response) {
+        console.error(
+          "Uniware Status:",
+          error.response.status
+        );
+
+        console.error(
+          "Uniware Response:",
+          error.response.data
+        );
+
+        const data = error.response.data || {};
+
+        return res.status(error.response.status).json({
+          successful: false,
+          message:
+            data.message ||
+            "Uniware failed to create and approve purchase order",
+          errors: data.errors || [
+            {
+              code: error.response.status,
+              message: "Uniware API request failed",
+              description: error.response.statusText,
+            },
+          ],
+          warnings: data.warnings || [],
+          purchaseOrderCode:
+            data.purchaseOrderCode ?? null,
+        });
+      }
+
+      // --------------------------------------------------------
+      // No response from Uniware
+      // --------------------------------------------------------
+      if (error.request) {
+        return res.status(503).json({
+          successful: false,
+          message: "No response received from Uniware",
+          errors: [
+            {
+              message: "Unable to connect to Uniware",
+              description: error.message,
+            },
+          ],
+          warnings: [],
+        });
+      }
+
+      // --------------------------------------------------------
+      // Other error
+      // --------------------------------------------------------
+      return res.status(500).json({
+        successful: false,
+        message: "Failed to create and approve purchase order",
+        errors: [
+          {
+            message: error.message,
+          },
+        ],
+        warnings: [],
+      });
+    }
+  }
+);
+
+// ============================================================
+// UNIWARE - CLOSE PURCHASE ORDER
+// POST /api/uniware/purchase-orders/close
+// ============================================================
+
+app.post(
+  "/api/uniware/purchase-orders/close",
+  async (req, res) => {
+    try {
+      const {
+        facility,
+        purchaseOrderCode,
+      } = req.body;
+
+      // --------------------------------------------------------
+      // Validate facility
+      // --------------------------------------------------------
+      if (!facility || !facility.trim()) {
+        return res.status(400).json({
+          successful: false,
+          message: "Facility is required",
+          errors: [
+            {
+              fieldName: "facility",
+              message: "Uniware facility code is required",
+            },
+          ],
+          warnings: [],
+          purchaseOrder: null,
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate purchase order code
+      // --------------------------------------------------------
+      if (
+        !purchaseOrderCode ||
+        !purchaseOrderCode.trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: "purchaseOrderCode is required",
+          errors: [
+            {
+              fieldName: "purchaseOrderCode",
+              message: "Purchase order code is required",
+            },
+          ],
+          warnings: [],
+          purchaseOrder: null,
+        });
+      }
+
+      // --------------------------------------------------------
+      // Environment validation
+      // --------------------------------------------------------
+      if (!process.env.UNIWARE_BASE_URL) {
+        return res.status(500).json({
+          successful: false,
+          message:
+            "UNIWARE_BASE_URL is not configured",
+          errors: [],
+          warnings: [],
+          purchaseOrder: null,
+        });
+      }
+
+      if (!process.env.UNIWARE_ACCESS_TOKEN) {
+        return res.status(500).json({
+          successful: false,
+          message:
+            "UNIWARE_ACCESS_TOKEN is not configured",
+          errors: [],
+          warnings: [],
+          purchaseOrder: null,
+        });
+      }
+
+      // --------------------------------------------------------
+      // Uniware endpoint
+      // --------------------------------------------------------
+      const url =
+        `${process.env.UNIWARE_BASE_URL}` +
+        `/services/rest/v1/purchase/purchaseOrder/close`;
+
+      // --------------------------------------------------------
+      // Payload
+      // --------------------------------------------------------
+      const payload = {
+        purchaseOrderCode:
+          purchaseOrderCode.trim(),
+      };
+
+      console.log(
+        "=========================================="
+      );
+      console.log(
+        "UNIWARE CLOSE PURCHASE ORDER"
+      );
+      console.log(
+        "=========================================="
+      );
+      console.log("URL:", url);
+      console.log(
+        "Facility:",
+        facility.trim()
+      );
+      console.log(
+        "Purchase Order:",
+        purchaseOrderCode.trim()
+      );
+
+      // --------------------------------------------------------
+      // Call Uniware
+      // --------------------------------------------------------
+      const response = await axios.post(
+        url,
+        payload,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization:
+              `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`,
+            Facility: facility.trim(),
+          },
+          timeout: 30000,
+        }
+      );
+
+      const data = response.data;
+
+      console.log(
+        "Uniware Close PO Response:",
+        data
+      );
+
+      // --------------------------------------------------------
+      // Return response
+      // --------------------------------------------------------
+      return res.status(200).json({
+        successful:
+          data?.successful ?? false,
+
+        message:
+          data?.message ?? "",
+
+        errors:
+          data?.errors ?? [],
+
+        warnings:
+          data?.warnings ?? [],
+
+        purchaseOrder:
+          data?.purchaseOrder ?? null,
+      });
+    } catch (error) {
+      console.error(
+        "Close Purchase Order Error:",
+        error.message
+      );
+
+      // --------------------------------------------------------
+      // Uniware HTTP error
+      // --------------------------------------------------------
+      if (error.response) {
+        console.error(
+          "Uniware Status:",
+          error.response.status
+        );
+
+        console.error(
+          "Uniware Response:",
+          error.response.data
+        );
+
+        const data =
+          error.response.data || {};
+
+        return res
+          .status(error.response.status)
+          .json({
+            successful: false,
+
+            message:
+              data.message ||
+              "Uniware failed to close purchase order",
+
+            errors:
+              data.errors || [
+                {
+                  code:
+                    error.response.status,
+                  message:
+                    "Uniware API request failed",
+                  description:
+                    error.response.statusText,
+                },
+              ],
+
+            warnings:
+              data.warnings || [],
+
+            purchaseOrder:
+              data.purchaseOrder || null,
+          });
+      }
+
+      // --------------------------------------------------------
+      // No response
+      // --------------------------------------------------------
+      if (error.request) {
+        return res.status(503).json({
+          successful: false,
+
+          message:
+            "No response received from Uniware",
+
+          errors: [
+            {
+              message:
+                "Unable to connect to Uniware",
+              description:
+                error.message,
+            },
+          ],
+
+          warnings: [],
+
+          purchaseOrder: null,
+        });
+      }
+
+      // --------------------------------------------------------
+      // Other error
+      // --------------------------------------------------------
+      return res.status(500).json({
+        successful: false,
+
+        message:
+          "Failed to close purchase order",
+
+        errors: [
+          {
+            message:
+              error.message,
+          },
+        ],
+
+        warnings: [],
+
+        purchaseOrder: null,
+      });
+    }
+  }
+);
+
+// ==========================================
+// Uniware - Get Purchase Order Details
+// ==========================================
+app.post("/api/uniware/purchase-orders/details", async (req, res) => {
+  try {
+    const { facility, purchaseOrderCode } = req.body;
+
+    if (!facility || !facility.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility code is required.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    if (!purchaseOrderCode || !purchaseOrderCode.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Purchase order code is required.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    if (!process.env.UNIWARE_BASE_URL) {
+      return res.status(500).json({
+        successful: false,
+        message: "UNIWARE_BASE_URL is not configured.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    if (!process.env.UNIWARE_ACCESS_TOKEN) {
+      return res.status(500).json({
+        successful: false,
+        message: "UNIWARE_ACCESS_TOKEN is not configured.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    const url =
+      `${process.env.UNIWARE_BASE_URL}` +
+      `/services/rest/v1/purchase/purchaseOrder/getPurchaseOrderDetails`;
+
+    const response = await axios.post(
+      url,
+      {
+        purchaseOrderCode: purchaseOrderCode.trim(),
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`,
+          Facility: facility.trim(),
+        },
+      }
+    );
+
+    const data = response.data || {};
+
+    return res.status(200).json({
+      successful: data.successful ?? false,
+      message: data.message ?? "",
+      errors: data.errors ?? [],
+      warnings: data.warnings ?? [],
+
+      // Complete PO details
+      id: data.id ?? null,
+      amendedPurchaseOrderCode:
+        data.amendedPurchaseOrderCode ?? null,
+      amendmentPurchaseOrderCode:
+        data.amendmentPurchaseOrderCode ?? null,
+      name: data.name ?? null,
+      code: data.code ?? null,
+      type: data.type ?? null,
+      fromParty: data.fromParty ?? null,
+      statusCode: data.statusCode ?? null,
+
+      vendorCode: data.vendorCode ?? null,
+      vendorId: data.vendorId ?? null,
+      vendorName: data.vendorName ?? null,
+
+      created: data.created ?? null,
+      createdBy: data.createdBy ?? null,
+
+      expiryDate: data.expiryDate ?? null,
+      deliveryDate: data.deliveryDate ?? null,
+
+      vendorAgreementName:
+        data.vendorAgreementName ?? null,
+
+      inflowReceiptsCount:
+        data.inflowReceiptsCount ?? 0,
+
+      customFieldValues:
+        data.customFieldValues ?? [],
+
+      purchaseOrderItems:
+        data.purchaseOrderItems ?? [],
+
+      partyAddressDTO:
+        data.partyAddressDTO ?? null,
+
+      logisticCharges:
+        data.logisticCharges ?? 0,
+
+      logisticChargesDivisionMethod:
+        data.logisticChargesDivisionMethod ?? null,
+
+      purchaseOrderPriceSummary:
+        data.purchaseOrderPriceSummary ?? null,
+
+      rejectionReason:
+        data.rejectionReason ?? null,
+
+      tcsAmount:
+        data.tcsAmount ?? 0,
+
+      tcsadditionEnabled:
+        data.tcsadditionEnabled ?? false,
+    });
+  } catch (error) {
+    console.error(
+      "Uniware Get Purchase Order Details Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json({
+      successful: false,
+      message:
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to fetch purchase order details.",
+
+      errors:
+        error.response?.data?.errors || [],
+
+      warnings:
+        error.response?.data?.warnings || [],
+
+      details:
+        error.response?.data || null,
+    });
+  }
+});
+
+// ==========================================
+// Uniware - Create GRN
+// ==========================================
+app.post("/api/uniware/purchase-orders/create-grn", async (req, res) => {
+  try {
+    const {
+      facility,
+      purchaseOrderCode,
+      vendorInvoiceNumber,
+      vendorInvoiceDate,
+      currencyCode,
+      vendorInvoiceDateCheckDisable,
+      customFieldValues,
+    } = req.body;
+
+    // ------------------------------------------
+    // Validation
+    // ------------------------------------------
+    if (!facility || !facility.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility code is required.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    if (!purchaseOrderCode || !purchaseOrderCode.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Purchase order code is required.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    if (
+      !vendorInvoiceNumber ||
+      !vendorInvoiceNumber.trim()
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "Vendor invoice number is required.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    if (!vendorInvoiceDate) {
+      return res.status(400).json({
+        successful: false,
+        message: "Vendor invoice date is required.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    if (!process.env.UNIWARE_BASE_URL) {
+      return res.status(500).json({
+        successful: false,
+        message: "UNIWARE_BASE_URL is not configured.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    if (!process.env.UNIWARE_ACCESS_TOKEN) {
+      return res.status(500).json({
+        successful: false,
+        message: "UNIWARE_ACCESS_TOKEN is not configured.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    // ------------------------------------------
+    // Convert invoice date to UTC
+    // ------------------------------------------
+    const parsedDate = new Date(vendorInvoiceDate);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return res.status(400).json({
+        successful: false,
+        message: "Invalid vendor invoice date.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    // ------------------------------------------
+    // Prepare custom fields
+    // ------------------------------------------
+    const normalizedCustomFields = Array.isArray(
+      customFieldValues
+    )
+      ? customFieldValues
+          .filter((field) => field?.name?.trim())
+          .map((field) => ({
+            name: field.name.trim(),
+            value:
+              field.value === null ||
+              field.value === undefined
+                ? ""
+                : String(field.value),
+          }))
+      : [];
+
+    // ------------------------------------------
+    // Uniware URL
+    // ------------------------------------------
+    const url =
+      `${process.env.UNIWARE_BASE_URL}` +
+      `/services/rest/v1/purchase/inflowReceipt/create`;
+
+    // ------------------------------------------
+    // Request payload
+    // ------------------------------------------
+    const payload = {
+      wsGRN: {
+        vendorInvoiceNumber:
+          vendorInvoiceNumber.trim(),
+
+        vendorInvoiceDate:
+          parsedDate.toISOString(),
+
+        customFieldValues:
+          normalizedCustomFields,
+
+        currencyCode:
+          currencyCode?.trim() || "INR",
+      },
+
+      purchaseOrderCode:
+        purchaseOrderCode.trim(),
+
+      vendorInvoiceDateCheckDisable:
+        vendorInvoiceDateCheckDisable === true,
+    };
+
+    // ------------------------------------------
+    // Uniware API request
+    // ------------------------------------------
+    const response = await axios.post(
+      url,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`,
+          Facility: facility.trim(),
+        },
+      }
+    );
+
+    const data = response.data || {};
+
+    // ------------------------------------------
+    // Return Uniware response
+    // ------------------------------------------
+    return res.status(200).json({
+      successful: data.successful ?? false,
+      message: data.message ?? "",
+      errors: data.errors ?? [],
+      warnings: data.warnings ?? [],
+      inflowReceiptCode:
+        data.inflowReceiptCode ?? null,
+    });
+  } catch (error) {
+    console.error(
+      "Uniware Create GRN Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(
+      error.response?.status || 500
+    ).json({
+      successful: false,
+
+      message:
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to create GRN.",
+
+      errors:
+        error.response?.data?.errors || [],
+
+      warnings:
+        error.response?.data?.warnings || [],
+
+      inflowReceiptCode:
+        error.response?.data?.inflowReceiptCode ||
+        null,
+
+      details:
+        error.response?.data || null,
+    });
+  }
+});
+
+// ==========================================
+// Uniware - Add Item in GRN
+// ==========================================
+app.post("/api/uniware/purchase-orders/grn/add-item", async (req, res) => {
+  try {
+    const {
+      facility,
+      inflowReceiptCode,
+      itemCode,
+      manufacturingDate,
+    } = req.body;
+
+    // ------------------------------------------
+    // Validation
+    // ------------------------------------------
+    if (!facility || !facility.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility code is required.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    if (
+      !inflowReceiptCode ||
+      !inflowReceiptCode.trim()
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "Inflow Receipt / GRN code is required.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    if (!itemCode || !itemCode.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Item code is required.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    // Uniware pattern:
+    // ^[a-zA-Z0-9-_]+$
+    const itemCodePattern = /^[a-zA-Z0-9_-]+$/;
+
+    if (!itemCodePattern.test(itemCode.trim())) {
+      return res.status(400).json({
+        successful: false,
+        message:
+          "Invalid item code. Only letters, numbers, hyphen and underscore are allowed.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    if (!process.env.UNIWARE_BASE_URL) {
+      return res.status(500).json({
+        successful: false,
+        message: "UNIWARE_BASE_URL is not configured.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    if (!process.env.UNIWARE_ACCESS_TOKEN) {
+      return res.status(500).json({
+        successful: false,
+        message: "UNIWARE_ACCESS_TOKEN is not configured.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    // ------------------------------------------
+    // Prepare payload
+    // ------------------------------------------
+    const payload = {
+      inflowReceiptCode:
+        inflowReceiptCode.trim(),
+
+      itemCode: itemCode.trim(),
+    };
+
+    // ------------------------------------------
+    // Manufacturing Date is optional
+    // ------------------------------------------
+    if (manufacturingDate) {
+      const parsedDate = new Date(
+        manufacturingDate
+      );
+
+      if (Number.isNaN(parsedDate.getTime())) {
+        return res.status(400).json({
+          successful: false,
+          message: "Invalid manufacturing date.",
+          errors: [],
+          warnings: [],
+        });
+      }
+
+      payload.manufacturingDate =
+        parsedDate.toISOString();
+    }
+
+    // ------------------------------------------
+    // Uniware API URL
+    // ------------------------------------------
+    const url =
+      `${process.env.UNIWARE_BASE_URL}` +
+      `/services/rest/v1/purchase/inflowReceipt/addItem`;
+
+    // ------------------------------------------
+    // Call Uniware
+    // ------------------------------------------
+    const response = await axios.post(
+      url,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`,
+          Facility: facility.trim(),
+        },
+      }
+    );
+
+    const data = response.data || {};
+
+    // ------------------------------------------
+    // Return response
+    // ------------------------------------------
+    return res.status(200).json({
+      successful: data.successful ?? false,
+      message: data.message ?? "",
+      errors: data.errors ?? [],
+      warnings: data.warnings ?? [],
+      inflowReceiptItemDTO:
+        data.inflowReceiptItemDTO ?? null,
+    });
+  } catch (error) {
+    console.error(
+      "Uniware Add GRN Item Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(
+      error.response?.status || 500
+    ).json({
+      successful: false,
+
+      message:
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to add item to GRN.",
+
+      errors:
+        error.response?.data?.errors || [],
+
+      warnings:
+        error.response?.data?.warnings || [],
+
+      inflowReceiptItemDTO:
+        error.response?.data
+          ?.inflowReceiptItemDTO || null,
+
+      details:
+        error.response?.data || null,
+    });
+  }
+});
+
+//
+// Uniware - Add Item SKU in GRN
+// Supports:
+// 1. Normal SKU
+// 2. Batch traceability
+// 3. ITEM traceability
+//
+app.post(
+  "/api/uniware/purchase-orders/grn/add-item-sku",
+  async (req, res) => {
+    try {
+      const {
+        facility,
+        inflowReceiptCode,
+        inflowReceiptItem,
+      } = req.body;
+
+      // ------------------------------------------
+      // Basic validation
+      // ------------------------------------------
+      if (!facility || !facility.trim()) {
+        return res.status(400).json({
+          successful: false,
+          message: "Facility code is required.",
+          errors: [],
+          warnings: [],
+        });
+      }
+
+      if (
+        !inflowReceiptCode ||
+        !inflowReceiptCode.trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "Inflow Receipt / GRN code is required.",
+          errors: [],
+          warnings: [],
+        });
+      }
+
+      if (
+        !inflowReceiptItem ||
+        typeof inflowReceiptItem !== "object"
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "Inflow Receipt Item details are required.",
+          errors: [],
+          warnings: [],
+        });
+      }
+
+      // ------------------------------------------
+      // Quantity is mandatory
+      // ------------------------------------------
+      const quantity = Number(
+        inflowReceiptItem.quantity
+      );
+
+      if (
+        !Number.isInteger(quantity) ||
+        quantity <= 0
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "Quantity is required and must be a positive integer.",
+          errors: [],
+          warnings: [],
+        });
+      }
+
+      // ------------------------------------------
+      // Environment validation
+      // ------------------------------------------
+      if (!process.env.UNIWARE_BASE_URL) {
+        return res.status(500).json({
+          successful: false,
+          message:
+            "UNIWARE_BASE_URL is not configured.",
+          errors: [],
+          warnings: [],
+        });
+      }
+
+      if (!process.env.UNIWARE_ACCESS_TOKEN) {
+        return res.status(500).json({
+          successful: false,
+          message:
+            "UNIWARE_ACCESS_TOKEN is not configured.",
+          errors: [],
+          warnings: [],
+        });
+      }
+
+      // ------------------------------------------
+      // Prepare payload
+      // ------------------------------------------
+      const payload = {
+        inflowReceiptCode:
+          inflowReceiptCode.trim(),
+
+        inflowReceiptItem: {
+          quantity,
+        },
+      };
+
+      // ------------------------------------------
+      // Optional numeric fields
+      // ------------------------------------------
+      if (
+        inflowReceiptItem.unitPrice !==
+          undefined &&
+        inflowReceiptItem.unitPrice !== null &&
+        inflowReceiptItem.unitPrice !== ""
+      ) {
+        payload.inflowReceiptItem.unitPrice =
+          Number(inflowReceiptItem.unitPrice);
+      }
+
+      if (
+        inflowReceiptItem.additionalCost !==
+          undefined &&
+        inflowReceiptItem.additionalCost !==
+          null &&
+        inflowReceiptItem.additionalCost !== ""
+      ) {
+        payload.inflowReceiptItem.additionalCost =
+          Number(inflowReceiptItem.additionalCost);
+      }
+
+      // ------------------------------------------
+      // SKU
+      // ------------------------------------------
+      if (
+        inflowReceiptItem.skuCode !==
+          undefined &&
+        inflowReceiptItem.skuCode !== null &&
+        String(inflowReceiptItem.skuCode).trim()
+      ) {
+        payload.inflowReceiptItem.skuCode =
+          String(
+            inflowReceiptItem.skuCode
+          ).trim();
+      }
+
+      // ------------------------------------------
+      // Manufacturing Date
+      // ------------------------------------------
+      if (inflowReceiptItem.manufacturingDate) {
+        const manufacturingDate =
+          new Date(
+            inflowReceiptItem.manufacturingDate
+          );
+
+        if (
+          Number.isNaN(
+            manufacturingDate.getTime()
+          )
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message:
+              "Invalid manufacturing date.",
+            errors: [],
+            warnings: [],
+          });
+        }
+
+        payload.inflowReceiptItem.manufacturingDate =
+          manufacturingDate.toISOString();
+      }
+
+      // ------------------------------------------
+      // Expiry Date
+      // ------------------------------------------
+      if (inflowReceiptItem.expiry) {
+        const expiryDate =
+          new Date(
+            inflowReceiptItem.expiry
+          );
+
+        if (
+          Number.isNaN(expiryDate.getTime())
+        ) {
+          return res.status(400).json({
+            successful: false,
+            message: "Invalid expiry date.",
+            errors: [],
+            warnings: [],
+          });
+        }
+
+        payload.inflowReceiptItem.expiry =
+          expiryDate.toISOString();
+      }
+
+      // ------------------------------------------
+      // Batch details
+      // ------------------------------------------
+      if (
+        inflowReceiptItem.wsBatchDetail &&
+        typeof inflowReceiptItem.wsBatchDetail ===
+          "object"
+      ) {
+        const batch =
+          inflowReceiptItem.wsBatchDetail;
+
+        const batchFields =
+          batch.wsBatchGroupFieldValue;
+
+        if (
+          batchFields &&
+          typeof batchFields === "object"
+        ) {
+          const normalizedBatch = {};
+
+          // Expiry Date
+          if (batchFields.expiryDate) {
+            const date = new Date(
+              batchFields.expiryDate
+            );
+
+            if (Number.isNaN(date.getTime())) {
+              return res.status(400).json({
+                successful: false,
+                message:
+                  "Invalid batch expiry date.",
+                errors: [],
+                warnings: [],
+              });
+            }
+
+            normalizedBatch.expiryDate =
+              date.toISOString();
+          }
+
+          // Manufacturing Date
+          if (batchFields.mfd) {
+            const date = new Date(
+              batchFields.mfd
+            );
+
+            if (Number.isNaN(date.getTime())) {
+              return res.status(400).json({
+                successful: false,
+                message:
+                  "Invalid batch manufacturing date.",
+                errors: [],
+                warnings: [],
+              });
+            }
+
+            normalizedBatch.mfd =
+              date.toISOString();
+          }
+
+          // Cost
+          if (
+            batchFields.cost !==
+              undefined &&
+            batchFields.cost !== null &&
+            batchFields.cost !== ""
+          ) {
+            normalizedBatch.cost =
+              Number(batchFields.cost);
+          }
+
+          // MRP
+          if (
+            batchFields.mrp !==
+              undefined &&
+            batchFields.mrp !== null &&
+            batchFields.mrp !== ""
+          ) {
+            normalizedBatch.mrp =
+              Number(batchFields.mrp);
+          }
+
+          // Vendor Code
+          if (
+            batchFields.vendorCode !==
+              undefined &&
+            batchFields.vendorCode !== null &&
+            String(batchFields.vendorCode).trim()
+          ) {
+            normalizedBatch.vendorCode =
+              String(
+                batchFields.vendorCode
+              ).trim();
+          }
+
+          // Vendor Batch Number
+          if (
+            batchFields.vendorBatchNumber !==
+              undefined &&
+            batchFields.vendorBatchNumber !==
+              null &&
+            String(
+              batchFields.vendorBatchNumber
+            ).trim()
+          ) {
+            normalizedBatch.vendorBatchNumber =
+              String(
+                batchFields.vendorBatchNumber
+              ).trim();
+          }
+
+          payload.inflowReceiptItem.wsBatchDetail =
+            {
+              wsBatchGroupFieldValue:
+                normalizedBatch,
+            };
+        }
+      }
+
+      // ------------------------------------------
+      // ITEM traceability
+      // ------------------------------------------
+      if (
+        Array.isArray(
+          inflowReceiptItem.itemDTOs
+        )
+      ) {
+        payload.inflowReceiptItem.itemDTOs =
+          inflowReceiptItem.itemDTOs
+            .filter(
+              (item) =>
+                item &&
+                item.code &&
+                String(item.code).trim()
+            )
+            .map((item) => ({
+              code: String(
+                item.code
+              ).trim(),
+
+              itemDetails:
+                item.itemDetails ===
+                  undefined ||
+                item.itemDetails === null
+                  ? ""
+                  : String(
+                      item.itemDetails
+                    ),
+            }));
+      }
+
+      // ------------------------------------------
+      // Uniware URL
+      // ------------------------------------------
+      const url =
+        `${process.env.UNIWARE_BASE_URL}` +
+        `/services/rest/v1/purchase/inflowReceipt/addItemSKU`;
+
+      // ------------------------------------------
+      // Call Uniware
+      // ------------------------------------------
+      const response = await axios.post(
+        url,
+        payload,
+        {
+          headers: {
+            "Content-Type":
+              "application/json",
+
+            Authorization:
+              `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`,
+
+            Facility:
+              facility.trim(),
+          },
+        }
+      );
+
+      const data = response.data || {};
+
+      // ------------------------------------------
+      // Return response
+      // ------------------------------------------
+      return res.status(200).json({
+        successful:
+          data.successful ?? false,
+
+        message:
+          data.message ?? "",
+
+        errors:
+          data.errors ?? [],
+
+        warnings:
+          data.warnings ?? [],
+
+        inflowReceiptItemDTO:
+          data.inflowReceiptItemDTO ?? null,
+      });
+    } catch (error) {
+      console.error(
+        "Uniware Add Item SKU in GRN Error:",
+        error.response?.data ||
+          error.message
+      );
+
+      return res.status(
+        error.response?.status || 500
+      ).json({
+        successful: false,
+
+        message:
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to add item SKU to GRN.",
+
+        errors:
+          error.response?.data?.errors ||
+          [],
+
+        warnings:
+          error.response?.data?.warnings ||
+          [],
+
+        inflowReceiptItemDTO:
+          error.response?.data
+            ?.inflowReceiptItemDTO ||
+          null,
+
+        details:
+          error.response?.data || null,
+      });
+    }
+  }
+);
+
+// ============================================================
+// UNIWARE - GET GRN
+// POST /api/uniware/grn/details
+// ============================================================
+
+app.post("/api/uniware/grn/details", async (req, res) => {
+  try {
+    const { facility, inflowReceiptCode } = req.body;
+
+    if (!facility || !facility.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility code is required.",
+      });
+    }
+
+    if (!inflowReceiptCode || !inflowReceiptCode.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Inflow Receipt / GRN code is required.",
+      });
+    }
+
+    if (
+      !process.env.UNIWARE_BASE_URL ||
+      !process.env.UNIWARE_ACCESS_TOKEN
+    ) {
+      return res.status(500).json({
+        successful: false,
+        message:
+          "Uniware configuration is missing. Check UNIWARE_BASE_URL and UNIWARE_ACCESS_TOKEN.",
+      });
+    }
+
+    const url =
+      `${process.env.UNIWARE_BASE_URL}` +
+      `/services/rest/v1/purchase/inflowReceipt/getInflowReceipt`;
+
+    const payload = {
+      inflowReceiptCode: inflowReceiptCode.trim(),
+    };
+
+    const response = await axios.post(url, payload, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`,
+        Facility: facility.trim(),
+      },
+      timeout: 30000,
+    });
+
+    return res.status(200).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Get GRN Error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        successful: false,
+        message: "Failed to fetch GRN from Uniware.",
+        error: error.message,
+      }
+    );
+  }
+});
+
+// ============================================================
+// UNIWARE - SEARCH GRNs
+// POST /api/uniware/grn/search
+// ============================================================
+
+app.post("/api/uniware/grn/search", async (req, res) => {
+  try {
+    const {
+      facility,
+      purchaseOrderCode,
+      createdBetween,
+    } = req.body;
+
+    // ----------------------------------------------------------
+    // Validation
+    // ----------------------------------------------------------
+    if (!facility || !facility.trim()) {
+      return res.status(400).json({
+        successful: false,
+        message: "Facility code is required.",
+      });
+    }
+
+    if (!createdBetween) {
+      return res.status(400).json({
+        successful: false,
+        message: "createdBetween is required.",
+      });
+    }
+
+    const { start, end, textRange } = createdBetween;
+
+    if (!start) {
+      return res.status(400).json({
+        successful: false,
+        message: "createdBetween.start is required.",
+      });
+    }
+
+    if (!end) {
+      return res.status(400).json({
+        successful: false,
+        message: "createdBetween.end is required.",
+      });
+    }
+
+    if (!textRange) {
+      return res.status(400).json({
+        successful: false,
+        message: "createdBetween.textRange is required.",
+      });
+    }
+
+    const allowedRanges = [
+      "TODAY",
+      "YESTERDAY",
+      "LAST_WEEK",
+      "LAST_MONTH",
+      "THIS_MONTH",
+      "LAST_7_DAYS",
+      "LAST_30_DAYS",
+      "LAST_60_DAYS",
+      "LAST_90_DAYS",
+      "LAST_QUARTER",
+      "THIS_QUARTER",
+    ];
+
+    if (!allowedRanges.includes(textRange)) {
+      return res.status(400).json({
+        successful: false,
+        message: `Invalid textRange. Allowed values: ${allowedRanges.join(
+          ", "
+        )}`,
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Uniware configuration
+    // ----------------------------------------------------------
+    if (
+      !process.env.UNIWARE_BASE_URL ||
+      !process.env.UNIWARE_ACCESS_TOKEN
+    ) {
+      return res.status(500).json({
+        successful: false,
+        message:
+          "Uniware configuration is missing. Check UNIWARE_BASE_URL and UNIWARE_ACCESS_TOKEN.",
+      });
+    }
+
+    // ----------------------------------------------------------
+    // Build payload
+    // ----------------------------------------------------------
+    const payload = {
+      createdBetween: {
+        start,
+        end,
+        textRange,
+      },
+    };
+
+    // Optional PO filter
+    if (purchaseOrderCode?.trim()) {
+      payload.purchaseOrderCode =
+        purchaseOrderCode.trim();
+    }
+
+    // ----------------------------------------------------------
+    // Uniware endpoint
+    // ----------------------------------------------------------
+    const url =
+      `${process.env.UNIWARE_BASE_URL}` +
+      `/services/rest/v1/purchase/inflowReceipt/getInflowReceipts`;
+
+    // ----------------------------------------------------------
+    // Call Uniware
+    // ----------------------------------------------------------
+    const response = await axios.post(
+      url,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`,
+          Facility: facility.trim(),
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(200).json(response.data);
+  } catch (error) {
+    console.error(
+      "Uniware Search GRNs Error:",
+      error.response?.data || error.message
+    );
+
+    return res
+      .status(error.response?.status || 500)
+      .json(
+        error.response?.data || {
+          successful: false,
+          message: "Failed to search GRNs from Uniware.",
+          error: error.message,
+        }
+      );
+  }
+});
+// ============================================================
+// UNIWARE - CREATE OR UPDATE CATEGORY
+// POST /api/uniware/categories/add-or-edit
+// Tenant level - NO Facility header
+// ============================================================
+
+app.post(
+  "/api/uniware/categories/add-or-edit",
+  async (req, res) => {
+    try {
+      const { category } = req.body;
+
+      // --------------------------------------------------------
+      // Validate category
+      // --------------------------------------------------------
+      if (!category || typeof category !== "object") {
+        return res.status(400).json({
+          successful: false,
+          message: "Category object is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Required fields
+      // --------------------------------------------------------
+      if (!category.code || !category.code.trim()) {
+        return res.status(400).json({
+          successful: false,
+          message: "Category code is required.",
+        });
+      }
+
+      if (category.code.trim().length > 45) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "Category code cannot exceed 45 characters.",
+        });
+      }
+
+      if (!category.name || !category.name.trim()) {
+        return res.status(400).json({
+          successful: false,
+          message: "Category name is required.",
+        });
+      }
+
+      if (category.name.trim().length > 200) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "Category name cannot exceed 200 characters.",
+        });
+      }
+
+      if (
+        !category.gstTaxTypeCode ||
+        !category.gstTaxTypeCode.trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message:
+            "GST Tax Type Code is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Uniware configuration
+      // --------------------------------------------------------
+      if (
+        !process.env.UNIWARE_BASE_URL ||
+        !process.env.UNIWARE_ACCESS_TOKEN
+      ) {
+        return res.status(500).json({
+          successful: false,
+          message:
+            "Uniware configuration is missing. Check UNIWARE_BASE_URL and UNIWARE_ACCESS_TOKEN.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Build category
+      // --------------------------------------------------------
+      const uniwareCategory = {
+        code: category.code.trim(),
+        name: category.name.trim(),
+        gstTaxTypeCode:
+          category.gstTaxTypeCode.trim(),
+      };
+
+      // Optional fields
+      if (
+        category.taxTypeCode !== undefined &&
+        category.taxTypeCode !== null &&
+        String(category.taxTypeCode).trim() !== ""
+      ) {
+        uniwareCategory.taxTypeCode =
+          String(category.taxTypeCode).trim();
+      }
+
+      if (
+        category.itemDetailFieldsText !== undefined &&
+        category.itemDetailFieldsText !== null
+      ) {
+        uniwareCategory.itemDetailFieldsText =
+          String(category.itemDetailFieldsText);
+      }
+
+      if (
+        category.hsnCode !== undefined &&
+        category.hsnCode !== null &&
+        String(category.hsnCode).trim() !== ""
+      ) {
+        uniwareCategory.hsnCode =
+          String(category.hsnCode).trim();
+      }
+
+      if (
+        category.grnExpiryTolerance !== undefined &&
+        category.grnExpiryTolerance !== null &&
+        category.grnExpiryTolerance !== ""
+      ) {
+        uniwareCategory.grnExpiryTolerance =
+          Number(category.grnExpiryTolerance);
+      }
+
+      if (
+        category.dispatchExpiryTolerance !== undefined &&
+        category.dispatchExpiryTolerance !== null &&
+        category.dispatchExpiryTolerance !== ""
+      ) {
+        uniwareCategory.dispatchExpiryTolerance =
+          Number(category.dispatchExpiryTolerance);
+      }
+
+      if (
+        category.returnExpiryTolerance !== undefined &&
+        category.returnExpiryTolerance !== null &&
+        category.returnExpiryTolerance !== ""
+      ) {
+        uniwareCategory.returnExpiryTolerance =
+          Number(category.returnExpiryTolerance);
+      }
+
+      if (category.expirable !== undefined) {
+        uniwareCategory.expirable =
+          Boolean(category.expirable);
+      }
+
+      if (
+        category.shelfLife !== undefined &&
+        category.shelfLife !== null &&
+        category.shelfLife !== ""
+      ) {
+        uniwareCategory.shelfLife =
+          Number(category.shelfLife);
+      }
+
+      // --------------------------------------------------------
+      // Final Uniware payload
+      // --------------------------------------------------------
+      const payload = {
+        category: uniwareCategory,
+      };
+
+      // --------------------------------------------------------
+      // Uniware endpoint
+      // --------------------------------------------------------
+      const url =
+        `${process.env.UNIWARE_BASE_URL}` +
+        `/services/rest/v1/product/category/addOrEdit`;
+
+      // --------------------------------------------------------
+      // Call Uniware
+      // Tenant level => NO Facility header
+      // --------------------------------------------------------
+      const response = await axios.post(
+        url,
+        payload,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `bearer ${process.env.UNIWARE_ACCESS_TOKEN}`,
+          },
+          timeout: 30000,
+        }
+      );
+
+      return res.status(200).json(response.data);
+    } catch (error) {
+      console.error(
+        "Uniware Create/Update Category Error:",
+        error.response?.data || error.message
+      );
+
+      return res
+        .status(error.response?.status || 500)
+        .json(
+          error.response?.data || {
+            successful: false,
+            message:
+              "Failed to create or update category in Uniware.",
+            error: error.message,
+          }
+        );
+    }
+  }
+);
 // ================= SERVER START =================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
