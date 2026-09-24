@@ -18937,6 +18937,197 @@ app.post("/api/uniware/reverse-pickups/cancel", async (req, res) => {
       .json(errorData);
   }
 });
+
+
+// ============================================================
+// CREATE ALTERNATE SALE ORDER ITEM
+// Uniware:
+// POST /services/rest/v1/oms/saleOrder/createSaleOrderItemAlternate
+// Tenant-level - No Facility header
+// ============================================================
+
+app.post("/api/uniware/sale-orders/create-alternate-item", async (req, res) => {
+  try {
+    const {
+      saleOrderItems,
+      saleOrderItemAlternates,
+    } = req.body;
+
+    // --------------------------------------------------------
+    // Validate saleOrderItems
+    // --------------------------------------------------------
+    if (!Array.isArray(saleOrderItems) || saleOrderItems.length === 0) {
+      return res.status(400).json({
+        successful: false,
+        message: "At least one sale order item is required.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    // --------------------------------------------------------
+    // Validate each sale order item
+    // --------------------------------------------------------
+    for (let i = 0; i < saleOrderItems.length; i++) {
+      const item = saleOrderItems[i];
+
+      if (!item || typeof item !== "object") {
+        return res.status(400).json({
+          successful: false,
+          message: `Sale order item at index ${i} is invalid.`,
+          errors: [],
+          warnings: [],
+        });
+      }
+
+      if (!item.code || !String(item.code).trim()) {
+        return res.status(400).json({
+          successful: false,
+          message: `Sale order item code is required at index ${i}.`,
+          errors: [],
+          warnings: [],
+        });
+      }
+    }
+
+    // --------------------------------------------------------
+    // Validate saleOrderItemAlternates
+    // --------------------------------------------------------
+    if (
+      !Array.isArray(saleOrderItemAlternates) ||
+      saleOrderItemAlternates.length === 0
+    ) {
+      return res.status(400).json({
+        successful: false,
+        message: "At least one alternate item is required.",
+        errors: [],
+        warnings: [],
+      });
+    }
+
+    // --------------------------------------------------------
+    // Validate alternate items
+    // --------------------------------------------------------
+    for (let i = 0; i < saleOrderItemAlternates.length; i++) {
+      const alternate = saleOrderItemAlternates[i];
+
+      if (!alternate || typeof alternate !== "object") {
+        return res.status(400).json({
+          successful: false,
+          message: `Alternate item at index ${i} is invalid.`,
+          errors: [],
+          warnings: [],
+        });
+      }
+
+      if (
+        !alternate.itemSku ||
+        !String(alternate.itemSku).trim()
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: `Item SKU is required for alternate item at index ${i}.`,
+          errors: [],
+          warnings: [],
+        });
+      }
+
+      if (
+        alternate.amountDifference === undefined ||
+        alternate.amountDifference === null ||
+        alternate.amountDifference === "" ||
+        Number.isNaN(Number(alternate.amountDifference))
+      ) {
+        return res.status(400).json({
+          successful: false,
+          message: `Amount difference is required for alternate item at index ${i}.`,
+          errors: [],
+          warnings: [],
+        });
+      }
+    }
+
+    // --------------------------------------------------------
+    // Build payload
+    // Optional fields are omitted when empty.
+    // --------------------------------------------------------
+
+    const payload = {
+      saleOrderItems: saleOrderItems.map((item) => {
+        const result = {
+          code: String(item.code).trim(),
+        };
+
+        if (
+          item.status !== undefined &&
+          item.status !== null &&
+          String(item.status).trim()
+        ) {
+          result.status = String(item.status).trim();
+        }
+
+        if (
+          item.shelfCode !== undefined &&
+          item.shelfCode !== null &&
+          String(item.shelfCode).trim()
+        ) {
+          result.shelfCode = String(item.shelfCode).trim();
+        }
+
+        if (
+          item.reason !== undefined &&
+          item.reason !== null &&
+          String(item.reason).trim()
+        ) {
+          result.reason = String(item.reason).trim();
+        }
+
+        return result;
+      }),
+
+      saleOrderItemAlternates: saleOrderItemAlternates.map((alternate) => ({
+        itemSku: String(alternate.itemSku).trim(),
+        amountDifference: Number(alternate.amountDifference),
+      })),
+    };
+
+    // --------------------------------------------------------
+    // Call Uniware
+    // --------------------------------------------------------
+
+    const response = await axios.post(
+      `${UNIWARE_BASE_URL}/services/rest/v1/oms/saleOrder/createSaleOrderItemAlternate`,
+      payload,
+      {
+        headers: {
+          Authorization: `bearer ${UNIWARE_ACCESS_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (err) {
+    console.error(
+      "Uniware Create Alternate Sale Order Item Error:",
+      err.response?.status || err.message
+    );
+
+    const errorData =
+      err.response?.data || {
+        successful: false,
+        message:
+          err.message ||
+          "Failed to create alternate sale order item.",
+        errors: [],
+        warnings: [],
+      };
+
+    return res
+      .status(err.response?.status || 500)
+      .json(errorData);
+  }
+});
 // ================= SERVER START =================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
