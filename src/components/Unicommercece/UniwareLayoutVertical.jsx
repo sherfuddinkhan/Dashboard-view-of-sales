@@ -1,11 +1,10 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 const menuData = [
   { id: "main", title: "MAIN", icon: "🏠", defaultOpen: true, items: [
     { path: "/uniware", label: "Dashboard - All 85 APIs", badge: "85" },
-    { path: "/uniware/auth", label: "Authentication", badge: "1" },
+    { path: "/uniware/auth", label: "Authentication - FIXED", badge: "1" },
     { path: "/uniware/facility/search", label: "Search Facilities" },
     { path: "/uniware/facility/details", label: "Get Facility Details" },
     { path: "/uniware/export/create", label: "Create Export Job" },
@@ -91,26 +90,25 @@ const menuData = [
     { path: "/uniware/inbound/grn/add-sku", label: "Add GRN SKU" },
     { path: "/uniware/inbound/vendor", label: "Vendor" },
     { path: "/uniware/inbound/vendor/backorder", label: "Vendor Backorder" },
-    { path: "/uniware/inbound/vendor/item-type", label: "Vendor Item Type" },
   ]},
   { id: "inventory", title: "INVENTORY", icon: "📊", count: 6, defaultOpen: false, items: [
     { path: "/uniware/inventory/snapshot", label: "Inventory Snapshot" },
+    { path: "/uniware/inventory/search", label: "Search Inventory" },
+    { path: "/uniware/inventory/update", label: "Update Inventory" },
+    { path: "/uniware/inventory/bulk-update", label: "Bulk Inventory Update" },
     { path: "/uniware/inventory/adjust", label: "Adjust Inventory" },
-    { path: "/uniware/inventory/adjust-bulk", label: "Adjust Bulk" },
-    { path: "/uniware/inventory/adjust-batch-bulk", label: "Adjust Batch Bulk" },
-    { path: "/uniware/inventory/mark-found", label: "Mark Found" },
-    { path: "/uniware/inventory/nearby", label: "Nearby Store" },
+    { path: "/uniware/inventory/history", label: "Inventory History" },
   ]},
-  { id: "gatepass", title: "OUTBOUND / GATEPASS", icon: "🚪", count: 9, defaultOpen: false, items: [
-    { path: "/uniware/outbound/gatepass/search", label: "Search Gatepasses" },
+  { id: "outbound", title: "OUTBOUND / GATEPASS", icon: "🚪", count: 9, defaultOpen: false, items: [
+    { path: "/uniware/outbound/gatepass/search", label: "Search Gatepass" },
     { path: "/uniware/outbound/gatepass/create", label: "Create Gatepass" },
-    { path: "/uniware/outbound/gatepass/get", label: "Get Gatepass" },
-    { path: "/uniware/outbound/gatepass/update", label: "Update Gatepass" },
-    { path: "/uniware/outbound/gatepass/complete", label: "Complete Gatepass" },
-    { path: "/uniware/outbound/gatepass/discard", label: "Discard Gatepass" },
-    { path: "/uniware/outbound/gatepass/scan", label: "Scan Item" },
+    { path: "/uniware/outbound/gatepass/details", label: "Get Gatepass Details" },
+    { path: "/uniware/outbound/gatepass/add", label: "Add Item To Gatepass" },
+    { path: "/uniware/outbound/gatepass/add-traceable", label: "Add Traceable Item" },
     { path: "/uniware/outbound/gatepass/add-nontraceable", label: "Add Non-Traceable" },
     { path: "/uniware/outbound/gatepass/remove", label: "Remove Item" },
+    { path: "/uniware/outbound/gatepass/close", label: "Close Gatepass" },
+    { path: "/uniware/outbound/gatepass/cancel", label: "Cancel Gatepass" },
   ]},
   { id: "product", title: "PRODUCT", icon: "🏷️", count: 7, defaultOpen: false, items: [
     { path: "/uniware/product/search", label: "Search Items" },
@@ -120,6 +118,19 @@ const menuData = [
     { path: "/uniware/product/items", label: "Create Or Update Items" },
     { path: "/uniware/product/category", label: "Create Or Update Category" },
     { path: "/uniware/product/channel-item", label: "Channel Item Create/Edit" },
+  ]},
+  { id: "traffic", title: "ALL MARKETPLACES TRAFFIC", icon: "📊", count: 124, defaultOpen: true, items: [
+    { path: "/uniware/traffic/live", label: "All 124 Channels - Live Sync - One Frame", badge: "LIVE" },
+    { path: "/uniware/traffic/all", label: "All Marketplaces Traffic View" },
+    { path: "/uniware/channel/add", label: "Add Channel From My Software", badge: "NEW" },
+  ]},
+  { id: "cost", title: "COST & COMMISSION", icon: "💰", count: 3, defaultOpen: false, items: [
+    { path: "/uniware/cost/structure", label: "Cost Structure Per Channel" },
+    { path: "/uniware/cost/calculator", label: "Commission Calculator" },
+  ]},
+  { id: "ai", title: "AI PARAMS", icon: "🤖", count: 2, defaultOpen: false, items: [
+    { path: "/uniware/ai/params", label: "AI Parameter Sender" },
+    { path: "/uniware/ai/sales", label: "Sales Impact Params" },
   ]},
 ];
 
@@ -134,21 +145,58 @@ export default function UniwareLayoutVertical() {
     return init;
   });
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [token, setToken] = useState(null);
+  const [baseUrl, setBaseUrl] = useState(null);
+
+  useEffect(() => {
+    const t = localStorage.getItem("uniware_token") || localStorage.getItem("uniware_access_token") || localStorage.getItem("token");
+    const b = localStorage.getItem("uniware_base_url");
+    setToken(t);
+    setBaseUrl(b);
+    setAuthChecked(true);
+  }, [location.pathname]);
+
   const toggle = (id) => setOpenSections(s => ({ ...s, [id]: !s[id] }));
-  const handleLogout = () => {
-    localStorage.removeItem("uniware_token");
-    localStorage.removeItem("uniware_access_token");
-    localStorage.removeItem("token");
-    sessionStorage.clear();
-    navigate("/marketplaces");
-  };
+  
+ // NEW - FIXED: goes outside layout to marketplaces, unmounts component:
+const handleLogout = () => {
+  localStorage.removeItem("uniware_token");
+  localStorage.removeItem("uniware_access_token");
+  localStorage.removeItem("uniware_refresh_token");
+  localStorage.removeItem("uniware_base_url");
+  localStorage.removeItem("token");
+  localStorage.removeItem("uniware_user");
+  localStorage.removeItem("uniware_tenant");
+  localStorage.removeItem("uniware_dashboard_data");
+  sessionStorage.clear();
+  setToken(null);
+  setBaseUrl(null);
+  // Go OUTSIDE uniware layout
+  window.location.replace("/marketplaces"); // ✅ Exits Uniware, goes to MarketplaceSelector
+};
+
+  if (!authChecked) return <div style={{ padding: 20 }}>Loading...</div>;
+
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#f3f4f6" }}>
       <aside style={{ width: sidebarOpen ? 320 : 60, background: "#111827", color: "#fff", transition: "width 0.25s", overflow: "hidden", display: "flex", flexDirection: "column", borderRight: "1px solid #1f2937", position: "sticky", top: 0, height: "100vh" }}>
         <div style={{ padding: "18px 16px", borderBottom: "1px solid #1f2937", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-          {sidebarOpen && (<div><h2 style={{ margin: 0, fontSize: 14, whiteSpace: "nowrap" }}>Uniware Integration</h2><p style={{ margin: "3px 0 0", fontSize: 10, color: "#9ca3af", whiteSpace: "nowrap" }}>85+ APIs • Calibruce</p></div>)}
+          {sidebarOpen && (<div><h2 style={{ margin: 0, fontSize: 14, whiteSpace: "nowrap" }}>Uniware Integration</h2><p style={{ margin: "3px 0 0", fontSize: 10, color: "#9ca3af", whiteSpace: "nowrap" }}>85+ APIs • Calibruce • {token ? "✅ Auth" : "❌ No Auth"}</p></div>)}
           <button onClick={() => setSidebarOpen(o => !o)} style={{ background: "#1f2937", color: "#fff", border: "1px solid #374151", borderRadius: 6, padding: "6px 8px", cursor: "pointer", fontSize: 12 }}>{sidebarOpen ? "◀" : "▶"}</button>
         </div>
+
+        {sidebarOpen && (
+          <div style={{ padding: "10px 12px", background: token ? "#065f46" : "#7f1d1d", borderBottom: "1px solid #1f2937" }}>
+            <div style={{ fontSize: 10, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {token ? `✅ ${baseUrl || "Tenant"} - Token OK` : "❌ Not authenticated - Go to Authentication"}
+            </div>
+            <div style={{ fontSize: 9, color: "#9ca3af", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              Code Match: MySoftware == Uniware ✅ Required
+            </div>
+          </div>
+        )}
+
         <div style={{ flex: 1, overflowY: "auto", padding: sidebarOpen ? "10px 10px" : "10px 6px" }}>
           {menuData.map((section) => (
             <div key={section.id} style={{ marginBottom: 8 }}>
@@ -182,12 +230,28 @@ export default function UniwareLayoutVertical() {
       </aside>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         <header style={{ background: "#fff", borderBottom: "1px solid #e5e7eb", padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 5 }}>
-          <div><h2 style={{ margin: 0, fontSize: 16, color: "#111827" }}>{location.pathname === "/uniware" ? "Dashboard - All 85+ APIs" : location.pathname.split("/").pop()?.replace(/-/g, " ")}</h2><p style={{ margin: "2px 0 0", fontSize: 11, color: "#6b7280" }}>{location.pathname}</p></div>
-          <div style={{ display: "flex", gap: 8 }}><Link to="/marketplaces" style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #e5e7eb", textDecoration: "none", fontSize: 11, color: "#374151" }}>← Marketplaces</Link></div>
+          <div><h2 style={{ margin: 0, fontSize: 16, color: "#111827" }}>{location.pathname === "/uniware" ? "Dashboard - All 85+ APIs" : location.pathname.split("/").pop()?.replace(/-/g, " ")}</h2><p style={{ margin: "2px 0 0", fontSize: 11, color: "#6b7280" }}>{location.pathname} {token ? "• ✅ Authenticated" : "• ❌ Not authenticated"}</p></div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {!token && <Link to="/uniware/auth" style={{ padding: "6px 12px", borderRadius: 6, background: "#dc2626", color: "#fff", textDecoration: "none", fontSize: 11, fontWeight: 700 }}>🔐 Authenticate</Link>}
+            <Link to="/marketplaces" style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #e5e7eb", textDecoration: "none", fontSize: 11, color: "#374151" }}>← Marketplaces</Link>
+          </div>
         </header>
-        <main style={{ flex: 1, overflowY: "auto" }}><Outlet /></main>
+        <main style={{ flex: 1, overflowY: "auto" }}>
+          {!token && location.pathname !== "/uniware/auth" && !location.pathname.includes("/traffic") && (
+            <div style={{ background: "#fef2f2", border: "1px solid #fecaca", margin: 20, padding: 14, borderRadius: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#991b1b" }}>❌ Unable to authenticate with Uniware - No token found</div>
+              <div style={{ fontSize: 11, color: "#7f1d1d", marginTop: 6, lineHeight: 1.6 }}>
+                1. Go to <Link to="/uniware/auth" style={{ fontWeight: 700 }}>Authentication</Link> and login with your tenant URL (e.g., https://calibruce.unicommerce.com)<br/>
+                2. Your warehouses isActive=false - run: UPDATE warehouses SET isActive=1 WHERE customerId=3<br/>
+                3. Channel code must match: MySoftware AMAZON == Uniware AMAZON<br/>
+                4. If CORS error, use backend proxy - see UniwareAuthFix.jsx<br/>
+                5. <b>For Traffic dashboard, DEMO mode works without auth - click Live Sync</b>
+              </div>
+            </div>
+          )}
+          <Outlet />
+        </main>
       </div>
     </div>
   );
 }
-

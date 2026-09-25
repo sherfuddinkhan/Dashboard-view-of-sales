@@ -131,9 +131,13 @@ import UpdateSaleOrderItemMetadata from "./components/Unicommercece/SALE ORDER/U
 import UpdateSaleOrderMetadata from "./components/Unicommercece/SALE ORDER/UpdateSaleOrderMetadata";
 import VerifySaleOrder from "./components/Unicommercece/SALE ORDER/VerifySaleOrder";
 
-// VERTICAL LAYOUTS - THIS IS THE CHANGE
+// VERTICAL LAYOUTS
 import UniwareLayoutVertical from "./components/Unicommercece/UniwareLayoutVertical";
 import UniwareDashboard from "./components/Unicommercece/UniwareDashboard";
+
+// === NEW: ALL MARKETPLACES TRAFFIC - ONE FRAME - 124 CHANNELS ===
+import MarketplaceTrafficLiveSync from "./components/Unicommercece/MarketplaceTrafficLiveSync";
+
 
 function App() {
   return (
@@ -167,7 +171,7 @@ function App() {
           <Route path="listings" element={<ListingsCommonV3Api />} />
         </Route>
 
-        {/* VERTICAL LAYOUT WITH OPEN/CLOSE */}
+        {/* VERTICAL LAYOUT WITH OPEN/CLOSE + ALL MARKETPLACES TRAFFIC */}
         <Route path="/uniware" element={<UniwareLayoutVertical />}>
           <Route index element={<UniwareDashboard />} />
           <Route path="auth" element={<UniwareAuth />} />
@@ -175,6 +179,16 @@ function App() {
           <Route path="facility/details" element={<GetFacilityDetails />} />
           <Route path="export/create" element={<CreateExportJob />} />
           <Route path="export/status" element={<GetExportJobStatus />} />
+
+          {/* === NEW: ALL MARKETPLACES TRAFFIC - ONE FRAME - 124 CHANNELS === */}
+          <Route path="traffic/live" element={<MarketplaceTrafficLiveSync />} />
+          <Route path="traffic/all" element={<MarketplaceTrafficLiveSync />} />
+          <Route path="channel/add" element={<ChannelItemTypeCreateOrEdit />} />
+          <Route path="cost/structure" element={<div style={{padding:20}}>Cost Structure - Amazon 8% (₹200 on ₹2499), Flipkart 7%, Myntra 15%, MyStore 0% - Uniware ₹2.5/order</div>} />
+          <Route path="cost/calculator" element={<div style={{padding:20}}>Commission Calculator for TN-WBH-001 Price ₹2499</div>} />
+          <Route path="ai/params" element={<div style={{padding:20}}>AI Parameter Sender - Dynamic Price, Inventory Optimization, Warehouse Allocation</div>} />
+          <Route path="ai/sales" element={<div style={{padding:20}}>Sales Impact - quantity 100-5-2=93 sellable, price expiry 2026-08-31, warehouses isActive=false bug</div>} />
+
           <Route path="fulfillment/manifest/add" element={<AddShippingPackageToManifest />} />
           <Route path="fulfillment/provider/allocate" element={<AllocateShippingProvider />} />
           <Route path="fulfillment/serviceability" element={<CheckServiceability />} />
@@ -274,10 +288,10 @@ function App() {
         </Route>
 
         <Route path="*" element={<Navigate to="/marketplaces" replace />} />
+        
       </Routes>
     </BrowserRouter>
   );
 }
 
 export default App;
-
