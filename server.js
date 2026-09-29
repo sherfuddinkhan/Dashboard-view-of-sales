@@ -29397,6 +29397,484 @@ app.post(
   }
 );
 
+app.post("/api/easyecom/orders/mark-return", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/orders/markReturn",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Mark Return Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Mark Return failed",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+app.get("/api/easyecom/pending-returns", async (req, res) => {
+  try {
+    const response = await axios.get(
+      "https://api.easyecom.io/getPendingReturns",
+      {
+        headers: {
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Get Pending Returns Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Get Pending Returns failed",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.get("/api/easyecom/orders/all-returns", async (req, res) => {
+  try {
+    const { reference_code } = req.query;
+
+    if (!reference_code) {
+      return res.status(400).json({
+        success: false,
+        message: "reference_code is required",
+      });
+    }
+
+    const response = await axios.get(
+      "https://api.easyecom.io/orders/getAllReturns",
+      {
+        params: {
+          reference_code,
+        },
+        headers: {
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Get All Returns Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Get All Returns failed",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.post("/api/easyecom/mark-pending-return", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/markPendingReturn",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Mark Pending Return Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Mark Pending Return failed",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.get("/api/easyecom/orders/return-details", async (req, res) => {
+  try {
+    const {
+      invoice_id,
+      order_id,
+      reference_code,
+      credit_note_id,
+    } = req.query;
+
+    const response = await axios.get(
+      "https://api.easyecom.io/orders/getReturnDetails",
+      {
+        params: {
+          invoice_id,
+          order_id,
+          reference_code,
+          credit_note_id,
+        },
+        headers: {
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Get Return Details Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to get return details",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.post("/api/easyecom/create-initiate-return", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/create-initiate-return",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Initiate Return RVP Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to initiate return RVP",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.post("/api/easyecom/delete-initiated-return", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://staging-api.easyecom.io/delete-initiated-return",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Delete Initiated Return Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to delete initiated return",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.post("/api/easyecom/cancel-pending-return", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/cancel-pending-return",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Cancel Pending Return Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to cancel pending return",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+app.post("/api/easyecom/reports/queue", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/reports/queue",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Mini Sales Report Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to generate Mini Sales Report",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.post("/api/easyecom/reports/status-wise-stock", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/reports/queue",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Status Wise Stock Report Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to generate Status Wise Stock Report",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+app.post("/api/easyecom/reports/tax", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/reports/queue",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Tax Report Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to generate Tax Report",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.post("/api/easyecom/reports/inventory-aging", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/reports/queue",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Inventory Aging Report Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to generate Inventory Aging Report",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.post("/api/easyecom/reports/inventory-view-by-bin", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/reports/queue",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Inventory View By Bin Report Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to generate Inventory View By Bin Report",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.post("/api/easyecom/reports/return", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/reports/queue",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Return Report Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to generate Return Report",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.post("/api/easyecom/reports/pending-return", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/reports/queue",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Pending Return Report Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to generate Pending Return Report",
+      error: error.response?.data || error.message,
+    });
+  }
+});
 
 
 
