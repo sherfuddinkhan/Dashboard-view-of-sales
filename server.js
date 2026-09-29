@@ -28074,7 +28074,610 @@ app.post(
   }
 );
 
+const express = require("express");
+const cors = require("cors");
+const axios = require("axios");
 
+const app = express();
+
+const PORT = 5000;
+
+const API_KEY = "<x_api_key>";
+const JWT_TOKEN = "<Jwt_Token>";
+
+app.use(
+  cors({
+    origin: [
+      "http://localhost:3000",
+      "http://localhost:5173",
+    ],
+  })
+);
+
+app.use(express.json());
+
+/*
+  GET ALL ORDERS - NEXT URL CALL
+*/
+app.get("/api/easyecom/orders/next-url", async (req, res) => {
+  try {
+    const {
+      cursor,
+      start_date,
+      end_date,
+    } = req.query;
+
+    if (!cursor) {
+      return res.status(400).json({
+        success: false,
+        message: "cursor is required",
+      });
+    }
+
+    if (!start_date) {
+      return res.status(400).json({
+        success: false,
+        message: "start_date is required",
+      });
+    }
+
+    if (!end_date) {
+      return res.status(400).json({
+        success: false,
+        message: "end_date is required",
+      });
+    }
+
+    const url =
+      "https://api.easyecom.io/orders/V2/getAllOrders" +
+      `?cursor=${encodeURIComponent(cursor)}` +
+      `&start_date=${encodeURIComponent(start_date)}` +
+      `&end_date=${encodeURIComponent(end_date)}`;
+
+    const response = await axios.get(url, {
+      headers: {
+        "x-api-key": API_KEY,
+        Authorization: `Bearer ${JWT_TOKEN}`,
+      },
+      timeout: 30000,
+    });
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "GetAllOrdersNextUrl Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to get next orders",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+app.post("/api/easyecom/orders/confirm", async (req, res) => {
+  try {
+    const {
+      order_id,
+      height,
+      width,
+      length,
+      weight,
+      invoice_id,
+    } = req.body;
+
+    if (!order_id) {
+      return res.status(400).json({
+        success: false,
+        message: "order_id is required",
+      });
+    }
+
+    const response = await axios.post(
+      "https://api.easyecom.io/orders/confirm_order",
+      null,
+      {
+        params: {
+          order_id,
+          height,
+          width,
+          length,
+          weight,
+          invoice_id,
+        },
+        headers: {
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Confirm Order Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to confirm order",
+      error:
+        error.response?.data || error.message,
+    });
+  }
+});
+
+app.post("/api/easyecom/b2b/orders/approve", async (req, res) => {
+  try {
+    const {
+      reference_code,
+      approve_all,
+      items,
+    } = req.body;
+
+    if (!reference_code) {
+      return res.status(400).json({
+        success: false,
+        message: "reference_code is required",
+      });
+    }
+
+    const response = await axios.post(
+      "https://api.easyecom.io/oms/b2b/v1/orders/approveBulkOrder",
+      {
+        reference_code,
+        approve_all,
+        items,
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${JWT_TOKEN}`,
+          "x-api-key": API_KEY,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "B2B Order Approval Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to approve B2B order",
+      error:
+        error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.post("/api/easyecom/b2b/orders/approve", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/oms/b2b/v1/orders/approveBulkOrder",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${JWT_TOKEN}`,
+          "x-api-key": API_KEY,
+        },
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "B2B Order Approval Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "B2B Order Approval failed",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.post("/api/easyecom/b2b/orders/assign", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/order/assign-approveB2bOrder",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${JWT_TOKEN}`,
+          "x-api-key": API_KEY,
+        },
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "B2B Order Assign Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "B2B Order Assign failed",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.post("/api/easyecom/orders/cancel", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/orders/cancelOrder",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Cancel Order Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Cancel Order failed",
+      error:
+        error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.post("/api/easyecom/orders/cancel-rename", async (req, res) => {
+  try {
+    const { invoice, rename } = req.body;
+
+    if (!invoice) {
+      return res.status(400).json({
+        success: false,
+        message: "invoice is required",
+      });
+    }
+
+    const response = await axios.post(
+      "https://api.easyecom.io/orders/CancelOrders",
+      null,
+      {
+        params: {
+          "invoices[]": invoice,
+          rename: rename ?? 0,
+        },
+        headers: {
+          Authorization: `Bearer ${JWT_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Cancel and Rename Order Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Cancel and Rename Order failed",
+      error:
+        error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.post("/api/easyecom/orders/update-address", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/orders/updateOrderAddress",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Update Order Address Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Update Order Address failed",
+      error:
+        error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.get("/api/easyecom/orders/details", async (req, res) => {
+  try {
+    const { invoice_id } = req.query;
+
+    if (!invoice_id) {
+      return res.status(400).json({
+        success: false,
+        message: "invoice_id is required",
+      });
+    }
+
+    const response = await axios.get(
+      "https://api.easyecom.io/orders/V2/getOrderDetails",
+      {
+        params: {
+          invoice_id,
+        },
+        headers: {
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Get Order Details Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to get order details",
+      error:
+        error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.post("/api/easyecom/orders/qc-confirm", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/Orders/QcConfirmApi",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "QC Confirm Order Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "QC Confirm Order failed",
+      error:
+        error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.get("/api/easyecom/orders/documents", async (req, res) => {
+  try {
+    const { invoice_id, is_api = 1 } = req.query;
+
+    if (!invoice_id) {
+      return res.status(400).json({
+        success: false,
+        message: "invoice_id is required",
+      });
+    }
+
+    const response = await axios.get(
+      "https://api.easyecom.io/orders/documentsV2",
+      {
+        params: {
+          invoice_id,
+          is_api,
+        },
+        headers: {
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Get Document Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to get document by invoice ID",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+app.get("/api/easyecom/orders/count", async (req, res) => {
+  try {
+    const {
+      order_start_date,
+      order_end_date,
+      invoice_start_date,
+      invoice_end_date,
+      updated_after,
+      updated_before,
+      marketplace_id,
+    } = req.query;
+
+    const response = await axios.get(
+      "https://api.easyecom.io/orders/getAllOrdersCount",
+      {
+        params: {
+          order_start_date,
+          order_end_date,
+          invoice_start_date,
+          invoice_end_date,
+          updated_after,
+          updated_before,
+          marketplace_id,
+        },
+        headers: {
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Get Order Count Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to get order count",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+app.post("/api/easyecom/orders/generate-b2b-invoice", async (req, res) => {
+  try {
+    const { invoiceId } = req.body;
+
+    if (!invoiceId) {
+      return res.status(400).json({
+        success: false,
+        message: "invoiceId is required",
+      });
+    }
+
+    const response = await axios.post(
+      "https://api.easyecom.io/orders/generateB2BInvoiceAPI",
+      {
+        invoiceId: Number(invoiceId),
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Generate B2B Invoice Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to generate B2B invoice",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+app.get("/api/easyecom/queue-status", async (req, res) => {
+  try {
+    const { queueId } = req.query;
+
+    if (!queueId) {
+      return res.status(400).json({
+        success: false,
+        message: "queueId is required",
+      });
+    }
+
+    const response = await axios.get(
+      "https://api.easyecom.io/getQueueStatus",
+      {
+        params: {
+          queueId,
+        },
+        headers: {
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Get Queue Status Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to get queue status",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+
+
+
+app.listen(PORT, () => {
+  console.log(
+    `EasyEcom Node Server running on http://localhost:${PORT}`
+  );
+});
 
 
 
