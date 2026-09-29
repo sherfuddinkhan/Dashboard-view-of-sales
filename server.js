@@ -21935,6 +21935,675 @@ app.get("/api/uniware/cost/structure", (req, res) => {
     note: "Amazon 8% = ₹200 on ₹2499, MyStore CUSTOM 0% commission"
   });
 });
+
+////////////////////////////////EasyEcom/////////////////////
+
+app.post(
+    "/api/easyecom/access-token",
+    async (req, res) => {
+
+        try {
+
+            const {
+                email,
+                password,
+                location_key
+            } = req.body;
+
+
+            if (!email || !password || !location_key) {
+
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        "email, password and location_key are required"
+                });
+
+            }
+
+
+            const response = await axios.post(
+                `${EASYECCOM_BASE_URL}/access/token`,
+                {
+                    email,
+                    password,
+                    location_key
+                },
+                {
+                    headers: {
+                        "x-api-key":
+                            EASYECOM_API_KEY,
+
+                        "Content-Type":
+                            "application/json"
+                    }
+                }
+            );
+
+
+            const data = response.data;
+
+
+            const jwtToken =
+                data?.data?.token?.jwt_token;
+
+            const expiresIn =
+                data?.data?.token?.expires_in;
+
+
+            if (!jwtToken) {
+
+                return res.status(500).json({
+                    success: false,
+                    message:
+                        "EasyEcom did not return jwt_token"
+                });
+
+            }
+
+
+            easyEcomToken = jwtToken;
+
+
+            if (expiresIn) {
+
+                easyEcomTokenExpiresAt =
+                    Date.now() +
+                    Number(expiresIn) * 1000;
+
+            }
+
+
+            return res.status(200).json({
+
+                success: true,
+
+                message:
+                    data?.message || null,
+
+                data: data?.data || null
+
+            });
+
+        }
+        catch (error) {
+
+            console.error(
+                "EasyEcom Access Token Error:",
+                error.response?.data ||
+                error.message
+            );
+
+
+            return res.status(
+                error.response?.status || 500
+            ).json({
+
+                success: false,
+
+                message:
+                    error.response?.data?.message ||
+                    "EasyEcom authentication failed",
+
+                data:
+                    error.response?.data || null
+
+            });
+
+        }
+
+    }
+);
+
+app.get(
+    "/api/easyecom/locations",
+    async (req, res) => {
+
+        try {
+
+            if (!easyEcomToken) {
+
+                return res.status(401).json({
+                    success: false,
+                    message:
+                        "EasyEcom authentication required"
+                });
+
+            }
+
+
+            if (
+                easyEcomTokenExpiresAt &&
+                Date.now() >=
+                easyEcomTokenExpiresAt
+            ) {
+
+                easyEcomToken = null;
+                easyEcomTokenExpiresAt = null;
+
+                return res.status(401).json({
+                    success: false,
+                    message:
+                        "EasyEcom token expired"
+                });
+
+            }
+
+
+            const response = await axios.get(
+                `${EASYECCOM_BASE_URL}/account/v1/api/locations`,
+                {
+                    headers: {
+                        Authorization:
+                            `Bearer ${easyEcomToken}`,
+
+                        "Content-Type":
+                            "application/json"
+                    }
+                }
+            );
+
+
+            return res.status(200).json({
+
+                success: true,
+
+                data:
+                    response.data?.data || [],
+
+                message:
+                    response.data?.message || null
+
+            });
+
+        }
+        catch (error) {
+
+            console.error(
+                "EasyEcom Locations Error:",
+                error.response?.data ||
+                error.message
+            );
+
+
+            if (
+                error.response?.status === 401
+            ) {
+
+                easyEcomToken = null;
+                easyEcomTokenExpiresAt = null;
+
+            }
+
+
+            return res.status(
+                error.response?.status || 500
+            ).json({
+
+                success: false,
+
+                message:
+                    error.response?.data?.message ||
+                    "Unable to fetch EasyEcom locations",
+
+                data:
+                    error.response?.data || null
+
+            });
+
+        }
+
+    }
+);
+app.get(
+    "/api/easyecom/token-status",
+    (req, res) => {
+
+        const authenticated =
+            !!easyEcomToken &&
+            (
+                !easyEcomTokenExpiresAt ||
+                Date.now() <
+                easyEcomTokenExpiresAt
+            );
+
+
+        if (
+            easyEcomTokenExpiresAt &&
+            Date.now() >=
+            easyEcomTokenExpiresAt
+        ) {
+
+            easyEcomToken = null;
+            easyEcomTokenExpiresAt = null;
+
+        }
+
+
+        return res.status(200).json({
+            success: true,
+            authenticated:
+                !!easyEcomToken
+        });
+
+    }
+);
+app.post(
+    "/api/easyecom/logout",
+    (req, res) => {
+
+        easyEcomToken = null;
+        easyEcomTokenExpiresAt = null;
+
+        return res.status(200).json({
+            success: true,
+            message:
+                "EasyEcom logout successful"
+        });
+
+    }
+);
+// ============================================================
+// EASYECOM CONFIGURATION
+// ============================================================
+
+const EASYEECOM_BASE_URL = "https://api.easyecom.io";
+
+const EASYEECOM_API_KEY = process.env.EASYEECOM_API_KEY;
+const EASYEECOM_JWT_TOKEN = process.env.EASYEECOM_JWT_TOKEN;
+
+
+// ============================================================
+// UPDATE TRACKING STATUS
+// ============================================================
+
+app.post("/api/easyecom/update-tracking-status", async (req, res) => {
+  try {
+    const {
+      current_shipment_status_id,
+      awb,
+      estimated_delivery_date,
+      delivery_date,
+      history_scans,
+    } = req.body;
+
+    // --------------------------------------------------------
+    // Basic validation
+    // --------------------------------------------------------
+
+    if (!current_shipment_status_id) {
+      return res.status(400).json({
+        success: false,
+        message: "current_shipment_status_id is required",
+      });
+    }
+
+    if (!awb) {
+      return res.status(400).json({
+        success: false,
+        message: "awb is required",
+      });
+    }
+
+    if (!Array.isArray(history_scans)) {
+      return res.status(400).json({
+        success: false,
+        message: "history_scans must be an array",
+      });
+    }
+
+    // --------------------------------------------------------
+    // EasyEcom request
+    // --------------------------------------------------------
+
+    const response = await axios.post(
+      `${EASYEECOM_BASE_URL}/Carrier/V2/updateTrackingStatus`,
+      {
+        current_shipment_status_id,
+        awb,
+        estimated_delivery_date,
+        delivery_date,
+        history_scans,
+      },
+      {
+        headers: {
+          "x-api-key": EASYEECOM_API_KEY,
+          Authorization: `Bearer ${EASYEECOM_JWT_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Tracking status updated successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "EasyEcom updateTrackingStatus error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to update tracking status",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+app.post("/api/easyecom/authenticate", async (req, res) => {
+  try {
+    const {
+      username,
+      password,
+      token,
+      account_no,
+      service_type,
+      eeApiToken,
+    } = req.body;
+
+    const response = await axios.post(
+      `${process.env.CARRIER_BASE_URL}/authenticate`,
+      {
+        username,
+        password,
+        token,
+        account_no,
+        service_type,
+        eeApiToken,
+      },
+      {
+        headers: {
+          "Cache-Control": "private,must-revalidate",
+          "Connection": "keep-alive",
+          "Content-Encoding": "gzip",
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.EASYEECOM_JWT_TOKEN}`,
+        },
+      }
+    );
+
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(
+      "Carrier authentication error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Carrier authentication failed",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+// ============================================================
+// EASYECOM AUTHORIZATION
+// POST /access/token
+// ============================================================
+
+app.post("/api/easyecom/access-token", async (req, res) => {
+  try {
+    const {
+      email,
+      password,
+      location_key,
+    } = req.body;
+
+    if (!email || !password || !location_key) {
+      return res.status(400).json({
+        success: false,
+        message: "email, password and location_key are required",
+      });
+    }
+
+    const response = await axios.post(
+      `${EASYEECOM_BASE_URL}/access/token`,
+      {
+        email,
+        password,
+        location_key,
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "EasyEcom access token error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json({
+      success: false,
+      message: "EasyEcom authorization failed",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+// ============================================================
+// CANCEL SHIPMENT
+// POST /api/easyecom/cancel-shipment
+// ============================================================
+
+app.post("/api/easyecom/cancel-shipment", async (req, res) => {
+  try {
+    const {
+      awb,
+      courier,
+      username,
+      password,
+      token,
+      account_no,
+      service_type,
+      eeApiToken,
+    } = req.body;
+
+    if (!awb) {
+      return res.status(400).json({
+        success: false,
+        message: "awb is required",
+      });
+    }
+
+    if (!courier) {
+      return res.status(400).json({
+        success: false,
+        message: "courier is required",
+      });
+    }
+
+    const requestBody = {
+      awb_details: {
+        awb,
+        courier,
+      },
+
+      credentials: {
+        username,
+        password,
+        token,
+        account_no,
+        service_type,
+        eeApiToken,
+      },
+    };
+
+    const response = await axios.post(
+      `${process.env.CARRIER_BASE_URL}/cancelShipment`,
+      requestBody,
+      {
+        headers: {
+          "Cache-Control": "private,must-revalidate",
+          Connection: "keep-alive",
+          "Content-Type": "application/json",
+
+          Authorization: `Bearer ${process.env.EASYEECOM_JWT_TOKEN}`,
+        },
+
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Shipment cancellation request completed",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Cancel shipment error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to cancel shipment",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+// ============================================================
+// CREATE SHIPMENT
+// POST /api/easyecom/create-shipment
+// ============================================================
+
+app.post("/api/easyecom/create-shipment", async (req, res) => {
+  try {
+    const {
+      order_data,
+      credentials,
+    } = req.body;
+
+    if (!order_data) {
+      return res.status(400).json({
+        success: false,
+        message: "order_data is required",
+      });
+    }
+
+    if (!credentials) {
+      return res.status(400).json({
+        success: false,
+        message: "credentials are required",
+      });
+    }
+
+    const response = await axios.post(
+      `${process.env.CARRIER_BASE_URL}/createShipment`,
+      {
+        order_data,
+        credentials,
+      },
+      {
+        headers: {
+          "Cache-Control": "private,must-revalidate",
+          Connection: "keep-alive",
+          "Content-Type": "application/json",
+
+          Authorization: `Bearer ${process.env.EASYEECOM_JWT_TOKEN}`,
+        },
+
+        timeout: 60000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Shipment created successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Create shipment error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to create shipment",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+// ============================================================
+// LIST CARRIERS
+// POST /api/easyecom/list-carriers
+// ============================================================
+
+app.post("/api/easyecom/list-carriers", async (req, res) => {
+  try {
+    const {
+      order_data,
+      credentials,
+    } = req.body;
+
+    if (!order_data) {
+      return res.status(400).json({
+        success: false,
+        message: "order_data is required",
+      });
+    }
+
+    if (!credentials) {
+      return res.status(400).json({
+        success: false,
+        message: "credentials are required",
+      });
+    }
+
+    const response = await axios.post(
+      `${process.env.CARRIER_BASE_URL}/listCarriers`,
+      {
+        order_data,
+        credentials,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.EASYEECOM_JWT_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+
+        timeout: 60000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Carriers retrieved successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "List carriers error:",
+      error.response?.data || error.message
+    );
+
+    return res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to list carriers",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
 // ================= SERVER START =================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
