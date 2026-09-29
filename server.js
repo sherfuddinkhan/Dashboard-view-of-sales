@@ -29876,6 +29876,36 @@ app.post("/api/easyecom/reports/pending-return", async (req, res) => {
   }
 });
 
+app.post("/api/easyecom/reports/grn-details", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/reports/queue",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "GRN Details Report Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to generate GRN Details Report",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
 
 
 // ================= SERVER START =================
