@@ -22604,6 +22604,630 @@ app.post("/api/easyecom/list-carriers", async (req, res) => {
 });
 
 
+const express = require("express");
+const cors = require("cors");
+const axios = require("axios");
+require("dotenv").config();
+
+const app = express();
+
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:3000",
+    ],
+    credentials: true,
+  })
+);
+
+app.use(express.json({ limit: "10mb" }));
+
+// ============================================================
+// CREATE ORDER V1
+// POST /api/easyecom/create-order-v1
+// ============================================================
+
+app.post("/api/easyecom/create-order-v1", async (req, res) => {
+  try {
+    const payload = req.body;
+
+    if (!payload || !Array.isArray(payload.orders)) {
+      return res.status(400).json({
+        success: false,
+        message: "orders array is required",
+      });
+    }
+
+    const response = await axios.post(
+      process.env.EASYEECOM_WEBHOOK_URL,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(
+      "EasyEcom Create Order V1 Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Create Order V1 failed",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+// ============================================================
+// CREATE ORDER V2
+// POST /api/easyecom/create-order-v2
+// ============================================================
+
+app.post("/api/easyecom/create-order-v2", async (req, res) => {
+  try {
+    const payload = req.body;
+
+    if (!Array.isArray(payload)) {
+      return res.status(400).json({
+        success: false,
+        message: "V2 request body must be an array",
+      });
+    }
+
+    const response = await axios.post(
+      process.env.EASYEECOM_WEBHOOK_URL,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(
+      "EasyEcom Create Order V2 Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Create Order V2 failed",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+// ============================================================
+// CREATE ORDER V1
+// ============================================================
+
+app.post("/api/easyecom/create-order-v1", async (req, res) => {
+  try {
+    if (!req.body || !Array.isArray(req.body.orders)) {
+      return res.status(400).json({
+        success: false,
+        message: "V1 body must contain an orders array",
+      });
+    }
+
+    const response = await axios.post(
+      process.env.EASYEECOM_WEBHOOK_URL,
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(
+      "Create Order V1 Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Create Order V1 failed",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+// ============================================================
+// CREATE ORDER V2
+// ============================================================
+
+app.post("/api/easyecom/create-order-v2", async (req, res) => {
+  try {
+    if (!Array.isArray(req.body)) {
+      return res.status(400).json({
+        success: false,
+        message: "V2 body must be an array",
+      });
+    }
+
+    const response = await axios.post(
+      process.env.EASYEECOM_WEBHOOK_URL,
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(
+      "Create Order V2 Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Create Order V2 failed",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+app.post(
+  "/api/easyecom/webhook/confirm-order-v1-start",
+  async (req, res) => {
+    try {
+      const accessToken = req.header("Access-Token");
+
+      if (
+        process.env.EASYEECOM_WEBHOOK_TOKEN &&
+        accessToken !== process.env.EASYEECOM_WEBHOOK_TOKEN
+      ) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid EasyEcom webhook token"
+        });
+      }
+
+      if (
+        !req.body ||
+        !Array.isArray(req.body.orders)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid Confirm Order Start V1 payload"
+        });
+      }
+
+      console.log(
+        "EasyEcom Confirm Order Start V1 received"
+      );
+
+      console.log(
+        "Orders:",
+        req.body.orders.length
+      );
+
+      for (const order of req.body.orders) {
+        console.log("Order ID:", order.order_id);
+        console.log("Invoice ID:", order.invoice_id);
+        console.log("Reference:", order.reference_code);
+      }
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Confirm Order Start V1 received successfully",
+        orderCount: req.body.orders.length
+      });
+
+    } catch (error) {
+      console.error(
+        "Confirm Order Start V1 Error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Confirm Order Start V1 processing failed",
+        error: error.message
+      });
+    }
+  }
+);
+
+app.post(
+  "/api/easyecom/webhook/confirm-order-v2-start",
+  async (req, res) => {
+    try {
+      const accessToken = req.header("Access-Token");
+
+      if (
+        process.env.EASYEECOM_WEBHOOK_TOKEN &&
+        accessToken !== process.env.EASYEECOM_WEBHOOK_TOKEN
+      ) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid EasyEcom webhook token"
+        });
+      }
+
+      const payload = req.body;
+
+      if (!Array.isArray(payload)) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid Confirm Order Start V2 payload. Expected array."
+        });
+      }
+
+      console.log(
+        "========================================"
+      );
+      console.log(
+        "EASYECOM CONFIRM ORDER START V2"
+      );
+      console.log(
+        "========================================"
+      );
+
+      for (const order of payload) {
+        console.log(
+          "Invoice ID:",
+          order.invoice_id
+        );
+
+        console.log(
+          "Order ID:",
+          order.order_id
+        );
+
+        console.log(
+          "Reference:",
+          order.reference_code
+        );
+
+        console.log(
+          "Order Status:",
+          order.order_status
+        );
+
+        console.log(
+          "Order Status ID:",
+          order.order_status_id
+        );
+
+        console.log(
+          "Shipping Status:",
+          order.shipping_status
+        );
+
+        console.log(
+          "AWB:",
+          order.awb_number
+        );
+
+        console.log(
+          "Order Items:",
+          order.order_items?.length || 0
+        );
+      }
+
+      /*
+       * Save/process Confirm Order Start V2 here.
+       *
+       * Example:
+       *
+       * await saveConfirmOrderStartV2(payload);
+       */
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Confirm Order Start V2 received successfully",
+        orderCount: payload.length
+      });
+
+    } catch (error) {
+      console.error(
+        "Confirm Order Start V2 Error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Confirm Order Start V2 processing failed",
+        error: error.message
+      });
+    }
+  }
+);
+
+
+// ============================================================
+// READY TO DISPATCH - POST V1
+// EasyEcom payload:
+// {
+//   "orders": [...],
+//   "nextUrl": null
+// }
+// ============================================================
+
+app.post(
+  "/api/easyecom/webhook/ready-to-dispatch-v1",
+  async (req, res) => {
+    try {
+      const accessToken = req.header("Access-Token");
+
+      // Optional webhook token validation
+      if (
+        process.env.EASYEECOM_WEBHOOK_TOKEN &&
+        accessToken !== process.env.EASYEECOM_WEBHOOK_TOKEN
+      ) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid EasyEcom webhook token",
+        });
+      }
+
+      const payload = req.body;
+
+      // V1 validation
+      if (!payload || !Array.isArray(payload.orders)) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid Ready to Dispatch V1 payload. Expected { orders: [] }.",
+        });
+      }
+
+      console.log("\n==============================================");
+      console.log("EASYECOM READY TO DISPATCH V1");
+      console.log("==============================================");
+
+      console.log("Order Count:", payload.orders.length);
+      console.log("Next URL:", payload.nextUrl);
+
+      for (const order of payload.orders) {
+        console.log("----------------------------------------------");
+        console.log("Invoice ID:", order.invoice_id);
+        console.log("Order ID:", order.order_id);
+        console.log("Reference:", order.reference_code);
+        console.log("Invoice Number:", order.invoice_number);
+
+        console.log("Order Status:", order.order_status);
+        console.log("Order Status ID:", order.order_status_id);
+
+        console.log("Shipping Status:", order.shipping_status);
+        console.log("Shipping Status ID:", order.shipping_status_id);
+
+        console.log("AWB:", order.awb_number);
+        console.log("Carrier ID:", order.carrier_id);
+        console.log("Courier:", order.courier);
+
+        console.log("Customer:", order.customer_name);
+        console.log("Phone:", order.contact_num);
+        console.log("Email:", order.email);
+
+        console.log("City:", order.city);
+        console.log("State:", order.state);
+        console.log("Pincode:", order.pin_code);
+
+        console.log("Payment Mode:", order.payment_mode);
+
+        console.log("Total Amount:", order.total_amount);
+        console.log("Total Tax:", order.total_tax);
+        console.log(
+          "Shipping Charge:",
+          order.total_shipping_charge
+        );
+
+        console.log(
+          "Suborder Count:",
+          Array.isArray(order.suborders)
+            ? order.suborders.length
+            : 0
+        );
+
+        if (Array.isArray(order.suborders)) {
+          for (const suborder of order.suborders) {
+            console.log("  Suborder ID:", suborder.suborder_id);
+            console.log("  SKU:", suborder.sku);
+            console.log("  Product:", suborder.productName);
+            console.log(
+              "  Quantity:",
+              suborder.suborder_quantity
+            );
+            console.log(
+              "  Item Status:",
+              suborder.item_status
+            );
+            console.log(
+              "  Shipment Type:",
+              suborder.shipment_type
+            );
+          }
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Ready to Dispatch V1 received successfully",
+        orderCount: payload.orders.length,
+        nextUrl: payload.nextUrl ?? null,
+      });
+    } catch (error) {
+      console.error(
+        "Ready to Dispatch V1 Error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Ready to Dispatch V1 processing failed",
+        error: error.message,
+      });
+    }
+  }
+);
+
+// ============================================================
+// READY TO DISPATCH - POST V2
+// EasyEcom payload:
+// [
+//   {
+//     ...
+//     "order_items": []
+//   }
+// ]
+// ============================================================
+
+app.post(
+  "/api/easyecom/webhook/ready-to-dispatch-v2",
+  async (req, res) => {
+    try {
+      const accessToken = req.header("Access-Token");
+
+      // Optional webhook token validation
+      if (
+        process.env.EASYEECOM_WEBHOOK_TOKEN &&
+        accessToken !== process.env.EASYEECOM_WEBHOOK_TOKEN
+      ) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid EasyEcom webhook token",
+        });
+      }
+
+      const payload = req.body;
+
+      // V2 validation
+      if (!Array.isArray(payload)) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid Ready to Dispatch V2 payload. Expected array.",
+        });
+      }
+
+      console.log("\n==============================================");
+      console.log("EASYECOM READY TO DISPATCH V2");
+      console.log("==============================================");
+
+      console.log("Order Count:", payload.length);
+
+      for (const order of payload) {
+        console.log("----------------------------------------------");
+        console.log("Invoice ID:", order.invoice_id);
+        console.log("Order ID:", order.order_id);
+        console.log("Reference:", order.reference_code);
+        console.log("Invoice Number:", order.invoice_number);
+
+        console.log("Order Status:", order.order_status);
+        console.log("Order Status ID:", order.order_status_id);
+
+        console.log("Shipping Status:", order.shipping_status);
+        console.log("Shipping Status ID:", order.shipping_status_id);
+
+        console.log("AWB:", order.awb_number);
+        console.log("Carrier ID:", order.carrier_id);
+        console.log("Courier:", order.courier);
+
+        console.log("Customer:", order.customer_name);
+        console.log("Shipping Name:", order.shipping_name);
+        console.log("Phone:", order.contact_num);
+        console.log("Email:", order.email);
+
+        console.log("City:", order.city);
+        console.log("State:", order.state);
+        console.log("Pincode:", order.pin_code);
+
+        console.log("Payment Mode:", order.payment_mode);
+
+        console.log("Total Amount:", order.total_amount);
+        console.log("Total Tax:", order.total_tax);
+        console.log(
+          "Collectable Amount:",
+          order.collectable_amount
+        );
+
+        console.log(
+          "Order Item Count:",
+          Array.isArray(order.order_items)
+            ? order.order_items.length
+            : 0
+        );
+
+        if (Array.isArray(order.order_items)) {
+          for (const item of order.order_items) {
+            console.log("  Suborder ID:", item.suborder_id);
+            console.log("  SKU:", item.sku);
+            console.log("  Product:", item.productName);
+            console.log(
+              "  Quantity:",
+              item.item_quantity
+            );
+            console.log(
+              "  Selling Price:",
+              item.selling_price
+            );
+            console.log(
+              "  Tax Rate:",
+              item.tax_rate
+            );
+            console.log(
+              "  Item Status:",
+              item.item_status
+            );
+          }
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Ready to Dispatch V2 received successfully",
+        orderCount: payload.length,
+      });
+    } catch (error) {
+      console.error(
+        "Ready to Dispatch V2 Error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Ready to Dispatch V2 processing failed",
+        error: error.message,
+      });
+    }
+  }
+);
+
+
+
+
+
+
+
+
+
 // ================= SERVER START =================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
