@@ -28073,29 +28073,6 @@ app.post(
     }
   }
 );
-
-const express = require("express");
-const cors = require("cors");
-const axios = require("axios");
-
-const app = express();
-
-const PORT = 5000;
-
-const API_KEY = "<x_api_key>";
-const JWT_TOKEN = "<Jwt_Token>";
-
-app.use(
-  cors({
-    origin: [
-      "http://localhost:3000",
-      "http://localhost:5173",
-    ],
-  })
-);
-
-app.use(express.json());
-
 /*
   GET ALL ORDERS - NEXT URL CALL
 */
@@ -28670,18 +28647,755 @@ app.get("/api/easyecom/queue-status", async (req, res) => {
 });
 
 
+app.post("/api/easyecom/update/tag-loops", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/api/update/tagLoops",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Tag Loop Update Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to update tag loops",
+      error: error.response?.data || error.message,
+    });
+  }
+});
 
 
+app.post("/api/easyecom/oms/b2b/save-invoice-details", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/oms/b2b/v1/save-invoice-details",
+      req.body,
+      {
+        headers: {
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        timeout: 30000,
+      }
+    );
 
-app.listen(PORT, () => {
-  console.log(
-    `EasyEcom Node Server running on http://localhost:${PORT}`
-  );
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "B2B Save Invoice Details Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to save B2B invoice details",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+app.get("/api/easyecom/products/master", async (req, res) => {
+  try {
+    const { custom_fields = 1 } = req.query;
+
+    const response = await axios.get(
+      "https://api.easyecom.io/Products/GetProductMaster",
+      {
+        params: {
+          custom_fields,
+        },
+        headers: {
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Get Master Product Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to get master products",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.post("/api/easyecom/products/create-master", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/Products/CreateMasterProduct",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Create Master Product Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to create master product",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.post("/api/easyecom/products/update-master", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/Products/UpdateMasterProduct",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Update Master Product Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to update master product",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.post("/api/easyecom/products/create-listing", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/Products/createListings",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Create Listing Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to create listing",
+      error: error.response?.data || error.message,
+    });
+  }
 });
 
 
 
+app.get("/api/easyecom/fetch-listing-generic-priority", async (req, res) => {
+  try {
+    const { marketplaceId } = req.query;
 
+    if (!marketplaceId) {
+      return res.status(400).json({
+        success: false,
+        message: "marketplaceId is required",
+      });
+    }
+
+    const response = await axios.get(
+      "https://api.easyecom.io/fetchListingGenericPriority",
+      {
+        params: {
+          marketplaceId,
+        },
+        headers: {
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Import Listing Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to import listing",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+app.post("/api/easyecom/products/map-listing", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/Products/mapListings",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Map Listing Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Map Listing failed",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+app.get("/api/easyecom/products/masters-count", async (req, res) => {
+  try {
+    const response = await axios.get(
+      "https://api.easyecom.io/Products/GetProductMastersCount",
+      {
+        headers: {
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Get Product Masters Count Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Get Product Masters Count failed",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.post("/api/easyecom/update-sku-price", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/UpdateSKUPrice",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Update SKU Pricing Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Update SKU Pricing failed",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+app.post("/api/easyecom/products/create-kitting", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/Products/CreateKittingProduct",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Create Kitting Product Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Create Kitting Product failed",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+app.get("/api/easyecom/products/kits", async (req, res) => {
+  try {
+    const response = await axios.get(
+      "https://api.easyecom.io/Products/getKits",
+      {
+        headers: {
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Get Kit Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Get Kit failed",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.post(
+  "/api/easyecom/products/activate-deactivate",
+  async (req, res) => {
+    try {
+      const response = await axios.post(
+        "https://api.easyecom.io/Products/ActivateDeactivateProduct",
+        req.body,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": API_KEY,
+            Authorization: `Bearer ${JWT_TOKEN}`,
+          },
+          timeout: 30000,
+        }
+      );
+
+      res.json(response.data);
+    } catch (error) {
+      console.error(
+        "Activate/Deactivate Product Error:",
+        error.response?.data || error.message
+      );
+
+      res.status(error.response?.status || 500).json({
+        success: false,
+        message: "Activate/Deactivate Product failed",
+        error:
+          error.response?.data || error.message,
+      });
+    }
+  }
+);
+
+
+app.post("/api/easyecom/carrier/assign-awb", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/Carrier/assignAWB",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Assign Shipment Details Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Assign Shipment Details failed",
+      error:
+        error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.get("/api/easyecom/orders/reassign-carrier", async (req, res) => {
+  try {
+    const { company_carrier_id, reference_code } = req.query;
+
+    if (!company_carrier_id || !reference_code) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "company_carrier_id and reference_code are required",
+      });
+    }
+
+    const response = await axios.get(
+      "https://api.easyecom.io/Orders/reassignCarrier",
+      {
+        params: {
+          company_carrier_id,
+          reference_code,
+        },
+        headers: {
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Reassign Carrier Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Reassign Carrier failed",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+app.post(
+  "/api/easyecom/credentials/add-carrier",
+  async (req, res) => {
+    try {
+      const response = await axios.post(
+        "https://api.easyecom.io/Credentials/addCarrierCredentials",
+        req.body,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": API_KEY,
+            Authorization: `Bearer ${JWT_TOKEN}`,
+          },
+          timeout: 30000,
+        }
+      );
+
+      res.json(response.data);
+    } catch (error) {
+      console.error(
+        "Add Carrier Credentials Error:",
+        error.response?.data || error.message
+      );
+
+      res.status(error.response?.status || 500).json({
+        success: false,
+        message: "Add Carrier Credentials failed",
+        error:
+          error.response?.data || error.message,
+      });
+    }
+  }
+);
+
+app.post("/api/easyecom/manifest/generate", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/Manifest/Generate",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Generate Manifest Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Generate Manifest failed",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+
+app.post("/api/easyecom/manifest/update-document", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/manifest/update-document",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Update Manifest Document Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Update Manifest Document failed",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+app.post("/api/easyecom/orders/unassign-courier", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/Orders/unAssignCourier",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Unassign Carrier Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Unassign Carrier failed",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+app.get("/api/easyecom/carriers/tracking-details", async (req, res) => {
+  try {
+    const { reference_code } = req.query;
+
+    if (!reference_code) {
+      return res.status(400).json({
+        success: false,
+        message: "reference_code is required",
+      });
+    }
+
+    const response = await axios.get(
+      "https://api.easyecom.io/Carriers/getTrackingDetails",
+      {
+        params: {
+          reference_code,
+        },
+        headers: {
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Get Tracking Details Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Get Tracking Details failed",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.post("/api/easyecom/carrier/update-tracking-status", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/Carrier/V2/updateTrackingStatus",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Update Tracking Status Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Update Tracking Status failed",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+app.post(
+  "/api/easyecom/carrier/update-tracking-status-b2b",
+  async (req, res) => {
+    try {
+      const response = await axios.post(
+        "https://api.easyecom.io/Carrier/V2/updateTrackingStatusB2B",
+        req.body,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": API_KEY,
+            Authorization: `Bearer ${JWT_TOKEN}`,
+          },
+          timeout: 30000,
+        }
+      );
+
+      res.json(response.data);
+    } catch (error) {
+      console.error(
+        "Update Tracking Status B2B Error:",
+        error.response?.data || error.message
+      );
+
+      res.status(error.response?.status || 500).json({
+        success: false,
+        message: "Update Tracking Status B2B failed",
+        error: error.response?.data || error.message,
+      });
+    }
+  }
+);
+
+app.post(
+  "/api/easyecom/carrier/predict-estimate-deliverydate",
+  async (req, res) => {
+    try {
+      const response = await axios.post(
+        "https://api.easyecom.io/Carrier/predict-estimate-deliverydateV2",
+        req.body,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": API_KEY,
+            Authorization: `Bearer ${JWT_TOKEN}`,
+          },
+          timeout: 30000,
+        }
+      );
+
+      res.json(response.data);
+    } catch (error) {
+      console.error(
+        "Estimated Delivery Date Error:",
+        error.response?.data || error.message
+      );
+
+      res.status(error.response?.status || 500).json({
+        success: false,
+        message: "Estimated Delivery Date failed",
+        error: error.response?.data || error.message,
+      });
+    }
+  }
+);
 
 
 
