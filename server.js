@@ -25772,6 +25772,2312 @@ app.post(
     });
   }
 );
+
+
+app.post(
+  "/api/easyecom/webhook/grn-detail-v1",
+  (req, res) => {
+    const accessToken = req.header("Access-Token");
+
+    if (
+      process.env.EASYEECOM_WEBHOOK_TOKEN &&
+      accessToken !==
+        process.env.EASYEECOM_WEBHOOK_TOKEN
+    ) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid EasyEcom webhook token"
+      });
+    }
+
+    const payload = req.body;
+
+    if (
+      !payload ||
+      typeof payload !== "object"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid GRN Detail V1 payload"
+      });
+    }
+
+    const requiredFields = [
+      "buyerCompanyName",
+      "location_key",
+      "vendorName",
+      "grnId",
+      "grnInvoiceNumber",
+      "grnStatus",
+      "poNumber",
+      "sku",
+      "received_quantity",
+      "poQuantity"
+    ];
+
+    for (const field of requiredFields) {
+      if (
+        payload[field] === undefined ||
+        payload[field] === null ||
+        payload[field] === ""
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: `Missing required field: ${field}`
+        });
+      }
+    }
+
+    console.log(
+      "EasyEcom GRN Detail V1 received:"
+    );
+
+    console.log(
+      JSON.stringify(payload, null, 2)
+    );
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "GRN Detail V1 received successfully",
+
+      grnId: payload.grnId,
+
+      grnInvoiceNumber:
+        payload.grnInvoiceNumber,
+
+      grnStatus:
+        payload.grnStatus,
+
+      poNumber:
+        payload.poNumber,
+
+      sku: payload.sku,
+
+      received_quantity:
+        payload.received_quantity
+    });
+  }
+);
+
+app.post(
+  "/api/easyecom/webhook/complete-grn-v1",
+  (req, res) => {
+    const accessToken = req.header("Access-Token");
+
+    if (
+      process.env.EASYEECOM_WEBHOOK_TOKEN &&
+      accessToken !==
+        process.env.EASYEECOM_WEBHOOK_TOKEN
+    ) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid EasyEcom webhook token"
+      });
+    }
+
+    const payload = req.body;
+
+    if (
+      !payload ||
+      typeof payload !== "object"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Invalid Complete GRN V1 payload"
+      });
+    }
+
+    const requiredFields = [
+      "buyerCompanyName",
+      "location_key",
+      "vendorName",
+      "grnId",
+      "grnInvoiceNumber",
+      "grnStatus",
+      "poNumber",
+      "poStatus",
+      "items"
+    ];
+
+    for (const field of requiredFields) {
+      if (
+        payload[field] === undefined ||
+        payload[field] === null ||
+        payload[field] === ""
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: `Missing required field: ${field}`
+        });
+      }
+    }
+
+    if (!Array.isArray(payload.items)) {
+      return res.status(400).json({
+        success: false,
+        message: "items must be an array"
+      });
+    }
+
+    for (const item of payload.items) {
+      if (!item.sku) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Each GRN item must contain sku"
+        });
+      }
+
+      if (
+        item.cpId === undefined ||
+        item.cpId === null
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Each GRN item must contain cpId"
+        });
+      }
+
+      if (
+        item.received_quantity === undefined ||
+        item.received_quantity === null
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Each GRN item must contain received_quantity"
+        });
+      }
+    }
+
+    console.log(
+      "EasyEcom Complete GRN V1 received:"
+    );
+
+    console.log(
+      JSON.stringify(payload, null, 2)
+    );
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Complete GRN V1 received successfully",
+
+      grnId: payload.grnId,
+
+      grnInvoiceNumber:
+        payload.grnInvoiceNumber,
+
+      grnStatus:
+        payload.grnStatus,
+
+      poNumber:
+        payload.poNumber,
+
+      poStatus:
+        payload.poStatus,
+
+      itemsReceived:
+        payload.items.length
+    });
+  }
+);
+
+app.post(
+  "/api/easyecom/erp/update-erp-status",
+  async (req, res) => {
+    try {
+      const response = await axios.post(
+        `${process.env.EASYEECOM_BASE_URL}/erp/update_erp_status`,
+        req.body,
+        {
+          headers: {
+            "x-api-key":
+              process.env.EASYEECOM_API_KEY,
+
+            Authorization:
+              `Bearer ${process.env.EASYEECOM_JWT_TOKEN}`,
+
+            "Content-Type":
+              "application/json"
+          }
+        }
+      );
+
+      return res.status(response.status).json(
+        response.data
+      );
+    } catch (error) {
+      console.error(
+        "EasyEcom ERP Status Error:",
+        error.response?.data ||
+          error.message
+      );
+
+      return res.status(
+        error.response?.status || 500
+      ).json(
+        error.response?.data || {
+          success: false,
+          message:
+            "EasyEcom ERP status update failed"
+        }
+      );
+    }
+  }
+);
+
+app.get("/api/easyecom/products/master", async (req, res) => {
+  try {
+    const params = {};
+
+    if (req.query.category) {
+      params.category = req.query.category;
+    }
+
+    if (req.query.includeLocations !== undefined) {
+      params.includeLocations = Number(req.query.includeLocations);
+    }
+
+    if (req.query.cpIds) {
+      params.cpIds = req.query.cpIds;
+    }
+
+    if (req.query.limit !== undefined) {
+      params.limit = Number(req.query.limit);
+    }
+
+    if (req.query.product_type !== undefined) {
+      params.product_type = Number(req.query.product_type);
+    }
+
+    if (req.query.active !== undefined) {
+      params.active = Number(req.query.active);
+    }
+
+    if (req.query.updated_after) {
+      params.updated_after = req.query.updated_after;
+    }
+
+    if (req.query.custom_fields !== undefined) {
+      params.custom_fields = Number(req.query.custom_fields);
+    }
+
+    const response = await axios.get(
+      `${process.env.EASYEECOM_BASE_URL}/products`,
+      {
+        params,
+        headers: {
+          "x-api-key": process.env.EASYEECOM_API_KEY,
+          Authorization: `Bearer ${process.env.EASYEECOM_JWT_TOKEN}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(
+      "EasyEcom Get Master Product Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json(
+      error.response?.data || {
+        success: false,
+        message: error.message
+      }
+    );
+  }
+});
+
+app.post(
+  "/api/easyecom/erp/update-erp-status",
+  async (req, res) => {
+    try {
+      const { items } = req.body;
+
+      if (!Array.isArray(items)) {
+        return res.status(400).json({
+          success: false,
+          message: "items must be an array"
+        });
+      }
+
+      if (items.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "At least one item is required"
+        });
+      }
+
+      for (const item of items) {
+        if (
+          item.invoice_id === undefined ||
+          item.erp_status_id === undefined ||
+          item.erp_transaction_id === undefined ||
+          item.erp_response === undefined
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "Each item requires invoice_id, erp_status_id, erp_transaction_id and erp_response"
+          });
+        }
+      }
+
+      const payload = {
+        items
+      };
+
+      const response = await axios.post(
+        `${process.env.EASYEECOM_BASE_URL}/erp/update_erp_status`,
+        payload,
+        {
+          headers: {
+            "x-api-key":
+              process.env.EASYEECOM_API_KEY,
+
+            Authorization:
+              `Bearer ${process.env.EASYEECOM_JWT_TOKEN}`,
+
+            "Content-Type":
+              "application/json"
+          }
+        }
+      );
+
+      res.status(response.status).json(
+        response.data
+      );
+    } catch (error) {
+      console.error(
+        "EasyEcom Sales Order ERP Status Error:",
+        error.response?.data ||
+          error.message
+      );
+
+      res.status(
+        error.response?.status || 500
+      ).json(
+        error.response?.data || {
+          success: false,
+          message: error.message
+        }
+      );
+    }
+  }
+);
+
+
+//////////////////orders2.1////////////////
+// ============================================================
+// TOKEN STATUS
+// ============================================================
+
+app.get("/api/easy-ecom/token-status", (req, res) => {
+  const configured =
+    EASYECOM_JWT_TOKEN &&
+    EASYECOM_JWT_TOKEN !== "<Jwt_Token>";
+
+  res.json({
+    success: true,
+    configured,
+    message: configured
+      ? "EasyEcom JWT token is configured."
+      : "EasyEcom JWT token is not configured.",
+  });
+});
+
+// ============================================================
+// ACCESS TOKEN
+// ============================================================
+//
+// This endpoint is useful if your frontend has a login/token
+// workflow. The actual EasyEcom JWT remains server-side.
+//
+// ============================================================
+
+app.post("/api/easy-ecom/access-token", (req, res) => {
+  if (
+    !EASYECOM_JWT_TOKEN ||
+    EASYECOM_JWT_TOKEN === "<Jwt_Token>"
+  ) {
+    return res.status(500).json({
+      success: false,
+      message: "EasyEcom JWT token is not configured on the server.",
+    });
+  }
+
+  res.json({
+    success: true,
+    accessToken: EASYECOM_JWT_TOKEN,
+  });
+});
+
+// ============================================================
+// LOGOUT
+// ============================================================
+//
+// EasyEcom JWT is configured server-side, so logout simply
+// returns success. If you later implement server-side sessions,
+// invalidate the session here.
+//
+// ============================================================
+
+app.post("/api/easy-ecom/logout", (req, res) => {
+  res.json({
+    success: true,
+    message: "Logged out successfully.",
+  });
+});
+
+// ============================================================
+// GENERIC EASYECOM REQUEST
+// ============================================================
+
+function callEasyEcomCreateOrder(payload) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(EASYECOM_CREATE_ORDER_URL);
+
+    const requestBody = JSON.stringify(payload);
+
+    const options = {
+      hostname: url.hostname,
+      path: `${url.pathname}${url.search}`,
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(requestBody),
+
+        // Retail Order requires x-api-key
+        "x-api-key": EASYECOM_API_KEY,
+
+        // EasyEcom expects Bearer JWT
+        Authorization: `Bearer ${EASYECOM_JWT_TOKEN}`,
+      },
+    };
+
+    const request = https.request(options, (response) => {
+      let responseData = "";
+
+      response.on("data", (chunk) => {
+        responseData += chunk;
+      });
+
+      response.on("end", () => {
+        let parsedData;
+
+        try {
+          parsedData = responseData
+            ? JSON.parse(responseData)
+            : {};
+        } catch {
+          parsedData = {
+            raw: responseData,
+          };
+        }
+
+        resolve({
+          statusCode: response.statusCode,
+          data: parsedData,
+        });
+      });
+    });
+
+    request.on("error", (error) => {
+      reject(error);
+    });
+
+    request.write(requestBody);
+    request.end();
+  });
+}
+
+// ============================================================
+// RETAIL ORDER - B2C
+// ============================================================
+//
+// React:
+// POST http://localhost:5000/api/easy-ecom/orders/retail
+//
+// Node:
+// POST https://api.easyecom.io/webhook/v2/createOrder
+//
+// ============================================================
+
+app.post(
+  "/api/easy-ecom/orders/retail",
+  async (req, res) => {
+    try {
+      console.log(
+        "\n============================================"
+      );
+      console.log("EasyEcom Retail Order");
+      console.log(
+        "============================================"
+      );
+
+      const payload = req.body;
+
+      // --------------------------------------------------------
+      // Validate payload
+      // --------------------------------------------------------
+
+      if (!payload || typeof payload !== "object") {
+        return res.status(400).json({
+          success: false,
+          message: "Request body is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Force retail order type
+      // --------------------------------------------------------
+
+      payload.orderType = "retailorder";
+
+      // --------------------------------------------------------
+      // Required validation
+      // --------------------------------------------------------
+
+      if (!payload.orderNumber) {
+        return res.status(400).json({
+          success: false,
+          message: "orderNumber is required.",
+        });
+      }
+
+      if (!payload.orderDate) {
+        return res.status(400).json({
+          success: false,
+          message: "orderDate is required.",
+        });
+      }
+
+      if (
+        !Array.isArray(payload.items) ||
+        payload.items.length === 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "At least one order item is required.",
+        });
+      }
+
+      if (
+        !Array.isArray(payload.customer) ||
+        payload.customer.length === 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Customer information is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate each item
+      // --------------------------------------------------------
+
+      for (let i = 0; i < payload.items.length; i++) {
+        const item = payload.items[i];
+
+        if (!item.OrderItemId) {
+          return res.status(400).json({
+            success: false,
+            message:
+              `items[${i}].OrderItemId is required.`,
+          });
+        }
+
+        if (
+          item.Sku === undefined &&
+          item.ean === undefined &&
+          item.AccountingSku === undefined
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              `items[${i}] must contain Sku, ean, or AccountingSku.`,
+          });
+        }
+
+        if (
+          item.Quantity === undefined ||
+          item.Quantity === null
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              `items[${i}].Quantity is required.`,
+          });
+        }
+
+        if (
+          item.Price === undefined ||
+          item.Price === null
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              `items[${i}].Price is required.`,
+          });
+        }
+      }
+
+      // --------------------------------------------------------
+      // Validate customer
+      // --------------------------------------------------------
+
+      const retailCustomer = payload.customer[0];
+
+      if (!retailCustomer.billing) {
+        return res.status(400).json({
+          success: false,
+          message: "Customer billing information is required.",
+        });
+      }
+
+      if (!retailCustomer.shipping) {
+        return res.status(400).json({
+          success: false,
+          message: "Customer shipping information is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Logging
+      // --------------------------------------------------------
+
+      console.log("Order Number:", payload.orderNumber);
+      console.log("Order Type:", payload.orderType);
+      console.log("Marketplace ID:", payload.marketplaceId);
+      console.log("Items:", payload.items.length);
+
+      console.log(
+        "Customer:",
+        retailCustomer.billing?.name || ""
+      );
+
+      // --------------------------------------------------------
+      // Send to EasyEcom
+      // --------------------------------------------------------
+
+      const result =
+        await callEasyEcomCreateOrder(payload);
+
+      console.log(
+        "EasyEcom Status:",
+        result.statusCode
+      );
+
+      console.log(
+        "EasyEcom Response:",
+        JSON.stringify(result.data, null, 2)
+      );
+
+      // --------------------------------------------------------
+      // Return EasyEcom response to React
+      // --------------------------------------------------------
+
+      if (
+        result.statusCode < 200 ||
+        result.statusCode >= 300
+      ) {
+        return res.status(result.statusCode || 502).json({
+          success: false,
+          message: "EasyEcom rejected the retail order.",
+          easyEcomStatus: result.statusCode,
+          data: result.data,
+        });
+      }
+
+      return res.status(result.statusCode).json({
+        success: true,
+        message: "Retail order created successfully.",
+        data: result.data,
+      });
+    } catch (error) {
+      console.error(
+        "Retail Order Error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message: "Failed to create EasyEcom retail order.",
+        error: error.message,
+      });
+    }
+  }
+);
+
+// ============================================================
+// DEBUG ENDPOINT
+// ============================================================
+//
+// Useful for checking the Node server without calling EasyEcom.
+//
+// ============================================================
+
+app.post(
+  "/api/easy-ecom/orders/retail/preview",
+  (req, res) => {
+    const payload = {
+      ...req.body,
+      orderType: "retailorder",
+    };
+
+    res.json({
+      success: true,
+      message: "Retail order payload preview.",
+      data: payload,
+    });
+  }
+);
+// ============================================================
+// BUSINESS ORDER - B2B
+// ============================================================
+//
+// React:
+// POST http://localhost:5000/api/easy-ecom/orders/business
+//
+// Node:
+// POST https://api.easyecom.io/webhook/v2/createOrder
+//
+// ============================================================
+
+app.post(
+  "/api/easy-ecom/orders/business",
+  async (req, res) => {
+    try {
+      console.log(
+        "\n============================================"
+      );
+      console.log("EasyEcom Business Order (B2B)");
+      console.log(
+        "============================================"
+      );
+
+      const payload = req.body;
+
+      // --------------------------------------------------------
+      // Validate body
+      // --------------------------------------------------------
+
+      if (
+        !payload ||
+        typeof payload !== "object"
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Request body is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Force correct EasyEcom order type
+      // --------------------------------------------------------
+
+      payload.orderType =
+        "businessorder";
+
+      // --------------------------------------------------------
+      // Required fields
+      // --------------------------------------------------------
+
+      if (
+        !payload.orderNumber
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "orderNumber is required.",
+        });
+      }
+
+      if (
+        !payload.orderDate
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "orderDate is required.",
+        });
+      }
+
+      if (
+        !Array.isArray(
+          payload.items
+        ) ||
+        payload.items.length === 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "At least one item is required.",
+        });
+      }
+
+      if (
+        !Array.isArray(
+          payload.customer
+        ) ||
+        payload.customer.length === 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Customer information is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Customer ID
+      // --------------------------------------------------------
+
+      const customer =
+        payload.customer[0];
+
+      if (
+        !customer.customerId
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "customerId is required for a B2B order.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Billing / Shipping
+      // --------------------------------------------------------
+
+      if (!customer.billing) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Billing information is required.",
+        });
+      }
+
+      if (!customer.shipping) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Shipping information is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate items
+      // --------------------------------------------------------
+
+      for (
+        let i = 0;
+        i < payload.items.length;
+        i++
+      ) {
+        const item =
+          payload.items[i];
+
+        if (
+          !item.OrderItemId
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              `items[${i}].OrderItemId is required.`,
+          });
+        }
+
+        const hasProductIdentifier =
+          item.Sku !== undefined ||
+          item.ean !== undefined ||
+          item.AccountingSku !==
+            undefined;
+
+        if (
+          !hasProductIdentifier
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              `items[${i}] must contain Sku, ean, or AccountingSku.`,
+          });
+        }
+
+        if (
+          item.Quantity ===
+            undefined ||
+          item.Quantity === null
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              `items[${i}].Quantity is required.`,
+          });
+        }
+
+        if (
+          item.Price ===
+            undefined ||
+          item.Price === null
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              `items[${i}].Price is required.`,
+          });
+        }
+      }
+
+      // --------------------------------------------------------
+      // Logging
+      // --------------------------------------------------------
+
+      console.log(
+        "Order Number:",
+        payload.orderNumber
+      );
+
+      console.log(
+        "Order Type:",
+        payload.orderType
+      );
+
+      console.log(
+        "Customer ID:",
+        customer.customerId
+      );
+
+      console.log(
+        "Items:",
+        payload.items.length
+      );
+
+      // --------------------------------------------------------
+      // Call EasyEcom
+      //
+      // Uses the same helper from the RetailOrder route:
+      //
+      // callEasyEcomCreateOrder(payload)
+      // --------------------------------------------------------
+
+      const result =
+        await callEasyEcomCreateOrder(
+          payload
+        );
+
+      console.log(
+        "EasyEcom Status:",
+        result.statusCode
+      );
+
+      console.log(
+        "EasyEcom Response:",
+        JSON.stringify(
+          result.data,
+          null,
+          2
+        )
+      );
+
+      // --------------------------------------------------------
+      // EasyEcom error
+      // --------------------------------------------------------
+
+      if (
+        result.statusCode < 200 ||
+        result.statusCode >= 300
+      ) {
+        return res.status(
+          result.statusCode || 502
+        ).json({
+          success: false,
+          message:
+            "EasyEcom rejected the Business Order.",
+          easyEcomStatus:
+            result.statusCode,
+          data: result.data,
+        });
+      }
+
+      // --------------------------------------------------------
+      // Success
+      // --------------------------------------------------------
+
+      return res
+        .status(result.statusCode)
+        .json({
+          success: true,
+          message:
+            "Business Order created successfully.",
+          data: result.data,
+        });
+    } catch (error) {
+      console.error(
+        "Business Order Error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to create EasyEcom Business Order.",
+        error: error.message,
+      });
+    }
+  }
+);
+// ============================================================
+// STOCK TRANSFER NOTE (STN)
+// ============================================================
+//
+// React:
+// POST http://localhost:5000/api/easy-ecom/orders/stock-transfer
+//
+// EasyEcom:
+// POST https://api.easyecom.io/webhook/v2/createOrder
+//
+// orderType:
+// stocktransferorder
+//
+// ============================================================
+
+app.post(
+  "/api/easy-ecom/orders/stock-transfer",
+  async (req, res) => {
+    try {
+      console.log(
+        "\n============================================"
+      );
+      console.log(
+        "EasyEcom Stock Transfer Note (STN)"
+      );
+      console.log(
+        "============================================"
+      );
+
+      const payload = req.body;
+
+      // --------------------------------------------------------
+      // Validate request
+      // --------------------------------------------------------
+
+      if (
+        !payload ||
+        typeof payload !== "object"
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Request body is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Force STN order type
+      // --------------------------------------------------------
+
+      payload.orderType =
+        "stocktransferorder";
+
+      // --------------------------------------------------------
+      // Required order number
+      // --------------------------------------------------------
+
+      if (
+        !payload.orderNumber
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "orderNumber is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Required order date
+      // --------------------------------------------------------
+
+      if (
+        !payload.orderDate
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "orderDate is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Items
+      // --------------------------------------------------------
+
+      if (
+        !Array.isArray(
+          payload.items
+        ) ||
+        payload.items.length === 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "At least one item is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Customer
+      // --------------------------------------------------------
+
+      if (
+        !Array.isArray(
+          payload.customer
+        ) ||
+        payload.customer.length === 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Customer information is required.",
+        });
+      }
+
+      const customer =
+        payload.customer[0];
+
+      if (
+        !customer.customerId
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "customerId is required for STN.",
+        });
+      }
+
+      if (!customer.billing) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Billing information is required.",
+        });
+      }
+
+      if (!customer.shipping) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Shipping information is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate items
+      // --------------------------------------------------------
+
+      for (
+        let i = 0;
+        i < payload.items.length;
+        i++
+      ) {
+        const item =
+          payload.items[i];
+
+        if (
+          !item.OrderItemId
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              `items[${i}].OrderItemId is required.`,
+          });
+        }
+
+        const hasIdentifier =
+          item.Sku !== undefined ||
+          item.ean !== undefined ||
+          item.AccountingSku !==
+            undefined;
+
+        if (!hasIdentifier) {
+          return res.status(400).json({
+            success: false,
+            message:
+              `items[${i}] must contain Sku, ean, or AccountingSku.`,
+          });
+        }
+
+        if (
+          item.Quantity ===
+            undefined ||
+          item.Quantity === null
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              `items[${i}].Quantity is required.`,
+          });
+        }
+
+        if (
+          item.Price ===
+            undefined ||
+          item.Price === null
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              `items[${i}].Price is required.`,
+          });
+        }
+      }
+
+      // --------------------------------------------------------
+      // Logging
+      // --------------------------------------------------------
+
+      console.log(
+        "Order Number:",
+        payload.orderNumber
+      );
+
+      console.log(
+        "Order Type:",
+        payload.orderType
+      );
+
+      console.log(
+        "Customer ID:",
+        customer.customerId
+      );
+
+      console.log(
+        "Item Count:",
+        payload.items.length
+      );
+
+      // --------------------------------------------------------
+      // Send to EasyEcom
+      // --------------------------------------------------------
+
+      const result =
+        await callEasyEcomCreateOrder(
+          payload
+        );
+
+      console.log(
+        "EasyEcom Status:",
+        result.statusCode
+      );
+
+      console.log(
+        "EasyEcom Response:",
+        JSON.stringify(
+          result.data,
+          null,
+          2
+        )
+      );
+
+      // --------------------------------------------------------
+      // EasyEcom error
+      // --------------------------------------------------------
+
+      if (
+        result.statusCode < 200 ||
+        result.statusCode >= 300
+      ) {
+        return res.status(
+          result.statusCode || 502
+        ).json({
+          success: false,
+          message:
+            "EasyEcom rejected the Stock Transfer Note.",
+          easyEcomStatus:
+            result.statusCode,
+          data: result.data,
+        });
+      }
+
+      // --------------------------------------------------------
+      // Success
+      // --------------------------------------------------------
+
+      return res
+        .status(result.statusCode)
+        .json({
+          success: true,
+          message:
+            "Stock Transfer Note created successfully.",
+          data: result.data,
+        });
+    } catch (error) {
+      console.error(
+        "STN Error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to create EasyEcom Stock Transfer Note.",
+        error:
+          error.message,
+      });
+    }
+  }
+);
+// ============================================================
+// PRODUCTION ORDER
+// ============================================================
+//
+// React:
+// POST http://localhost:5000/api/easy-ecom/orders/production
+//
+// EasyEcom:
+// POST https://api.easyecom.io/webhook/v2/createOrder
+//
+// orderType:
+// productionorder
+//
+// ============================================================
+
+app.post(
+  "/api/easy-ecom/orders/production",
+  async (req, res) => {
+    try {
+      console.log(
+        "\n============================================"
+      );
+      console.log(
+        "EasyEcom Production Order"
+      );
+      console.log(
+        "============================================"
+      );
+
+      const payload = req.body;
+
+      // --------------------------------------------------------
+      // Validate body
+      // --------------------------------------------------------
+
+      if (
+        !payload ||
+        typeof payload !== "object"
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Request body is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Force production order type
+      // --------------------------------------------------------
+
+      payload.orderType =
+        "productionorder";
+
+      // --------------------------------------------------------
+      // Required order number
+      // --------------------------------------------------------
+
+      if (
+        !payload.orderNumber
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "orderNumber is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Required order date
+      // --------------------------------------------------------
+
+      if (
+        !payload.orderDate
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "orderDate is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Items
+      // --------------------------------------------------------
+
+      if (
+        !Array.isArray(
+          payload.items
+        ) ||
+        payload.items.length === 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "At least one item is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Customer
+      // --------------------------------------------------------
+
+      if (
+        !Array.isArray(
+          payload.customer
+        ) ||
+        payload.customer.length === 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Customer information is required.",
+        });
+      }
+
+      const customer =
+        payload.customer[0];
+
+      if (
+        !customer.customerId
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "customerId is required for Production Order.",
+        });
+      }
+
+      if (!customer.billing) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Billing information is required.",
+        });
+      }
+
+      if (!customer.shipping) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Shipping information is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate items
+      // --------------------------------------------------------
+
+      for (
+        let i = 0;
+        i < payload.items.length;
+        i++
+      ) {
+        const item =
+          payload.items[i];
+
+        if (
+          !item.OrderItemId
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              `items[${i}].OrderItemId is required.`,
+          });
+        }
+
+        const hasIdentifier =
+          item.Sku !== undefined ||
+          item.ean !== undefined ||
+          item.AccountingSku !==
+            undefined;
+
+        if (!hasIdentifier) {
+          return res.status(400).json({
+            success: false,
+            message:
+              `items[${i}] must contain Sku, ean, or AccountingSku.`,
+          });
+        }
+
+        if (
+          item.Quantity ===
+            undefined ||
+          item.Quantity === null
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              `items[${i}].Quantity is required.`,
+          });
+        }
+
+        if (
+          item.Price ===
+            undefined ||
+          item.Price === null
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              `items[${i}].Price is required.`,
+          });
+        }
+      }
+
+      // --------------------------------------------------------
+      // Log request
+      // --------------------------------------------------------
+
+      console.log(
+        "Order Number:",
+        payload.orderNumber
+      );
+
+      console.log(
+        "Order Type:",
+        payload.orderType
+      );
+
+      console.log(
+        "Customer ID:",
+        customer.customerId
+      );
+
+      console.log(
+        "Item Count:",
+        payload.items.length
+      );
+
+      // --------------------------------------------------------
+      // Send to EasyEcom
+      // --------------------------------------------------------
+
+      const result =
+        await callEasyEcomCreateOrder(
+          payload
+        );
+
+      console.log(
+        "EasyEcom Status:",
+        result.statusCode
+      );
+
+      console.log(
+        "EasyEcom Response:",
+        JSON.stringify(
+          result.data,
+          null,
+          2
+        )
+      );
+
+      // --------------------------------------------------------
+      // EasyEcom rejected request
+      // --------------------------------------------------------
+
+      if (
+        result.statusCode < 200 ||
+        result.statusCode >= 300
+      ) {
+        return res.status(
+          result.statusCode || 502
+        ).json({
+          success: false,
+          message:
+            "EasyEcom rejected the Production Order.",
+          easyEcomStatus:
+            result.statusCode,
+          data: result.data,
+        });
+      }
+
+      // --------------------------------------------------------
+      // Success
+      // --------------------------------------------------------
+
+      return res
+        .status(result.statusCode)
+        .json({
+          success: true,
+          message:
+            "Production Order created successfully.",
+          data: result.data,
+        });
+    } catch (error) {
+      console.error(
+        "Production Order Error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to create EasyEcom Production Order.",
+        error:
+          error.message,
+      });
+    }
+  }
+);
+// ============================================================
+// EASYECOM - NEW B2B BUSINESS ORDER
+// ============================================================
+//
+// React:
+// POST http://localhost:5000/api/easy-ecom/orders/business-new
+//
+// EasyEcom:
+// POST https://api.easyecom.io/webhook/v2/createOrder
+//
+// ============================================================
+
+app.post(
+  "/api/easy-ecom/orders/business-new",
+  async (req, res) => {
+    try {
+      console.log(
+        "\n============================================"
+      );
+      console.log(
+        "EasyEcom New B2B Business Order"
+      );
+      console.log(
+        "============================================"
+      );
+
+      const payload = req.body;
+
+      // --------------------------------------------------------
+      // Basic validation
+      // --------------------------------------------------------
+
+      if (
+        !payload ||
+        typeof payload !== "object"
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Request body is required.",
+        });
+      }
+
+      // EasyEcom order type
+      payload.orderType =
+        "businessorder";
+
+      // --------------------------------------------------------
+      // Required order number
+      // --------------------------------------------------------
+
+      if (
+        !payload.orderNumber
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "orderNumber is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Required order date
+      // --------------------------------------------------------
+
+      if (
+        !payload.orderDate
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "orderDate is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Items
+      // --------------------------------------------------------
+
+      if (
+        !Array.isArray(
+          payload.items
+        ) ||
+        payload.items.length === 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "At least one item is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate item identifiers
+      // --------------------------------------------------------
+
+      for (
+        let i = 0;
+        i < payload.items.length;
+        i++
+      ) {
+        const item =
+          payload.items[i];
+
+        const hasSku =
+          typeof item.Sku ===
+            "string" &&
+          item.Sku.trim() !== "";
+
+        const hasEan =
+          typeof item.ean ===
+            "string" &&
+          item.ean.trim() !== "";
+
+        const hasAccountingSku =
+          typeof item.AccountingSku ===
+            "string" &&
+          item.AccountingSku.trim() !== "";
+
+        if (
+          !hasSku &&
+          !hasEan &&
+          !hasAccountingSku
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              `items[${i}] must contain Sku, ean, or AccountingSku.`,
+          });
+        }
+
+        if (
+          item.Quantity ===
+            undefined ||
+          item.Quantity === null
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              `items[${i}].Quantity is required.`,
+          });
+        }
+
+        if (
+          item.Price ===
+            undefined ||
+          item.Price === null
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              `items[${i}].Price is required.`,
+          });
+        }
+      }
+
+      // --------------------------------------------------------
+      // Customer
+      // --------------------------------------------------------
+
+      if (
+        !Array.isArray(
+          payload.customer
+        ) ||
+        payload.customer.length === 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Customer information is required.",
+        });
+      }
+
+      const customer =
+        payload.customer[0];
+
+      if (
+        !customer.customerId
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "customerId is required.",
+        });
+      }
+
+      if (!customer.billing) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Billing information is required.",
+        });
+      }
+
+      if (!customer.shipping) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Shipping information is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Ensure boolean
+      // --------------------------------------------------------
+
+      payload.is_pricing_master =
+        Boolean(
+          payload.is_pricing_master
+        );
+
+      // --------------------------------------------------------
+      // Log request
+      // --------------------------------------------------------
+
+      console.log(
+        "Order Type:",
+        payload.orderType
+      );
+
+      console.log(
+        "Order Number:",
+        payload.orderNumber
+      );
+
+      console.log(
+        "Customer ID:",
+        customer.customerId
+      );
+
+      console.log(
+        "Pricing Master:",
+        payload.is_pricing_master
+      );
+
+      console.log(
+        "Queue:",
+        payload.queue
+      );
+
+      console.log(
+        "Items:",
+        payload.items.length
+      );
+
+      // --------------------------------------------------------
+      // Send to EasyEcom
+      // --------------------------------------------------------
+
+      const result =
+        await callEasyEcomCreateOrder(
+          payload
+        );
+
+      console.log(
+        "EasyEcom Status:",
+        result.statusCode
+      );
+
+      console.log(
+        "EasyEcom Response:",
+        JSON.stringify(
+          result.data,
+          null,
+          2
+        )
+      );
+
+      // --------------------------------------------------------
+      // EasyEcom error
+      // --------------------------------------------------------
+
+      if (
+        result.statusCode < 200 ||
+        result.statusCode >= 300
+      ) {
+        return res.status(
+          result.statusCode || 502
+        ).json({
+          success: false,
+          message:
+            "EasyEcom rejected the New B2B Order.",
+          easyEcomStatus:
+            result.statusCode,
+          data: result.data,
+        });
+      }
+
+      // --------------------------------------------------------
+      // Success
+      // --------------------------------------------------------
+
+      return res
+        .status(result.statusCode)
+        .json({
+          success: true,
+          message:
+            "New B2B Business Order created successfully.",
+          data: result.data,
+        });
+    } catch (error) {
+      console.error(
+        "New B2B Order Error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to create New B2B Business Order.",
+        error:
+          error.message,
+      });
+    }
+  }
+);
+// ============================================================
+// EASYECOM - NEW STOCK TRANSFER NOTE
+// ============================================================
+//
+// React:
+// POST http://localhost:5000/api/easy-ecom/orders/stock-transfer-new
+//
+// EasyEcom:
+// POST https://api.easyecom.io/webhook/v2/createOrder
+//
+// EasyEcom orderType:
+// stocktransferorder
+//
+// ============================================================
+
+app.post(
+  "/api/easy-ecom/orders/stock-transfer-new",
+  async (req, res) => {
+    try {
+      console.log(
+        "\n============================================"
+      );
+      console.log(
+        "EasyEcom New Stock Transfer Note"
+      );
+      console.log(
+        "============================================"
+      );
+
+      const payload = req.body;
+
+      // --------------------------------------------------------
+      // Validate body
+      // --------------------------------------------------------
+
+      if (
+        !payload ||
+        typeof payload !== "object"
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Request body is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Force STN order type
+      // --------------------------------------------------------
+
+      payload.orderType =
+        "stocktransferorder";
+
+      // --------------------------------------------------------
+      // Required order number
+      // --------------------------------------------------------
+
+      if (
+        !payload.orderNumber
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "orderNumber is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Required order date
+      // --------------------------------------------------------
+
+      if (
+        !payload.orderDate
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "orderDate is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Items
+      // --------------------------------------------------------
+
+      if (
+        !Array.isArray(
+          payload.items
+        ) ||
+        payload.items.length === 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "At least one item is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate items
+      // --------------------------------------------------------
+
+      for (
+        let i = 0;
+        i < payload.items.length;
+        i++
+      ) {
+        const item =
+          payload.items[i];
+
+        const hasSku =
+          typeof item.Sku ===
+            "string" &&
+          item.Sku.trim() !== "";
+
+        const hasEan =
+          typeof item.ean ===
+            "string" &&
+          item.ean.trim() !== "";
+
+        const hasAccountingSku =
+          typeof item.AccountingSku ===
+            "string" &&
+          item.AccountingSku.trim() !== "";
+
+        if (
+          !hasSku &&
+          !hasEan &&
+          !hasAccountingSku
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              `items[${i}] must contain Sku, ean, or AccountingSku.`,
+          });
+        }
+
+        if (
+          item.Quantity ===
+            undefined ||
+          item.Quantity === null
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              `items[${i}].Quantity is required.`,
+          });
+        }
+
+        if (
+          item.Price ===
+            undefined ||
+          item.Price === null
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              `items[${i}].Price is required.`,
+          });
+        }
+      }
+
+      // --------------------------------------------------------
+      // Customer
+      // --------------------------------------------------------
+
+      if (
+        !Array.isArray(
+          payload.customer
+        ) ||
+        payload.customer.length === 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Customer information is required.",
+        });
+      }
+
+      const customer =
+        payload.customer[0];
+
+      if (
+        !customer.customerId
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "customerId is required.",
+        });
+      }
+
+      if (!customer.billing) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Billing information is required.",
+        });
+      }
+
+      if (!customer.shipping) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Shipping information is required.",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Convert pricing master to boolean
+      // --------------------------------------------------------
+
+      payload.is_pricing_master =
+        Boolean(
+          payload.is_pricing_master
+        );
+
+      // --------------------------------------------------------
+      // Log request
+      // --------------------------------------------------------
+
+      console.log(
+        "Order Type:",
+        payload.orderType
+      );
+
+      console.log(
+        "Order Number:",
+        payload.orderNumber
+      );
+
+      console.log(
+        "Customer ID:",
+        customer.customerId
+      );
+
+      console.log(
+        "Pricing Master:",
+        payload.is_pricing_master
+      );
+
+      console.log(
+        "Queue:",
+        payload.queue
+      );
+
+      console.log(
+        "Item Count:",
+        payload.items.length
+      );
+
+      // --------------------------------------------------------
+      // Send to EasyEcom
+      // --------------------------------------------------------
+
+      const result =
+        await callEasyEcomCreateOrder(
+          payload
+        );
+
+      console.log(
+        "EasyEcom Status:",
+        result.statusCode
+      );
+
+      console.log(
+        "EasyEcom Response:",
+        JSON.stringify(
+          result.data,
+          null,
+          2
+        )
+      );
+
+      // --------------------------------------------------------
+      // EasyEcom rejected request
+      // --------------------------------------------------------
+
+      if (
+        result.statusCode < 200 ||
+        result.statusCode >= 300
+      ) {
+        return res.status(
+          result.statusCode || 502
+        ).json({
+          success: false,
+          message:
+            "EasyEcom rejected the New STN.",
+          easyEcomStatus:
+            result.statusCode,
+          data: result.data,
+        });
+      }
+
+      // --------------------------------------------------------
+      // Success
+      // --------------------------------------------------------
+
+      return res
+        .status(result.statusCode)
+        .json({
+          success: true,
+          message:
+            "New Stock Transfer Note created successfully.",
+          data: result.data,
+        });
+    } catch (error) {
+      console.error(
+        "New STN Error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to create New Stock Transfer Note.",
+        error:
+          error.message,
+      });
+    }
+  }
+);
+
+
+
+
+
 // ================= SERVER START =================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
