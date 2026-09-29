@@ -23220,14 +23220,2558 @@ app.post(
   }
 );
 
+const express = require("express");
+const cors = require("cors");
+
+const app = express();
+
+const PORT = 5000;
+
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:3000"
+    ],
+    credentials: true
+  })
+);
+
+app.use(express.json({ limit: "10mb" }));
+
+
+// ============================================================
+// EASYECOM WEBHOOK TOKEN VALIDATION
+// ============================================================
+
+function validateEasyEcomWebhook(req, res) {
+  const accessToken = req.header("Access-Token");
+
+  // If you have configured a webhook token in .env,
+  // validate the EasyEcom Access-Token header.
+  if (
+    process.env.EASYEECOM_WEBHOOK_TOKEN &&
+    accessToken !== process.env.EASYEECOM_WEBHOOK_TOKEN
+  ) {
+    return res.status(401).json({
+      success: false,
+      message: "Invalid EasyEcom webhook token"
+    });
+  }
+
+  return true;
+}
+
+
+// ============================================================
+// MANIFESTED V1
+// EasyEcom -> Node
+//
+// Expected body:
+//
+// {
+//   "orders": [...],
+//   "nextUrl": null
+// }
+// ============================================================
+
+app.post(
+  "/api/easyecom/webhook/manifested-v1",
+  async (req, res) => {
+    try {
+      const tokenResult = validateEasyEcomWebhook(req, res);
+
+      if (tokenResult !== true) {
+        return;
+      }
+
+      const payload = req.body;
+
+      // V1 must contain orders array
+      if (
+        !payload ||
+        !Array.isArray(payload.orders)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid Manifested V1 payload. Expected { orders: [] }."
+        });
+      }
+
+      console.log(
+        "\n================================================"
+      );
+
+      console.log(
+        "EASYECOM MANIFESTED V1 RECEIVED"
+      );
+
+      console.log(
+        "================================================"
+      );
+
+      console.log(
+        "Order Count:",
+        payload.orders.length
+      );
+
+      for (const order of payload.orders) {
+        console.log(
+          "--------------------------------------------"
+        );
+
+        console.log(
+          "Invoice ID:",
+          order.invoice_id
+        );
+
+        console.log(
+          "Order ID:",
+          order.order_id
+        );
+
+        console.log(
+          "Reference:",
+          order.reference_code
+        );
+
+        console.log(
+          "Invoice Number:",
+          order.invoice_number
+        );
+
+        console.log(
+          "Manifest Date:",
+          order.manifest_date
+        );
+
+        console.log(
+          "Manifest Number:",
+          order.manifest_no
+        );
+
+        console.log(
+          "Carrier ID:",
+          order.carrier_id
+        );
+
+        console.log(
+          "AWB:",
+          order.awb_number
+        );
+
+        console.log(
+          "Order Status:",
+          order.order_status
+        );
+
+        console.log(
+          "Order Status ID:",
+          order.order_status_id
+        );
+
+        console.log(
+          "Shipping Status:",
+          order.shipping_status
+        );
+
+        console.log(
+          "Shipping Status ID:",
+          order.shipping_status_id
+        );
+
+        console.log(
+          "Customer:",
+          order.customer_name
+        );
+
+        console.log(
+          "Customer Mobile:",
+          order.contact_num
+        );
+
+        console.log(
+          "City:",
+          order.city
+        );
+
+        console.log(
+          "State:",
+          order.state
+        );
+
+        console.log(
+          "Order Quantity:",
+          order.order_quantity
+        );
+
+        console.log(
+          "Suborders:",
+          order.suborders?.length || 0
+        );
+
+        if (Array.isArray(order.suborders)) {
+          for (const suborder of order.suborders) {
+            console.log(
+              "SKU:",
+              suborder.sku
+            );
+
+            console.log(
+              "Product:",
+              suborder.productName
+            );
+
+            console.log(
+              "Quantity:",
+              suborder.item_quantity
+            );
+
+            console.log(
+              "Item Status:",
+              suborder.item_status
+            );
+
+            console.log(
+              "Manifest Date:",
+              suborder.suborder_history
+                ?.manifest_datetime
+            );
+          }
+        }
+      }
+
+      // --------------------------------------------------------
+      // IMPORTANT:
+      // Put your database save / business processing here.
+      // --------------------------------------------------------
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Manifested V1 received successfully",
+        orderCount: payload.orders.length
+      });
+    } catch (error) {
+      console.error(
+        "Manifested V1 Error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Manifested V1 processing failed",
+        error: error.message
+      });
+    }
+  }
+);
+
+
+// ============================================================
+// MANIFESTED V2
+// EasyEcom -> Node
+//
+// Expected body:
+//
+// [
+//   {
+//      invoice_id: ...,
+//      order_id: ...,
+//      ...
+//   }
+// ]
+// ============================================================
+
+app.post(
+  "/api/easyecom/webhook/manifested-v2",
+  async (req, res) => {
+    try {
+      const tokenResult = validateEasyEcomWebhook(req, res);
+
+      if (tokenResult !== true) {
+        return;
+      }
+
+      const payload = req.body;
+
+      // V2 must be an array
+      if (!Array.isArray(payload)) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid Manifested V2 payload. Expected array."
+        });
+      }
+
+      console.log(
+        "\n================================================"
+      );
+
+      console.log(
+        "EASYECOM MANIFESTED V2 RECEIVED"
+      );
+
+      console.log(
+        "================================================"
+      );
+
+      console.log(
+        "Order Count:",
+        payload.length
+      );
+
+      for (const order of payload) {
+        console.log(
+          "--------------------------------------------"
+        );
+
+        console.log(
+          "Invoice ID:",
+          order.invoice_id
+        );
+
+        console.log(
+          "Order ID:",
+          order.order_id
+        );
+
+        console.log(
+          "Reference:",
+          order.reference_code
+        );
+
+        console.log(
+          "Invoice Number:",
+          order.invoice_number
+        );
+
+        console.log(
+          "Manifest Date:",
+          order.manifest_date
+        );
+
+        console.log(
+          "Manifest Number:",
+          order.manifest_no
+        );
+
+        console.log(
+          "Carrier ID:",
+          order.carrier_id
+        );
+
+        console.log(
+          "AWB:",
+          order.awb_number
+        );
+
+        console.log(
+          "Package Weight:",
+          order.package_weight
+        );
+
+        console.log(
+          "Package Length:",
+          order.package_length
+        );
+
+        console.log(
+          "Package Width:",
+          order.package_width
+        );
+
+        console.log(
+          "Package Height:",
+          order.package_height
+        );
+
+        console.log(
+          "Order Status:",
+          order.order_status
+        );
+
+        console.log(
+          "Order Status ID:",
+          order.order_status_id
+        );
+
+        console.log(
+          "Shipping Status:",
+          order.shipping_status
+        );
+
+        console.log(
+          "Shipping Status ID:",
+          order.shipping_status_id
+        );
+
+        console.log(
+          "Customer:",
+          order.customer_name
+        );
+
+        console.log(
+          "Shipping Name:",
+          order.shipping_name
+        );
+
+        console.log(
+          "Mobile:",
+          order.contact_num
+        );
+
+        console.log(
+          "Email:",
+          order.email
+        );
+
+        console.log(
+          "City:",
+          order.city
+        );
+
+        console.log(
+          "State:",
+          order.state
+        );
+
+        console.log(
+          "PIN:",
+          order.pin_code
+        );
+
+        console.log(
+          "Order Quantity:",
+          order.order_quantity
+        );
+
+        console.log(
+          "Order Items:",
+          order.order_items?.length || 0
+        );
+
+        if (Array.isArray(order.order_items)) {
+          for (const item of order.order_items) {
+            console.log(
+              "SKU:",
+              item.sku
+            );
+
+            console.log(
+              "Product:",
+              item.productName
+            );
+
+            console.log(
+              "Quantity:",
+              item.item_quantity
+            );
+
+            console.log(
+              "Selling Price:",
+              item.selling_price
+            );
+
+            console.log(
+              "Tax Rate:",
+              item.tax_rate
+            );
+
+            console.log(
+              "Brand:",
+              item.brand
+            );
+
+            console.log(
+              "Brand ID:",
+              item.brand_id
+            );
+
+            console.log(
+              "Suborder ID:",
+              item.suborder_id
+            );
+          }
+        }
+
+        if (
+          Array.isArray(order.easyecom_order_history)
+        ) {
+          console.log(
+            "EasyEcom Order History:"
+          );
+
+          for (
+            const history
+            of order.easyecom_order_history
+          ) {
+            console.log(
+              `${history.status} (${history.status_id}) - ${history.date_time}`
+            );
+          }
+        }
+      }
+
+      // --------------------------------------------------------
+      // IMPORTANT:
+      // Put your database save / business processing here.
+      // --------------------------------------------------------
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Manifested V2 received successfully",
+        orderCount: payload.length
+      });
+    } catch (error) {
+      console.error(
+        "Manifested V2 Error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Manifested V2 processing failed",
+        error: error.message
+      });
+    }
+  }
+);
+
+// ============================================================
+// EASYECOM CANCEL ORDER WEBHOOK TOKEN VALIDATION
+// ============================================================
+
+function validateEasyEcomWebhook(req, res) {
+  const accessToken = req.header("Access-Token");
+
+  if (
+    process.env.EASYEECOM_WEBHOOK_TOKEN &&
+    accessToken !== process.env.EASYEECOM_WEBHOOK_TOKEN
+  ) {
+    return res.status(401).json({
+      success: false,
+      message: "Invalid EasyEcom webhook token"
+    });
+  }
+
+  return true;
+}
+
+
+// ============================================================
+// EASYECOM CANCEL ORDER - V1
+// POST /api/easyecom/webhook/cancel-order-v1
+// ============================================================
+
+app.post(
+  "/api/easyecom/webhook/cancel-order-v1",
+  async (req, res) => {
+    try {
+      // --------------------------------------------------------
+      // Validate EasyEcom webhook token
+      // --------------------------------------------------------
+
+      if (!validateEasyEcomWebhook(req, res)) {
+        return;
+      }
+
+      const payload = req.body;
+
+      // --------------------------------------------------------
+      // Validate V1 payload
+      // V1 format:
+      //
+      // {
+      //   "orders": [...]
+      // }
+      // --------------------------------------------------------
+
+      if (
+        !payload ||
+        !Array.isArray(payload.orders)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid Cancel Order V1 payload. Expected orders array."
+        });
+      }
+
+      console.log("");
+      console.log(
+        "============================================================"
+      );
+      console.log(
+        "EASYECOM CANCEL ORDER V1 WEBHOOK"
+      );
+      console.log(
+        "============================================================"
+      );
+
+      console.log(
+        "Order Count:",
+        payload.orders.length
+      );
+
+      // --------------------------------------------------------
+      // Process orders
+      // --------------------------------------------------------
+
+      for (const order of payload.orders) {
+
+        console.log("");
+        console.log(
+          "---------------- CANCELLED ORDER ----------------"
+        );
+
+        console.log(
+          "Invoice ID:",
+          order.invoice_id
+        );
+
+        console.log(
+          "Order ID:",
+          order.order_id
+        );
+
+        console.log(
+          "Reference Code:",
+          order.reference_code
+        );
+
+        console.log(
+          "Company:",
+          order.company_name
+        );
+
+        console.log(
+          "Location Key:",
+          order.location_key
+        );
+
+        console.log(
+          "Warehouse ID:",
+          order.warehouseId
+        );
+
+        console.log(
+          "Marketplace:",
+          order.marketplace
+        );
+
+        console.log(
+          "Marketplace ID:",
+          order.marketplace_id
+        );
+
+        console.log(
+          "Customer:",
+          order.customer_name
+        );
+
+        console.log(
+          "Contact:",
+          order.contact_num
+        );
+
+        console.log(
+          "Email:",
+          order.email
+        );
+
+        console.log(
+          "Payment Mode:",
+          order.payment_mode
+        );
+
+        console.log(
+          "Order Quantity:",
+          order.order_quantity
+        );
+
+        console.log(
+          "Total Amount:",
+          order.total_amount
+        );
+
+        console.log(
+          "Total Tax:",
+          order.total_tax
+        );
+
+        console.log(
+          "Shipping Charge:",
+          order.total_shipping_charge
+        );
+
+        console.log(
+          "Discount:",
+          order.total_discount
+        );
+
+        console.log(
+          "Collectable Amount:",
+          order.collectable_amount
+        );
+
+        console.log(
+          "Order Status:",
+          order.order_status
+        );
+
+        console.log(
+          "Order Status ID:",
+          order.order_status_id
+        );
+
+        // ------------------------------------------------------
+        // Process V1 suborders
+        // ------------------------------------------------------
+
+        if (Array.isArray(order.suborders)) {
+
+          console.log(
+            "Suborder Count:",
+            order.suborders.length
+          );
+
+          for (const suborder of order.suborders) {
+
+            console.log("");
+            console.log(
+              "  SUBORDER"
+            );
+
+            console.log(
+              "  Suborder ID:",
+              suborder.suborder_id
+            );
+
+            console.log(
+              "  Suborder Number:",
+              suborder.suborder_num
+            );
+
+            console.log(
+              "  SKU:",
+              suborder.sku
+            );
+
+            console.log(
+              "  Product:",
+              suborder.productName
+            );
+
+            console.log(
+              "  Product ID:",
+              suborder.product_id
+            );
+
+            console.log(
+              "  Company Product ID:",
+              suborder.company_product_id
+            );
+
+            console.log(
+              "  Item Status:",
+              suborder.item_status
+            );
+
+            console.log(
+              "  Item Quantity:",
+              suborder.item_quantity
+            );
+
+            console.log(
+              "  Cancelled Quantity:",
+              suborder.cancelled_quantity
+            );
+
+            console.log(
+              "  Shipped Quantity:",
+              suborder.shipped_quantity
+            );
+
+            console.log(
+              "  Selling Price:",
+              suborder.selling_price
+            );
+
+            console.log(
+              "  Tax Rate:",
+              suborder.tax_rate
+            );
+
+            console.log(
+              "  Tax:",
+              suborder.tax
+            );
+          }
+        }
+
+        // ------------------------------------------------------
+        // IMPORTANT:
+        // This is where DB update can be added later.
+        //
+        // Example:
+        //
+        // await saveCancelledOrder(order);
+        // ------------------------------------------------------
+      }
+
+      console.log("");
+      console.log(
+        "Cancel Order V1 processed successfully"
+      );
+
+      console.log(
+        "============================================================"
+      );
+
+      // --------------------------------------------------------
+      // EasyEcom webhook acknowledgement
+      // --------------------------------------------------------
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Cancel Order V1 received successfully",
+        orderCount: payload.orders.length
+      });
+
+    } catch (error) {
+
+      console.error(
+        "Cancel Order V1 Error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to process Cancel Order V1",
+        error: error.message
+      });
+    }
+  }
+);
+
+
+// ============================================================
+// EASYECOM CANCEL ORDER - V2
+// POST /api/easyecom/webhook/cancel-order-v2
+// ============================================================
+
+app.post(
+  "/api/easyecom/webhook/cancel-order-v2",
+  async (req, res) => {
+    try {
+      // --------------------------------------------------------
+      // Validate EasyEcom webhook token
+      // --------------------------------------------------------
+
+      if (!validateEasyEcomWebhook(req, res)) {
+        return;
+      }
+
+      const payload = req.body;
+
+      // --------------------------------------------------------
+      // Validate V2 payload
+      //
+      // V2 format:
+      //
+      // [
+      //   {...}
+      // ]
+      // --------------------------------------------------------
+
+      if (!Array.isArray(payload)) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid Cancel Order V2 payload. Expected root array."
+        });
+      }
+
+      console.log("");
+      console.log(
+        "============================================================"
+      );
+      console.log(
+        "EASYECOM CANCEL ORDER V2 WEBHOOK"
+      );
+      console.log(
+        "============================================================"
+      );
+
+      console.log(
+        "Order Count:",
+        payload.length
+      );
+
+      // --------------------------------------------------------
+      // Process orders
+      // --------------------------------------------------------
+
+      for (const order of payload) {
+
+        console.log("");
+        console.log(
+          "---------------- CANCELLED ORDER ----------------"
+        );
+
+        console.log(
+          "Invoice ID:",
+          order.invoice_id
+        );
+
+        console.log(
+          "Order ID:",
+          order.order_id
+        );
+
+        console.log(
+          "Reference Code:",
+          order.reference_code
+        );
+
+        console.log(
+          "Company:",
+          order.company_name
+        );
+
+        console.log(
+          "Warehouse ID:",
+          order.warehouse_id
+        );
+
+        console.log(
+          "Assigned Warehouse ID:",
+          order.assigned_warehouse_id
+        );
+
+        console.log(
+          "Location Key:",
+          order.location_key
+        );
+
+        console.log(
+          "Marketplace:",
+          order.marketplace
+        );
+
+        console.log(
+          "Marketplace ID:",
+          order.marketplace_id
+        );
+
+        console.log(
+          "MarketCId:",
+          order.MarketCId
+        );
+
+        console.log(
+          "Merchant C ID:",
+          order.merchant_c_id
+        );
+
+        console.log(
+          "Customer:",
+          order.customer_name
+        );
+
+        console.log(
+          "Shipping Name:",
+          order.shipping_name
+        );
+
+        console.log(
+          "Contact:",
+          order.contact_num
+        );
+
+        console.log(
+          "Email:",
+          order.email
+        );
+
+        console.log(
+          "Payment Mode:",
+          order.payment_mode
+        );
+
+        console.log(
+          "Order Quantity:",
+          order.order_quantity
+        );
+
+        console.log(
+          "Total Amount:",
+          order.total_amount
+        );
+
+        console.log(
+          "Total Tax:",
+          order.total_tax
+        );
+
+        console.log(
+          "Collectable Amount:",
+          order.collectable_amount
+        );
+
+        console.log(
+          "Order Status:",
+          order.order_status
+        );
+
+        console.log(
+          "Order Status ID:",
+          order.order_status_id
+        );
+
+        // ------------------------------------------------------
+        // V2 order history
+        // ------------------------------------------------------
+
+        if (
+          Array.isArray(
+            order.easyecom_order_history
+          )
+        ) {
+
+          console.log(
+            "Order History Count:",
+            order.easyecom_order_history.length
+          );
+
+          for (
+            const history
+            of order.easyecom_order_history
+          ) {
+
+            console.log(
+              `  ${history.status} | ` +
+              `Status ID: ${history.status_id} | ` +
+              `Date: ${history.date_time}`
+            );
+          }
+        }
+
+        // ------------------------------------------------------
+        // V2 order items
+        // ------------------------------------------------------
+
+        if (
+          Array.isArray(order.order_items)
+        ) {
+
+          console.log(
+            "Order Item Count:",
+            order.order_items.length
+          );
+
+          for (
+            const item
+            of order.order_items
+          ) {
+
+            console.log("");
+            console.log(
+              "  ORDER ITEM"
+            );
+
+            console.log(
+              "  Suborder ID:",
+              item.suborder_id
+            );
+
+            console.log(
+              "  Suborder Number:",
+              item.suborder_num
+            );
+
+            console.log(
+              "  SKU:",
+              item.sku
+            );
+
+            console.log(
+              "  Product:",
+              item.productName
+            );
+
+            console.log(
+              "  Product ID:",
+              item.product_id
+            );
+
+            console.log(
+              "  Company Product ID:",
+              item.company_product_id
+            );
+
+            console.log(
+              "  Item Status:",
+              item.item_status
+            );
+
+            console.log(
+              "  Item Quantity:",
+              item.item_quantity
+            );
+
+            console.log(
+              "  Cancelled Quantity:",
+              item.cancelled_quantity
+            );
+
+            console.log(
+              "  Shipped Quantity:",
+              item.shipped_quantity
+            );
+
+            console.log(
+              "  Assigned Quantity:",
+              item.assigned_quantity
+            );
+
+            console.log(
+              "  Selling Price:",
+              item.selling_price
+            );
+
+            console.log(
+              "  Tax Rate:",
+              item.tax_rate
+            );
+          }
+        }
+
+        // ------------------------------------------------------
+        // IMPORTANT:
+        // This is where DB update can be added later.
+        //
+        // Example:
+        //
+        // await saveCancelledOrderV2(order);
+        // ------------------------------------------------------
+      }
+
+      console.log("");
+      console.log(
+        "Cancel Order V2 processed successfully"
+      );
+
+      console.log(
+        "============================================================"
+      );
+
+      // --------------------------------------------------------
+      // EasyEcom webhook acknowledgement
+      // --------------------------------------------------------
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Cancel Order V2 received successfully",
+        orderCount: payload.length
+      });
+
+    } catch (error) {
+
+      console.error(
+        "Cancel Order V2 Error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to process Cancel Order V2",
+        error: error.message
+      });
+    }
+  }
+);
+
+// ============================================================
+// EASYECOM - MARK RETURN V1
+// ============================================================
+
+app.post(
+  "/api/easyecom/webhook/mark-return-v1",
+  (req, res) => {
+    try {
+      const accessToken = req.header("Access-Token");
+
+      if (
+        process.env.EASYEECOM_WEBHOOK_TOKEN &&
+        accessToken !== process.env.EASYEECOM_WEBHOOK_TOKEN
+      ) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid EasyEcom webhook token"
+        });
+      }
+
+      const payload = req.body;
+
+      if (
+        !payload ||
+        !Array.isArray(payload.credit_notes)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid Mark Return V1 payload"
+        });
+      }
+
+      console.log(
+        "\n================================================"
+      );
+      console.log("EASYECOM MARK RETURN V1");
+      console.log(
+        "================================================"
+      );
+
+      console.log(
+        "Credit Note Count:",
+        payload.credit_notes.length
+      );
+
+      payload.credit_notes.forEach((creditNote, index) => {
+        console.log(
+          `\nCredit Note #${index + 1}`
+        );
+
+        console.log(
+          "Credit Note ID:",
+          creditNote.credit_note_id
+        );
+
+        console.log(
+          "Invoice ID:",
+          creditNote.invoice_id
+        );
+
+        console.log(
+          "Order ID:",
+          creditNote.order_id
+        );
+
+        console.log(
+          "Reference:",
+          creditNote.reference_code
+        );
+
+        console.log(
+          "Company:",
+          creditNote.company_name
+        );
+
+        console.log(
+          "Warehouse:",
+          creditNote.warehouseId
+        );
+
+        console.log(
+          "Marketplace:",
+          creditNote.marketplace
+        );
+
+        console.log(
+          "Marketplace ID:",
+          creditNote.marketplace_id
+        );
+
+        console.log(
+          "Credit Note Number:",
+          creditNote.credit_note_number
+        );
+
+        console.log(
+          "Invoice Number:",
+          creditNote.invoice_number
+        );
+
+        console.log(
+          "Return Date:",
+          creditNote.return_date
+        );
+
+        console.log(
+          "Payment Mode:",
+          creditNote.payment_mode
+        );
+
+        console.log(
+          "Credit Note Amount:",
+          creditNote.credit_note_amount
+        );
+
+        console.log(
+          "Credit Note Tax:",
+          creditNote.credit_note_tax_amount
+        );
+
+        console.log(
+          "Customer:",
+          creditNote.forward_shipment_customer_name
+        );
+
+        console.log(
+          "Customer Contact:",
+          creditNote.forward_shipment_customer_contact_num
+        );
+
+        console.log(
+          "Item Count:",
+          Array.isArray(creditNote.items)
+            ? creditNote.items.length
+            : 0
+        );
+
+        if (Array.isArray(creditNote.items)) {
+          creditNote.items.forEach((item, itemIndex) => {
+            console.log(
+              `  Item #${itemIndex + 1}`
+            );
+
+            console.log(
+              "  SKU:",
+              item.sku
+            );
+
+            console.log(
+              "  Product:",
+              item.productName
+            );
+
+            console.log(
+              "  Product ID:",
+              item.product_id
+            );
+
+            console.log(
+              "  Suborder ID:",
+              item.suborder_id
+            );
+
+            console.log(
+              "  Return Reason:",
+              item.return_reason
+            );
+
+            console.log(
+              "  Inventory Status:",
+              item.inventory_status
+            );
+
+            console.log(
+              "  Returned Quantity:",
+              item.returned_item_quantity
+            );
+
+            console.log(
+              "  Tax Rate:",
+              item.item_tax_rate
+            );
+          });
+        }
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Mark Return V1 received successfully",
+        creditNoteCount: payload.credit_notes.length
+      });
+    } catch (error) {
+      console.error(
+        "Mark Return V1 Error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message: "Failed to process Mark Return V1",
+        error: error.message
+      });
+    }
+  }
+);
+
+
+// ============================================================
+// EASYECOM - MARK RETURN V2
+// ============================================================
+
+app.post(
+  "/api/easyecom/webhook/mark-return-v2",
+  (req, res) => {
+    try {
+      const accessToken = req.header("Access-Token");
+
+      if (
+        process.env.EASYEECOM_WEBHOOK_TOKEN &&
+        accessToken !== process.env.EASYEECOM_WEBHOOK_TOKEN
+      ) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid EasyEcom webhook token"
+        });
+      }
+
+      const payload = req.body;
+
+      if (
+        !Array.isArray(payload)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid Mark Return V2 payload"
+        });
+      }
+
+      console.log(
+        "\n================================================"
+      );
+      console.log("EASYECOM MARK RETURN V2");
+      console.log(
+        "================================================"
+      );
+
+      let creditNoteCount = 0;
+
+      payload.forEach((creditNoteGroup, groupIndex) => {
+        if (!Array.isArray(creditNoteGroup)) {
+          return;
+        }
+
+        creditNoteGroup.forEach(
+          (creditNote, index) => {
+            creditNoteCount++;
+
+            console.log(
+              `\nGroup ${groupIndex + 1} - Credit Note #${index + 1}`
+            );
+
+            console.log(
+              "Credit Note ID:",
+              creditNote.credit_note_id
+            );
+
+            console.log(
+              "Invoice ID:",
+              creditNote.invoice_id
+            );
+
+            console.log(
+              "Order ID:",
+              creditNote.order_id
+            );
+
+            console.log(
+              "Reference:",
+              creditNote.reference_code
+            );
+
+            console.log(
+              "Company:",
+              creditNote.company_name
+            );
+
+            console.log(
+              "Warehouse:",
+              creditNote.warehouseId
+            );
+
+            console.log(
+              "Marketplace:",
+              creditNote.marketplace
+            );
+
+            console.log(
+              "Marketplace ID:",
+              creditNote.marketplace_id
+            );
+
+            console.log(
+              "Credit Note Number:",
+              creditNote.credit_note_number
+            );
+
+            console.log(
+              "Invoice Number:",
+              creditNote.invoice_number
+            );
+
+            console.log(
+              "Return Date:",
+              creditNote.return_date
+            );
+
+            console.log(
+              "Payment Mode:",
+              creditNote.payment_mode
+            );
+
+            console.log(
+              "Credit Note Amount:",
+              creditNote.credit_note_amount
+            );
+
+            console.log(
+              "Credit Note Tax:",
+              creditNote.credit_note_tax_amount
+            );
+
+            console.log(
+              "Customer:",
+              creditNote.forward_shipment_customer_name
+            );
+
+            console.log(
+              "Item Count:",
+              Array.isArray(creditNote.order_items)
+                ? creditNote.order_items.length
+                : 0
+            );
+
+            if (
+              Array.isArray(
+                creditNote.order_items
+              )
+            ) {
+              creditNote.order_items.forEach(
+                (item, itemIndex) => {
+                  console.log(
+                    `  Item #${itemIndex + 1}`
+                  );
+
+                  console.log(
+                    "  SKU:",
+                    item.sku
+                  );
+
+                  console.log(
+                    "  Product:",
+                    item.productName
+                  );
+
+                  console.log(
+                    "  Product ID:",
+                    item.product_id
+                  );
+
+                  console.log(
+                    "  Suborder ID:",
+                    item.suborder_id
+                  );
+
+                  console.log(
+                    "  Return Reason:",
+                    item.return_reason
+                  );
+
+                  console.log(
+                    "  Inventory Status:",
+                    item.inventory_status
+                  );
+
+                  console.log(
+                    "  Returned Quantity:",
+                    item.returned_item_quantity
+                  );
+
+                  console.log(
+                    "  Tax Rate:",
+                    item.item_tax_rate
+                  );
+
+                  if (item.breakup_types) {
+                    console.log(
+                      "  Breakup Types:",
+                      item.breakup_types
+                    );
+                  }
+                }
+              );
+            }
+          }
+        );
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Mark Return V2 received successfully",
+        creditNoteCount
+      });
+    } catch (error) {
+      console.error(
+        "Mark Return V2 Error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message: "Failed to process Mark Return V2",
+        error: error.message
+      });
+    }
+  }
+);
+// ============================================================
+// EASYECOM - ORDER TRACKING V1
+// ============================================================
+
+app.post(
+  "/api/easyecom/webhook/order-tracking-v1",
+  (req, res) => {
+    try {
+      const accessToken = req.header("Access-Token");
+
+      if (
+        process.env.EASYEECOM_WEBHOOK_TOKEN &&
+        accessToken !== process.env.EASYEECOM_WEBHOOK_TOKEN
+      ) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid EasyEcom webhook token"
+        });
+      }
+
+      const payload = req.body;
+
+      // V1 payload must be a root-level array
+      if (!Array.isArray(payload)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid Order Tracking V1 payload"
+        });
+      }
+
+      console.log(
+        "\n================================================"
+      );
+      console.log("EASYECOM ORDER TRACKING V1");
+      console.log(
+        "================================================"
+      );
+
+      console.log(
+        "Tracking Record Count:",
+        payload.length
+      );
+
+      payload.forEach((tracking, index) => {
+        console.log(
+          `\nTracking Record #${index + 1}`
+        );
+
+        console.log(
+          "Suborder ID:",
+          tracking.suborder_id
+        );
+
+        console.log(
+          "Suborder Company ID:",
+          tracking.suborder_company_id
+        );
+
+        console.log(
+          "Master Carrier ID:",
+          tracking.master_carrier_id
+        );
+
+        console.log(
+          "Carrier ID:",
+          tracking.carrier_id
+        );
+
+        console.log(
+          "Carrier Name:",
+          tracking.carrierName
+        );
+
+        console.log(
+          "Reference Code:",
+          tracking.reference_code
+        );
+
+        console.log(
+          "AWB:",
+          tracking.awbNumber
+        );
+
+        console.log(
+          "Invoice ID:",
+          tracking.invoiceId
+        );
+
+        console.log(
+          "Order ID:",
+          tracking.orderId
+        );
+
+        console.log(
+          "Invoice Amount:",
+          tracking.invoiceAmount
+        );
+
+        console.log(
+          "Tax:",
+          tracking.tax
+        );
+
+        console.log(
+          "Order Date:",
+          tracking.orderDate
+        );
+
+        console.log(
+          "Invoice Date:",
+          tracking.invoiceDate
+        );
+
+        console.log(
+          "Order Status:",
+          tracking.orderStatus
+        );
+
+        console.log(
+          "Shipping Status:",
+          tracking.currentShippingStatus
+        );
+
+        console.log(
+          "Shipping Status ID:",
+          tracking.shipping_status_id
+        );
+
+        console.log(
+          "Status ID:",
+          tracking.status_id
+        );
+
+        console.log(
+          "Last Status Update:",
+          tracking.last_status_update
+        );
+
+        console.log(
+          "Expected Delivery:",
+          tracking.expectedDeliveryDate
+        );
+
+        console.log(
+          "Expected Delivery Start:",
+          tracking.expectedDeliveryDateStart
+        );
+
+        console.log(
+          "Expected Delivery End:",
+          tracking.expectedDeliveryDateEnd
+        );
+
+        console.log(
+          "Company:",
+          tracking.companyName
+        );
+
+        console.log(
+          "City:",
+          tracking.city
+        );
+
+        console.log(
+          "State:",
+          tracking.state
+        );
+
+        console.log(
+          "PIN Code:",
+          tracking.pin_code
+        );
+
+        console.log(
+          "AWB Generation Type:",
+          tracking.awb_generation_type
+        );
+
+        console.log(
+          "Location Key:",
+          tracking.location_key
+        );
+
+        console.log(
+          "Items:",
+          tracking.items
+        );
+
+        console.log(
+          "Notes:",
+          tracking.notes
+        );
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Order Tracking V1 received successfully",
+        trackingRecordCount: payload.length
+      });
+    } catch (error) {
+      console.error(
+        "Order Tracking V1 Error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message: "Failed to process Order Tracking V1",
+        error: error.message
+      });
+    }
+  }
+);
+
+
+// ============================================================
+// EASYECOM - FETCH ORDER V1
+// ============================================================
+
+app.post(
+  "/api/easyecom/webhook/fetch-order-v1",
+  (req, res) => {
+    try {
+      const accessToken = req.header("Access-Token");
+
+      if (
+        process.env.EASYEECOM_WEBHOOK_TOKEN &&
+        accessToken !== process.env.EASYEECOM_WEBHOOK_TOKEN
+      ) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid EasyEcom webhook token"
+        });
+      }
+
+      const payload = req.body;
+
+      if (
+        !payload ||
+        !Array.isArray(payload.orders)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid Fetch Order V1 payload"
+        });
+      }
+
+      console.log(
+        "\n================================================"
+      );
+      console.log("EASYECOM FETCH ORDER V1");
+      console.log(
+        "================================================"
+      );
+
+      console.log(
+        "Order Count:",
+        payload.orders.length
+      );
+
+      payload.orders.forEach((order, index) => {
+        console.log(
+          `\nOrder #${index + 1}`
+        );
+
+        console.log(
+          "Invoice ID:",
+          order.invoice_id
+        );
+
+        console.log(
+          "Order ID:",
+          order.order_id
+        );
+
+        console.log(
+          "Reference:",
+          order.reference_code
+        );
+
+        console.log(
+          "Company:",
+          order.company_name
+        );
+
+        console.log(
+          "Warehouse ID:",
+          order.warehouseId
+        );
+
+        console.log(
+          "Marketplace:",
+          order.marketplace
+        );
+
+        console.log(
+          "Marketplace ID:",
+          order.marketplace_id
+        );
+
+        console.log(
+          "Customer:",
+          order.customer_name
+        );
+
+        console.log(
+          "Customer Contact:",
+          order.contact_num
+        );
+
+        console.log(
+          "Order Date:",
+          order.order_date
+        );
+
+        console.log(
+          "Order Status:",
+          order.order_status
+        );
+
+        console.log(
+          "Payment Mode:",
+          order.payment_mode
+        );
+
+        console.log(
+          "Total Amount:",
+          order.total_amount
+        );
+
+        console.log(
+          "Total Tax:",
+          order.total_tax
+        );
+
+        console.log(
+          "Order Quantity:",
+          order.order_quantity
+        );
+
+        console.log(
+          "Suborder Count:",
+          Array.isArray(order.suborders)
+            ? order.suborders.length
+            : 0
+        );
+
+        if (Array.isArray(order.suborders)) {
+          order.suborders.forEach(
+            (item, itemIndex) => {
+              console.log(
+                `  Suborder #${itemIndex + 1}`
+              );
+
+              console.log(
+                "  Suborder ID:",
+                item.suborder_id
+              );
+
+              console.log(
+                "  Suborder Number:",
+                item.suborder_num
+              );
+
+              console.log(
+                "  Item Status:",
+                item.item_status
+              );
+
+              console.log(
+                "  SKU:",
+                item.sku
+              );
+
+              console.log(
+                "  Product:",
+                item.productName
+              );
+
+              console.log(
+                "  Product ID:",
+                item.product_id
+              );
+
+              console.log(
+                "  Quantity:",
+                item.item_quantity
+              );
+
+              console.log(
+                "  Selling Price:",
+                item.selling_price
+              );
+
+              console.log(
+                "  Tax:",
+                item.tax
+              );
+            }
+          );
+        }
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Fetch Order V1 received successfully",
+        orderCount: payload.orders.length
+      });
+    } catch (error) {
+      console.error(
+        "Fetch Order V1 Error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message: "Failed to process Fetch Order V1",
+        error: error.message
+      });
+    }
+  }
+);
+
+
+// ============================================================
+// EASYECOM - FETCH ORDER V2
+// ============================================================
+
+app.post(
+  "/api/easyecom/webhook/fetch-order-v2",
+  (req, res) => {
+    try {
+      const accessToken = req.header("Access-Token");
+
+      if (
+        process.env.EASYEECOM_WEBHOOK_TOKEN &&
+        accessToken !== process.env.EASYEECOM_WEBHOOK_TOKEN
+      ) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid EasyEcom webhook token"
+        });
+      }
+
+      const payload = req.body;
+
+      if (!Array.isArray(payload)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid Fetch Order V2 payload"
+        });
+      }
+
+      console.log(
+        "\n================================================"
+      );
+      console.log("EASYECOM FETCH ORDER V2");
+      console.log(
+        "================================================"
+      );
+
+      console.log(
+        "Order Count:",
+        payload.length
+      );
+
+      payload.forEach((order, index) => {
+        console.log(
+          `\nOrder #${index + 1}`
+        );
+
+        console.log(
+          "Invoice ID:",
+          order.invoice_id
+        );
+
+        console.log(
+          "Order ID:",
+          order.order_id
+        );
+
+        console.log(
+          "Reference:",
+          order.reference_code
+        );
+
+        console.log(
+          "Company:",
+          order.company_name
+        );
+
+        console.log(
+          "Warehouse ID:",
+          order.warehouse_id
+        );
+
+        console.log(
+          "Assigned Warehouse ID:",
+          order.assigned_warehouse_id
+        );
+
+        console.log(
+          "Marketplace:",
+          order.marketplace
+        );
+
+        console.log(
+          "Marketplace ID:",
+          order.marketplace_id
+        );
+
+        console.log(
+          "Merchant C ID:",
+          order.merchant_c_id
+        );
+
+        console.log(
+          "Customer:",
+          order.customer_name
+        );
+
+        console.log(
+          "Shipping Name:",
+          order.shipping_name
+        );
+
+        console.log(
+          "Customer Contact:",
+          order.contact_num
+        );
+
+        console.log(
+          "Order Date:",
+          order.order_date
+        );
+
+        console.log(
+          "Order Status:",
+          order.order_status
+        );
+
+        console.log(
+          "Payment Mode:",
+          order.payment_mode
+        );
+
+        console.log(
+          "Total Amount:",
+          order.total_amount
+        );
+
+        console.log(
+          "Total Tax:",
+          order.total_tax
+        );
+
+        console.log(
+          "Order Quantity:",
+          order.order_quantity
+        );
+
+        console.log(
+          "Order Item Count:",
+          Array.isArray(order.order_items)
+            ? order.order_items.length
+            : 0
+        );
+
+        if (Array.isArray(order.order_items)) {
+          order.order_items.forEach(
+            (item, itemIndex) => {
+              console.log(
+                `  Order Item #${itemIndex + 1}`
+              );
+
+              console.log(
+                "  Suborder ID:",
+                item.suborder_id
+              );
+
+              console.log(
+                "  Suborder Number:",
+                item.suborder_num
+              );
+
+              console.log(
+                "  SKU:",
+                item.sku
+              );
+
+              console.log(
+                "  Product:",
+                item.productName
+              );
+
+              console.log(
+                "  Product ID:",
+                item.product_id
+              );
+
+              console.log(
+                "  Company Product ID:",
+                item.company_product_id
+              );
+
+              console.log(
+                "  Quantity:",
+                item.item_quantity
+              );
+
+              console.log(
+                "  Selling Price:",
+                item.selling_price
+              );
+
+              console.log(
+                "  Tax Rate:",
+                item.tax_rate
+              );
+
+              console.log(
+                "  Assigned Quantity:",
+                item.assigned_quantity
+              );
+
+              console.log(
+                "  Listing ID:",
+                item.listing_id
+              );
+            }
+          );
+        }
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Fetch Order V2 received successfully",
+        orderCount: payload.length
+      });
+    } catch (error) {
+      console.error(
+        "Fetch Order V2 Error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message: "Failed to process Fetch Order V2",
+        error: error.message
+      });
+    }
+  }
+);s
+
+app.post(
+  "/api/easyecom/webhook/batch-manifest-v1",
+  (req, res) => {
+    const accessToken = req.header("Access-Token");
+
+    if (
+      process.env.EASYEECOM_WEBHOOK_TOKEN &&
+      accessToken !== process.env.EASYEECOM_WEBHOOK_TOKEN
+    ) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid EasyEcom webhook token"
+      });
+    }
+
+    const payload = req.body;
+
+    if (!payload || typeof payload !== "object") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid Batch Manifest V1 payload"
+      });
+    }
+
+    if (
+      typeof payload.status !== "boolean" ||
+      !payload.manifest_id ||
+      !payload.manifest_number ||
+      !payload.manifest_document ||
+      !payload.marketplace_name ||
+      !payload.courier_partner ||
+      !Array.isArray(payload.shipments)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid Batch Manifest V1 payload structure"
+      });
+    }
+
+    console.log(
+      "EasyEcom Batch Manifest V1 received:"
+    );
+
+    console.log(
+      JSON.stringify(payload, null, 2)
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Batch Manifest V1 received successfully",
+      manifest_id: payload.manifest_id,
+      manifest_number: payload.manifest_number,
+      total_shipments: payload.total_shipments,
+      shipments_received: payload.shipments.length
+    });
+  }
+);
+
+app.post(
+  "/api/easyecom/webhook/generate-b2b-invoice-v3",
+  (req, res) => {
+    const authorization =
+      req.header("Authorization");
+
+    // Static token validation
+    if (
+      process.env.EASYEECOM_B2B_INVOICE_TOKEN &&
+      authorization !==
+        process.env.EASYEECOM_B2B_INVOICE_TOKEN
+    ) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid Authorization token"
+      });
+    }
+
+    const payload = req.body;
+
+    if (
+      !payload ||
+      typeof payload !== "object"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Invalid Generate B2B Invoice V3 payload"
+      });
+    }
+
+    if (
+      !payload["0"] ||
+      typeof payload["0"] !== "object" ||
+      !payload["0"].location_key
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Missing location_key in payload"
+      });
+    }
+
+    if (
+      !payload.orders ||
+      typeof payload.orders !== "object"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Missing orders object"
+      });
+    }
+
+    if (
+      !payload.orders.invoice_id ||
+      !payload.orders.order_id
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Missing invoice_id or order_id"
+      });
+    }
+
+    if (
+      !Array.isArray(
+        payload.orders.order_items
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "order_items must be an array"
+      });
+    }
+
+    console.log(
+      "EasyEcom Generate B2B Invoice V3 received:"
+    );
+
+    console.log(
+      JSON.stringify(payload, null, 2)
+    );
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Generate B2B Invoice V3 received successfully",
+
+      invoice_id:
+        payload.orders.invoice_id,
+
+      order_id:
+        payload.orders.order_id,
+
+      invoice_number:
+        payload.orders.invoice_number,
+
+      reference_code:
+        payload.orders.reference_code,
+
+      order_type:
+        payload.orders.order_type,
+
+      total_amount:
+        payload.orders.total_amount,
+
+      total_tax:
+        payload.orders.total_tax,
+
+      order_items:
+        payload.orders.order_items.length
+    });
+  }
+);
 
 
 
+app.post(
+  "/api/easyecom/webhook/inventory-adjustment-v2",
+  (req, res) => {
+    const accessToken = req.header("Access-Token");
 
+    if (
+      process.env.EASYEECOM_WEBHOOK_TOKEN &&
+      accessToken !==
+        process.env.EASYEECOM_WEBHOOK_TOKEN
+    ) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid EasyEcom webhook token"
+      });
+    }
 
+    const payload = req.body;
 
+    if (
+      !payload ||
+      typeof payload !== "object"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Invalid Inventory Adjustment V2 payload"
+      });
+    }
 
+    if (!payload.companyName) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing companyName"
+      });
+    }
 
+    if (!payload.locationKey) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing locationKey"
+      });
+    }
+
+    if (!payload.adjustmentBatchCode) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Missing adjustmentBatchCode"
+      });
+    }
+
+    if (!Array.isArray(payload.items)) {
+      return res.status(400).json({
+        success: false,
+        message: "items must be an array"
+      });
+    }
+
+    for (const item of payload.items) {
+      if (!item.sku) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Each inventory adjustment item must contain sku"
+        });
+      }
+
+      if (
+        item.cpId === undefined ||
+        item.cpId === null
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Each inventory adjustment item must contain cpId"
+        });
+      }
+
+      if (
+        item.quantity === undefined ||
+        item.quantity === null
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Each inventory adjustment item must contain quantity"
+        });
+      }
+    }
+
+    console.log(
+      "EasyEcom Inventory Adjustment V2 received:"
+    );
+
+    console.log(
+      JSON.stringify(payload, null, 2)
+    );
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Inventory Adjustment V2 received successfully",
+
+      companyName: payload.companyName,
+
+      locationKey: payload.locationKey,
+
+      adjustmentBatchCode:
+        payload.adjustmentBatchCode,
+
+      itemsReceived: payload.items.length
+    });
+  }
+);
 // ================= SERVER START =================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
