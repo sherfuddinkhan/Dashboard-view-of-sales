@@ -29907,6 +29907,355 @@ app.post("/api/easyecom/reports/grn-details", async (req, res) => {
 });
 
 
+app.get("/api/easyecom/reports/download", async (req, res) => {
+  try {
+    const { reportId } = req.query;
+
+    if (!reportId) {
+      return res.status(400).json({
+        success: false,
+        message: "reportId is required",
+      });
+    }
+
+    const response = await axios.get(
+      "https://api.easyecom.io/reports/download",
+      {
+        params: {
+          reportId,
+        },
+        headers: {
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Download Report Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to download report",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.get("/api/easyecom/reports/list", async (req, res) => {
+  try {
+    const response = await axios.get(
+      "https://api.easyecom.io/reports/list",
+      {
+        headers: {
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "List Reports Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to get reports list",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.post("/api/easyecom/inventory/consolidated", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/inventory/ConsolidatedInventoryJob",
+      {},
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Consolidated Inventory Report Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to generate Consolidated Inventory Report",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.post("/api/easyecom/reports/initiated-return", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/reports/queue",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Initiated Return Report Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to generate Initiated Return Report",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.post("/api/easyecom/reports/inventory-expiry", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/reports/queue",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Inventory Expiry Report Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to generate Inventory Expiry Report",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.post("/api/easyecom/reports/full-inventory", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/reports/queue",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Full Inventory Report Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to generate Full Inventory Report",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.post("/api/easyecom/reports/serial-out-system", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/reports/queue",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Serial Out System Report Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to generate Serial Out System Report",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+
+app.post("/api/easyecom/reports/picker-packer", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/reports/queue",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Picker Packer Report Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to generate Picker Packer Report",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+app.post("/api/easyecom/reports/inventory-view-by-bin", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/reports/queue",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Inventory View By Bin Report Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to generate Inventory View By Bin Report",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+app.post("/api/easyecom/reports/putaway", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/reports/queue",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "Putaway Report Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to generate Putaway Report",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+app.post("/api/easyecom/reports/qc", async (req, res) => {
+  try {
+    const response = await axios.post(
+      "https://api.easyecom.io/reports/queue",
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      "QC Report Error:",
+      error.response?.data || error.message
+    );
+
+    res.status(error.response?.status || 500).json({
+      success: false,
+      message: "Failed to generate QC Report",
+      error: error.response?.data || error.message,
+    });
+  }
+});
+
+
+
 
 // ================= SERVER START =================
 const PORT = process.env.PORT || 5000;
