@@ -33719,6 +33719,70 @@ app.post("/api/Wholesale/UpdateCustomer", async (req, res) => {
   }
 });
 
+// =====================================================
+// GET Order Details
+// EasyEcom: GET /orders/V2/getOrderDetails
+// =====================================================
+app.get("/api/orders/v2/getOrderDetails", async (req, res) => {
+  try {
+    const { invoice_id } = req.query;
+
+    if (!invoice_id) {
+      return res.status(400).json({
+        success: false,
+        message: "invoice_id is required",
+      });
+    }
+
+    const response = await axios.get(
+      `${BASE_URL}/orders/V2/getOrderDetails`,
+      {
+        params: {
+          invoice_id,
+        },
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": X_API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Order details retrieved successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Get Order Details Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message: "EasyEcom Get Order Details API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to get order details",
+      error: error.message,
+    });
+  }
+});
+
 app.get("/api/wms/v2/getVendors", async (req, res) => {
   try {
     const response = await axios.get(
