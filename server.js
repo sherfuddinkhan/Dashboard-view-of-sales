@@ -33307,6 +33307,354 @@ app.post("/api/wms/CreateVendor", async (req, res) => {
   }
 });
 
+// =====================================================
+// POST Update Vendor Master
+// EasyEcom: POST /wms/UpdateVendor
+// =====================================================
+app.post("/api/wms/UpdateVendor", async (req, res) => {
+  try {
+    const {
+      vendorId,
+      emailId,
+      firstName,
+      lastName,
+      vendorCode,
+      taxIdentificationNum,
+      city,
+      state,
+      contactNumber,
+      daysToShip,
+    } = req.body;
+
+    if (
+      vendorId === undefined ||
+      vendorId === null ||
+      vendorId === ""
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "vendorId is required",
+      });
+    }
+
+    if (!emailId || !emailId.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "emailId is required",
+      });
+    }
+
+    if (!firstName || !firstName.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "firstName is required",
+      });
+    }
+
+    if (!lastName || !lastName.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "lastName is required",
+      });
+    }
+
+    if (!city || !city.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "city is required",
+      });
+    }
+
+    if (!state || !state.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "state is required",
+      });
+    }
+
+    if (
+      daysToShip === undefined ||
+      daysToShip === null ||
+      daysToShip === ""
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "daysToShip is required",
+      });
+    }
+
+    const payload = {
+      vendorId: Number(vendorId),
+      emailId: emailId.trim(),
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      vendorCode: vendorCode || "",
+      taxIdentificationNum: taxIdentificationNum || "",
+      city: city.trim(),
+      state: state.trim(),
+      contactNumber: contactNumber || "",
+      daysToShip: Number(daysToShip),
+    };
+
+    const response = await axios.post(
+      `${BASE_URL}/wms/UpdateVendor`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": X_API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Vendor master updated successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Update Vendor Master Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message:
+          "EasyEcom Update Vendor Master API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update vendor master",
+      error: error.message,
+    });
+  }
+});
+
+// =====================================================
+// POST Update Customer Master
+// EasyEcom: POST /Wholesale/UpdateCustomer
+// =====================================================
+app.post("/api/Wholesale/UpdateCustomer", async (req, res) => {
+  try {
+    const {
+      customerId,
+      companyName,
+      email,
+      password,
+      taxIdentificationNumber,
+      contactNumber,
+      country,
+      currency,
+      description,
+      billingStreet,
+      billingCity,
+      billingState,
+      billingPostalCode,
+      dispatchStreet,
+      dispatchCity,
+      dispatchPostalCode,
+      dispatchState,
+    } = req.body;
+
+    if (
+      customerId === undefined ||
+      customerId === null ||
+      customerId === ""
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "customerId is required",
+      });
+    }
+
+    if (!companyName || !companyName.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "companyName is required",
+      });
+    }
+
+    if (!email || !email.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "email is required",
+      });
+    }
+
+    if (!password || !password.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "password is required",
+      });
+    }
+
+    if (!contactNumber || !contactNumber.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "contactNumber is required",
+      });
+    }
+
+    if (!country || !country.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "country is required",
+      });
+    }
+
+    if (!currency || !currency.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "currency is required",
+      });
+    }
+
+    if (!billingStreet || !billingStreet.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "billingStreet is required",
+      });
+    }
+
+    if (!billingCity || !billingCity.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "billingCity is required",
+      });
+    }
+
+    if (!billingState || !billingState.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "billingState is required",
+      });
+    }
+
+    if (
+      billingPostalCode === undefined ||
+      billingPostalCode === null ||
+      billingPostalCode === ""
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "billingPostalCode is required",
+      });
+    }
+
+    if (!dispatchStreet || !dispatchStreet.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "dispatchStreet is required",
+      });
+    }
+
+    if (!dispatchCity || !dispatchCity.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "dispatchCity is required",
+      });
+    }
+
+    if (
+      dispatchPostalCode === undefined ||
+      dispatchPostalCode === null ||
+      dispatchPostalCode === ""
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "dispatchPostalCode is required",
+      });
+    }
+
+    if (!dispatchState || !dispatchState.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "dispatchState is required",
+      });
+    }
+
+    const payload = {
+      customerId: Number(customerId),
+      companyName: companyName.trim(),
+      email: email.trim(),
+      password: password.trim(),
+      taxIdentificationNumber:
+        taxIdentificationNumber || "",
+      contactNumber: contactNumber.trim(),
+      country: country.trim(),
+      currency: currency.trim(),
+      description: description || "",
+      billingStreet: billingStreet.trim(),
+      billingCity: billingCity.trim(),
+      billingState: billingState.trim(),
+      billingPostalCode: String(billingPostalCode),
+      dispatchStreet: dispatchStreet.trim(),
+      dispatchCity: dispatchCity.trim(),
+      dispatchPostalCode: String(dispatchPostalCode),
+      dispatchState: dispatchState.trim(),
+    };
+
+    const response = await axios.post(
+      `${BASE_URL}/Wholesale/UpdateCustomer`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": X_API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Customer master updated successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Update Customer Master Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message:
+          "EasyEcom Update Customer Master API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update customer master",
+      error: error.message,
+    });
+  }
+});
 
 app.get("/api/wms/v2/getVendors", async (req, res) => {
   try {
