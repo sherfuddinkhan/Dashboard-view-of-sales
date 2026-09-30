@@ -31036,7 +31036,425 @@ app.post("/api/holdUnHoldInventory", async (req, res) => {
   }
 });
 
+// GET Get Inventory Serial By SKU
+app.get("/api/inventory/getInventorySerialsBySku", async (req, res) => {
+  try {
+    const { sku, status } = req.query;
 
+    if (!sku) {
+      return res.status(400).json({
+        success: false,
+        message: "SKU is required",
+      });
+    }
+
+    if (status === undefined || status === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Status is required",
+      });
+    }
+
+    const response = await axios.get(
+      `${BASE_URL}/inventory/getInventorySerialsBySku`,
+      {
+        params: {
+          sku,
+          status,
+        },
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": X_API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Inventory serials retrieved successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Get Inventory Serial By SKU Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message: "EasyEcom inventory serial API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to get inventory serials",
+      error: error.message,
+    });
+  }
+});
+
+
+app.post("/api/updateVirtualInventoryAPI", async (req, res) => {
+  try {
+    const { skus } = req.body;
+
+    if (!Array.isArray(skus) || skus.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "skus must be a non-empty array",
+      });
+    }
+
+    const response = await axios.post(
+      `${BASE_URL}/updateVirtualInventoryAPI`,
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": X_API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Virtual inventory updated successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Update Virtual Inventory Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message:
+          "EasyEcom update virtual inventory API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update virtual inventory",
+      error: error.message,
+    });
+  }
+});
+
+// POST Unified Bulk Inventory Update - Starter Plan
+app.post(
+  "/api/inventory/unified-bulk-inventory-update-starter",
+  async (req, res) => {
+    try {
+      const { items } = req.body;
+
+      if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "items must be a non-empty array",
+        });
+      }
+
+      const response = await axios.post(
+        `${BASE_URL}/inventory/unified-bulk-inventory-update`,
+        req.body,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": X_API_KEY,
+            Authorization: `Bearer ${JWT_TOKEN}`,
+          },
+          timeout: 30000,
+        }
+      );
+
+      return res.status(response.status).json({
+        success: true,
+        message:
+          "Starter plan unified bulk inventory updated successfully",
+        data: response.data,
+      });
+    } catch (error) {
+      console.error(
+        "Starter Unified Bulk Inventory Update Error:",
+        error.response?.data || error.message
+      );
+
+      if (error.response) {
+        return res.status(error.response.status).json({
+          success: false,
+          message:
+            "EasyEcom unified bulk inventory API returned an error",
+          error: error.response.data,
+        });
+      }
+
+      if (error.request) {
+        return res.status(502).json({
+          success: false,
+          message: "No response received from EasyEcom",
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to update starter plan inventory",
+        error: error.message,
+      });
+    }
+  }
+);
+
+// POST Update PO Status
+app.post("/api/wms/updatePoStatus", async (req, res) => {
+  try {
+    const {
+      po_id,
+      po_status,
+      markPoComplete,
+    } = req.body;
+
+    if (
+      po_id === undefined ||
+      po_id === null ||
+      po_id === ""
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "po_id is required",
+      });
+    }
+
+    if (
+      po_status === undefined ||
+      po_status === null ||
+      po_status === ""
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "po_status is required",
+      });
+    }
+
+    if (
+      markPoComplete === undefined ||
+      markPoComplete === null ||
+      markPoComplete === ""
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "markPoComplete is required",
+      });
+    }
+
+    const response = await axios.post(
+      `${BASE_URL}/wms/updatePoStatus`,
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": X_API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "PO status updated successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Update PO Status Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message:
+          "EasyEcom update PO status API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update PO status",
+      error: error.message,
+    });
+  }
+});
+
+
+// GET Inventory Snapshot
+app.get(
+  "/api/inventory/getInventorySnapshotApi",
+  async (req, res) => {
+    try {
+      const {
+        start_date,
+        end_date,
+      } = req.query;
+
+      if (!start_date) {
+        return res.status(400).json({
+          success: false,
+          message: "start_date is required",
+        });
+      }
+
+      if (!end_date) {
+        return res.status(400).json({
+          success: false,
+          message: "end_date is required",
+        });
+      }
+
+      const response = await axios.get(
+        `${BASE_URL}/inventory/getInventorySnapshotApi`,
+        {
+          params: {
+            start_date,
+            end_date,
+          },
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": X_API_KEY,
+            Authorization: `Bearer ${JWT_TOKEN}`,
+          },
+          timeout: 30000,
+        }
+      );
+
+      return res.status(response.status).json({
+        success: true,
+        message: "Inventory snapshot retrieved successfully",
+        data: response.data,
+      });
+    } catch (error) {
+      console.error(
+        "Get Inventory Snapshot Error:",
+        error.response?.data || error.message
+      );
+
+      if (error.response) {
+        return res.status(error.response.status).json({
+          success: false,
+          message:
+            "EasyEcom inventory snapshot API returned an error",
+          error: error.response.data,
+        });
+      }
+
+      if (error.request) {
+        return res.status(502).json({
+          success: false,
+          message: "No response received from EasyEcom",
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        message: "Failed to get inventory snapshot",
+        error: error.message,
+      });
+    }
+  }
+);
+
+// ==========================================
+// GET Inventory Details V3
+// EasyEcom: /getInventoryDetailsV3
+// ==========================================
+app.get("/api/getInventoryDetailsV3", async (req, res) => {
+  try {
+    const response = await axios.get(
+      `${BASE_URL}/getInventoryDetailsV3`,
+      {
+        params: {
+          includeLocations: req.query.includeLocations,
+          limit: req.query.limit,
+          inlcudeCustomers: req.query.inlcudeCustomers,
+          sku: req.query.sku,
+          get_back_orders: req.query.get_back_orders,
+        },
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": X_API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Inventory details retrieved successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Get Inventory Details Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message: "EasyEcom Inventory Details API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to get inventory details",
+      error: error.message,
+    });
+  }
+});
 
 
 // ================= SERVER START =================
