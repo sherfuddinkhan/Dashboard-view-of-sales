@@ -31456,6 +31456,632 @@ app.get("/api/getInventoryDetailsV3", async (req, res) => {
   }
 });
 
+// ==========================================
+// GET Marketplace List
+// EasyEcom: /marketplaces/list
+// ==========================================
+app.get("/api/marketplaces/list", async (req, res) => {
+  try {
+    const response = await axios.get(
+      `${BASE_URL}/marketplaces/list`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": X_API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Marketplace list retrieved successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Get Marketplace List Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message: "EasyEcom Marketplace List API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to get marketplace list",
+      error: error.message,
+    });
+  }
+});
+
+// ==========================================
+// GET Validate Credentials of Integrated
+// Marketplaces
+// EasyEcom: /current-channel-status
+// ==========================================
+app.get("/api/current-channel-status", async (req, res) => {
+  try {
+    const response = await axios.get(
+      `${BASE_URL}/current-channel-status`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": X_API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Marketplace credentials validated successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Validate Marketplace Credentials Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message:
+          "EasyEcom Marketplace Credential Validation API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to validate marketplace credentials",
+      error: error.message,
+    });
+  }
+});
+
+// ==========================================
+// GET Payment And Delivery Term Details
+// EasyEcom:
+// /Maintenance/getCompanyAttributes
+// ==========================================
+app.get(
+  "/api/Maintenance/getCompanyAttributes",
+  async (req, res) => {
+    try {
+      const { type } = req.query;
+
+      if (!type) {
+        return res.status(400).json({
+          success: false,
+          message: "type is required",
+        });
+      }
+
+      if (!["payment", "delivery"].includes(type)) {
+        return res.status(400).json({
+          success: false,
+          message: "type must be either payment or delivery",
+        });
+      }
+
+      const response = await axios.get(
+        `${BASE_URL}/Maintenance/getCompanyAttributes`,
+        {
+          params: {
+            type: type,
+          },
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": X_API_KEY,
+            Authorization: `Bearer ${JWT_TOKEN}`,
+          },
+          timeout: 30000,
+        }
+      );
+
+      return res.status(response.status).json({
+        success: true,
+        message:
+          "Payment/delivery term details retrieved successfully",
+        data: response.data,
+      });
+    } catch (error) {
+      console.error(
+        "Get Payment And Delivery Term Details Error:",
+        error.response?.data || error.message
+      );
+
+      if (error.response) {
+        return res.status(error.response.status).json({
+          success: false,
+          message:
+            "EasyEcom Payment/Delivery Term API returned an error",
+          error: error.response.data,
+        });
+      }
+
+      if (error.request) {
+        return res.status(502).json({
+          success: false,
+          message: "No response received from EasyEcom",
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to get payment/delivery term details",
+        error: error.message,
+      });
+    }
+  }
+);
+
+
+// ==========================================
+// GET Company Group Details
+// EasyEcom:
+// /Maintenance/getCompanyGroupDetails
+// ==========================================
+app.get(
+  "/api/Maintenance/getCompanyGroupDetails",
+  async (req, res) => {
+    try {
+      const { type } = req.query;
+
+      if (!type) {
+        return res.status(400).json({
+          success: false,
+          message: "type is required",
+        });
+      }
+
+      const response = await axios.get(
+        `${BASE_URL}/Maintenance/getCompanyGroupDetails`,
+        {
+          params: {
+            type: type,
+          },
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": X_API_KEY,
+            Authorization: `Bearer ${JWT_TOKEN}`,
+          },
+          timeout: 30000,
+        }
+      );
+
+      return res.status(response.status).json({
+        success: true,
+        message: "Company group details retrieved successfully",
+        data: response.data,
+      });
+    } catch (error) {
+      console.error(
+        "Get Company Group Details Error:",
+        error.response?.data || error.message
+      );
+
+      if (error.response) {
+        return res.status(error.response.status).json({
+          success: false,
+          message:
+            "EasyEcom Company Group Details API returned an error",
+          error: error.response.data,
+        });
+      }
+
+      if (error.request) {
+        return res.status(502).json({
+          success: false,
+          message: "No response received from EasyEcom",
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        message: "Failed to get company group details",
+        error: error.message,
+      });
+    }
+  }
+);
+
+
+// ==========================================
+// GET Queue Status
+// EasyEcom: /getQueueStatus
+// ==========================================
+app.get("/api/getQueueStatus", async (req, res) => {
+  try {
+    const { queueId } = req.query;
+
+    if (!queueId) {
+      return res.status(400).json({
+        success: false,
+        message: "queueId is required",
+      });
+    }
+
+    const response = await axios.get(
+      `${BASE_URL}/getQueueStatus`,
+      {
+        params: {
+          queueId: queueId,
+        },
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": X_API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Queue status retrieved successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Get Queue Status Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message:
+          "EasyEcom Get Queue Status API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to get queue status",
+      error: error.message,
+    });
+  }
+});
+
+
+app.post("/api/Credentials/updateMPCredentials", async (req, res) => {
+  try {
+    const response = await axios.post(
+      `${BASE_URL}/Credentials/updateMPCredentials`,
+      req.body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": X_API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Marketplace credentials updated successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Update MP Credentials Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message: "EasyEcom Update MP Credentials API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update marketplace credentials",
+      error: error.message,
+    });
+  }
+});
+
+
+app.get("/api/getUser", async (req, res) => {
+  try {
+    const { id } = req.query;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "User id is required",
+      });
+    }
+
+    const response = await axios.get(`${BASE_URL}/getUser`, {
+      params: {
+        id: id,
+      },
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": X_API_KEY,
+        Authorization: `Bearer ${JWT_TOKEN}`,
+      },
+      timeout: 30000,
+    });
+
+    return res.status(response.status).json({
+      success: true,
+      message: "User details retrieved successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Get User Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message: "EasyEcom Get User API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to get user details",
+      error: error.message,
+    });
+  }
+});
+
+app.get("/api/getStates", async (req, res) => {
+  try {
+    const { countryId } = req.query;
+
+    if (!countryId) {
+      return res.status(400).json({
+        success: false,
+        message: "countryId is required",
+      });
+    }
+
+    const response = await axios.get(`${BASE_URL}/getStates`, {
+      params: {
+        countryId: countryId,
+      },
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": X_API_KEY,
+        Authorization: `Bearer ${JWT_TOKEN}`,
+      },
+      timeout: 30000,
+    });
+
+    return res.status(response.status).json({
+      success: true,
+      message: "States retrieved successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Get States Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message: "EasyEcom Get States API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to get states",
+      error: error.message,
+    });
+  }
+});
+
+
+app.post("/api/Maintenance/switchSyncStatus", async (req, res) => {
+  try {
+    const { m_id, syncStatus } = req.body;
+
+    if (m_id === undefined || m_id === null || m_id === "") {
+      return res.status(400).json({
+        success: false,
+        message: "m_id is required",
+      });
+    }
+
+    if (
+      syncStatus === undefined ||
+      syncStatus === null ||
+      syncStatus === ""
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "syncStatus is required",
+      });
+    }
+
+    if (![0, 1].includes(Number(syncStatus))) {
+      return res.status(400).json({
+        success: false,
+        message: "syncStatus must be 0 or 1",
+      });
+    }
+
+    const payload = {
+      m_id: Number(m_id),
+      syncStatus: Number(syncStatus),
+    };
+
+    const response = await axios.post(
+      `${BASE_URL}/Maintenance/switchSyncStatus`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": X_API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Marketplace sync status switched successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Switch Sync Status Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message: "EasyEcom Switch Sync Status API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to switch marketplace sync status",
+      error: error.message,
+    });
+  }
+});
+
+app.get("/api/Listings/getMarketPlaceListing", async (req, res) => {
+  try {
+    const { marketPlaceID } = req.query;
+
+    if (!marketPlaceID) {
+      return res.status(400).json({
+        success: false,
+        message: "marketPlaceID is required",
+      });
+    }
+
+    const response = await axios.get(
+      `${BASE_URL}/Listings/getMarketPlaceListing`,
+      {
+        params: {
+          marketPlaceID: marketPlaceID,
+        },
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": X_API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Marketplace listing retrieved successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Get Marketplace Listing Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message: "EasyEcom Get Marketplace Listing API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to get marketplace listing",
+      error: error.message,
+    });
+  }
+});
 
 // ================= SERVER START =================
 const PORT = process.env.PORT || 5000;
