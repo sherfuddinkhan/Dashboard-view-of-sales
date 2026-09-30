@@ -21938,271 +21938,424 @@ app.get("/api/uniware/cost/structure", (req, res) => {
 
 ////////////////////////////////EasyEcom/////////////////////
 
+app.post("/api/access/token", async (req, res) => {
+  try {
+    const {
+      email,
+      password,
+      location_key,
+    } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "email is required",
+      });
+    }
+
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        message: "password is required",
+      });
+    }
+
+    if (!location_key) {
+      return res.status(400).json({
+        success: false,
+        message: "location_key is required",
+      });
+    }
+
+    const requestBody = {
+      email,
+      password,
+      location_key,
+    };
+
+    const response = await axios.post(
+      `${BASE_URL}/access/token`,
+      requestBody,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": X_API_KEY,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Access token generated successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Authorization Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message:
+          "EasyEcom Authorization API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to generate access token",
+      error: error.message,
+    });
+  }
+});
+
+// =====================================================
+// GET Child Locations
+// EasyEcom: GET /account/v1/api/locations
+// =====================================================
+app.get("/api/account/v1/api/locations", async (req, res) => {
+  try {
+    const response = await axios.get(
+      `${BASE_URL}/account/v1/api/locations`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": X_API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Child locations retrieved successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Get Child Locations Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message: "EasyEcom Get Child Locations API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve child locations",
+      error: error.message,
+    });
+  }
+});
+
+// =====================================================
+// GET Aggregator Child Locations
+// EasyEcom: GET /account/v1/api/aggregator/locations
+// =====================================================
+app.get("/api/account/v1/api/aggregator/locations", async (req, res) => {
+  try {
+    const response = await axios.get(
+      `${BASE_URL}/account/v1/api/aggregator/locations`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": X_API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Aggregator child locations retrieved successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Get Aggregator Child Locations Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message:
+          "EasyEcom Get Aggregator Child Locations API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve aggregator child locations",
+      error: error.message,
+    });
+  }
+});
+
+
+// =====================================================
+// POST Sales Order ERP ID / Update ERP Status
+// EasyEcom: POST /erp/update_erp_status
+// =====================================================
+app.post("/api/erp/update_erp_status", async (req, res) => {
+  try {
+    const { items } = req.body;
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "items must be a non-empty array",
+      });
+    }
+
+    for (const item of items) {
+      if (
+        item.invoice_id === undefined ||
+        item.erp_status_id === undefined ||
+        item.erp_transaction_id === undefined ||
+        item.erp_response === undefined
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Each item requires invoice_id, erp_status_id, erp_transaction_id and erp_response",
+        });
+      }
+    }
+
+    const response = await axios.post(
+      `${BASE_URL}/erp/update_erp_status`,
+      {
+        items,
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": X_API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Sales order ERP status updated successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Update ERP Status Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message:
+          "EasyEcom Update ERP Status API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update ERP status",
+      error: error.message,
+    });
+  }
+});
+
+// =====================================================
+// POST Return Order ERP Order Updation
+// EasyEcom: POST /erp/update_credit_note_erp_status
+// =====================================================
 app.post(
-    "/api/easyecom/access-token",
-    async (req, res) => {
-
-        try {
-
-            const {
-                email,
-                password,
-                location_key
-            } = req.body;
-
-
-            if (!email || !password || !location_key) {
-
-                return res.status(400).json({
-                    success: false,
-                    message:
-                        "email, password and location_key are required"
-                });
-
-            }
-
-
-            const response = await axios.post(
-                `${EASYECCOM_BASE_URL}/access/token`,
-                {
-                    email,
-                    password,
-                    location_key
-                },
-                {
-                    headers: {
-                        "x-api-key":
-                            EASYECOM_API_KEY,
-
-                        "Content-Type":
-                            "application/json"
-                    }
-                }
-            );
-
-
-            const data = response.data;
-
-
-            const jwtToken =
-                data?.data?.token?.jwt_token;
-
-            const expiresIn =
-                data?.data?.token?.expires_in;
-
-
-            if (!jwtToken) {
-
-                return res.status(500).json({
-                    success: false,
-                    message:
-                        "EasyEcom did not return jwt_token"
-                });
-
-            }
-
-
-            easyEcomToken = jwtToken;
-
-
-            if (expiresIn) {
-
-                easyEcomTokenExpiresAt =
-                    Date.now() +
-                    Number(expiresIn) * 1000;
-
-            }
-
-
-            return res.status(200).json({
-
-                success: true,
-
-                message:
-                    data?.message || null,
-
-                data: data?.data || null
-
-            });
-
-        }
-        catch (error) {
-
-            console.error(
-                "EasyEcom Access Token Error:",
-                error.response?.data ||
-                error.message
-            );
-
-
-            return res.status(
-                error.response?.status || 500
-            ).json({
-
-                success: false,
-
-                message:
-                    error.response?.data?.message ||
-                    "EasyEcom authentication failed",
-
-                data:
-                    error.response?.data || null
-
-            });
-
-        }
-
-    }
-);
-
-app.get(
-    "/api/easyecom/locations",
-    async (req, res) => {
-
-        try {
-
-            if (!easyEcomToken) {
-
-                return res.status(401).json({
-                    success: false,
-                    message:
-                        "EasyEcom authentication required"
-                });
-
-            }
-
-
-            if (
-                easyEcomTokenExpiresAt &&
-                Date.now() >=
-                easyEcomTokenExpiresAt
-            ) {
-
-                easyEcomToken = null;
-                easyEcomTokenExpiresAt = null;
-
-                return res.status(401).json({
-                    success: false,
-                    message:
-                        "EasyEcom token expired"
-                });
-
-            }
-
-
-            const response = await axios.get(
-                `${EASYECCOM_BASE_URL}/account/v1/api/locations`,
-                {
-                    headers: {
-                        Authorization:
-                            `Bearer ${easyEcomToken}`,
-
-                        "Content-Type":
-                            "application/json"
-                    }
-                }
-            );
-
-
-            return res.status(200).json({
-
-                success: true,
-
-                data:
-                    response.data?.data || [],
-
-                message:
-                    response.data?.message || null
-
-            });
-
-        }
-        catch (error) {
-
-            console.error(
-                "EasyEcom Locations Error:",
-                error.response?.data ||
-                error.message
-            );
-
-
-            if (
-                error.response?.status === 401
-            ) {
-
-                easyEcomToken = null;
-                easyEcomTokenExpiresAt = null;
-
-            }
-
-
-            return res.status(
-                error.response?.status || 500
-            ).json({
-
-                success: false,
-
-                message:
-                    error.response?.data?.message ||
-                    "Unable to fetch EasyEcom locations",
-
-                data:
-                    error.response?.data || null
-
-            });
-
-        }
-
-    }
-);
-app.get(
-    "/api/easyecom/token-status",
-    (req, res) => {
-
-        const authenticated =
-            !!easyEcomToken &&
-            (
-                !easyEcomTokenExpiresAt ||
-                Date.now() <
-                easyEcomTokenExpiresAt
-            );
-
-
+  "/api/erp/update_credit_note_erp_status",
+  async (req, res) => {
+    try {
+      const { items } = req.body;
+
+      if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "items must be a non-empty array",
+        });
+      }
+
+      for (const item of items) {
         if (
-            easyEcomTokenExpiresAt &&
-            Date.now() >=
-            easyEcomTokenExpiresAt
+          item.credit_note_id === undefined ||
+          item.erp_status_id === undefined ||
+          item.erp_transaction_id === undefined ||
+          item.erp_response === undefined
         ) {
-
-            easyEcomToken = null;
-            easyEcomTokenExpiresAt = null;
-
-        }
-
-
-        return res.status(200).json({
-            success: true,
-            authenticated:
-                !!easyEcomToken
-        });
-
-    }
-);
-app.post(
-    "/api/easyecom/logout",
-    (req, res) => {
-
-        easyEcomToken = null;
-        easyEcomTokenExpiresAt = null;
-
-        return res.status(200).json({
-            success: true,
+          return res.status(400).json({
+            success: false,
             message:
-                "EasyEcom logout successful"
-        });
+              "Each item requires credit_note_id, erp_status_id, erp_transaction_id and erp_response",
+          });
+        }
+      }
 
+      const response = await axios.post(
+        `${BASE_URL}/erp/update_credit_note_erp_status`,
+        {
+          items,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": X_API_KEY,
+            Authorization: `Bearer ${JWT_TOKEN}`,
+          },
+          timeout: 30000,
+        }
+      );
+
+      return res.status(response.status).json({
+        success: true,
+        message:
+          "Return order ERP status updated successfully",
+        data: response.data,
+      });
+    } catch (error) {
+      console.error(
+        "Update Credit Note ERP Status Error:",
+        error.response?.data || error.message
+      );
+
+      if (error.response) {
+        return res.status(error.response.status).json({
+          success: false,
+          message:
+            "EasyEcom Update Credit Note ERP Status API returned an error",
+          error: error.response.data,
+        });
+      }
+
+      if (error.request) {
+        return res.status(502).json({
+          success: false,
+          message: "No response received from EasyEcom",
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to update credit note ERP status",
+        error: error.message,
+      });
     }
+  }
 );
+
+// =====================================================
+// GET Payment Details
+// EasyEcom: GET /getDetailedPaymentsData
+// =====================================================
+app.get("/api/getDetailedPaymentsData", async (req, res) => {
+  try {
+    const { payment_id } = req.query;
+
+    if (!payment_id) {
+      return res.status(400).json({
+        success: false,
+        message: "payment_id is required",
+      });
+    }
+
+    const response = await axios.get(
+      `${BASE_URL}/getDetailedPaymentsData`,
+      {
+        params: {
+          payment_id,
+        },
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": X_API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Payment details retrieved successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Get Payment Details Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message:
+          "EasyEcom Get Payment Details API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve payment details",
+      error: error.message,
+    });
+  }
+});
+
 // ============================================================
 // EASYECOM CONFIGURATION
 // ============================================================
