@@ -32153,6 +32153,178 @@ app.post("/api/Company/enableDisableAccount", async (req, res) => {
   }
 });
 
+
+app.get("/api/getCountries", async (req, res) => {
+  try {
+    const response = await axios.get(`${BASE_URL}/getCountries`, {
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": X_API_KEY,
+        Authorization: `Bearer ${JWT_TOKEN}`,
+      },
+      timeout: 30000,
+    });
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Countries retrieved successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Get Countries Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message: "EasyEcom Get Countries API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to get countries",
+      error: error.message,
+    });
+  }
+});
+
+app.get("/api/current-channel-status", async (req, res) => {
+  try {
+    const response = await axios.get(
+      `${BASE_URL}/current-channel-status`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": X_API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Marketplace credentials validated successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Validate Marketplace Credentials Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message:
+          "EasyEcom Validate Marketplace Credentials API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to validate marketplace credentials",
+      error: error.message,
+    });
+  }
+});
+
+app.post("/api/addUser", async (req, res) => {
+  try {
+    const {
+      roleTypeId,
+      email,
+      password,
+      firstname,
+      lastname,
+    } = req.body;
+
+    if (
+      roleTypeId === undefined ||
+      !email ||
+      !password ||
+      !firstname ||
+      !lastname
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "roleTypeId, email, password, firstname and lastname are required",
+      });
+    }
+
+    const response = await axios.post(
+      `${BASE_URL}/addUser`,
+      {
+        roleTypeId: Number(roleTypeId),
+        email,
+        password,
+        firstname,
+        lastname,
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": X_API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "User added successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Add User Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message: "EasyEcom Add User API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to add user",
+      error: error.message,
+    });
+  }
+});
+
 // ================= SERVER START =================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
