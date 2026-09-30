@@ -32083,6 +32083,76 @@ app.get("/api/Listings/getMarketPlaceListing", async (req, res) => {
   }
 });
 
+
+app.post("/api/Company/enableDisableAccount", async (req, res) => {
+  try {
+    const { enable } = req.body;
+
+    if (enable === undefined || enable === null || enable === "") {
+      return res.status(400).json({
+        success: false,
+        message: "enable is required",
+      });
+    }
+
+    if (![0, 1].includes(Number(enable))) {
+      return res.status(400).json({
+        success: false,
+        message: "enable must be 0 or 1",
+      });
+    }
+
+    const payload = {
+      enable: Number(enable),
+    };
+
+    const response = await axios.post(
+      `${BASE_URL}/Company/enableDisableAccount`,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": X_API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "EasyEcom account status updated successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Enable Disable Account Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message: "EasyEcom Enable/Disable Account API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update EasyEcom account status",
+      error: error.message,
+    });
+  }
+});
+
 // ================= SERVER START =================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
