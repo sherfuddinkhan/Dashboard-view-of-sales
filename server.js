@@ -33443,7 +33443,70 @@ app.post("/api/wms/UpdateVendor", async (req, res) => {
     });
   }
 });
+// =====================================================
+// GET Company Group Details
+// EasyEcom: GET /Maintenance/getCompanyGroupDetails
+// =====================================================
+app.get("/api/Maintenance/getCompanyGroupDetails", async (req, res) => {
+  try {
+    const { type } = req.query;
 
+    if (!type) {
+      return res.status(400).json({
+        success: false,
+        message: "type is required",
+      });
+    }
+
+    const response = await axios.get(
+      `${BASE_URL}/Maintenance/getCompanyGroupDetails`,
+      {
+        params: {
+          type,
+        },
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": X_API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Company group details retrieved successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Get Company Group Details Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message:
+          "EasyEcom Get Company Group Details API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to get company group details",
+      error: error.message,
+    });
+  }
+});
 // =====================================================
 // POST Update Customer Master
 // EasyEcom: POST /Wholesale/UpdateCustomer
