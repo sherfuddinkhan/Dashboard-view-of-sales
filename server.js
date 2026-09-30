@@ -32325,6 +32325,999 @@ app.post("/api/addUser", async (req, res) => {
   }
 });
 
+app.post("/api/company/V2/create", async (req, res) => {
+  try {
+    const {
+      phone,
+      company_name,
+      email,
+      client_id,
+      branding_user_id,
+      password,
+      shipping_address,
+      billing_address,
+      companyLevelTaxRate,
+      confirm_without_inventory,
+    } = req.body;
+
+    // Required field validation
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        message: "phone is required",
+      });
+    }
+
+    if (!company_name) {
+      return res.status(400).json({
+        success: false,
+        message: "company_name is required",
+      });
+    }
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "email is required",
+      });
+    }
+
+    if (!client_id) {
+      return res.status(400).json({
+        success: false,
+        message: "client_id is required",
+      });
+    }
+
+    if (!branding_user_id) {
+      return res.status(400).json({
+        success: false,
+        message: "branding_user_id is required",
+      });
+    }
+
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        message: "password is required",
+      });
+    }
+
+    if (!shipping_address) {
+      return res.status(400).json({
+        success: false,
+        message: "shipping_address is required",
+      });
+    }
+
+    if (!billing_address) {
+      return res.status(400).json({
+        success: false,
+        message: "billing_address is required",
+      });
+    }
+
+    const requestBody = {
+      phone: Number(phone),
+      company_name,
+      email,
+      client_id,
+      branding_user_id,
+      password,
+
+      shipping_address: {
+        address_line_1:
+          shipping_address.address_line_1,
+        address_line_2:
+          shipping_address.address_line_2 || "",
+        state_code:
+          shipping_address.state_code,
+        pin_code:
+          Number(shipping_address.pin_code),
+        country:
+          shipping_address.country,
+      },
+
+      billing_address: {
+        address_line_1:
+          billing_address.address_line_1,
+        address_line_2:
+          billing_address.address_line_2 || "",
+        state_code:
+          billing_address.state_code,
+        pin_code:
+          Number(billing_address.pin_code),
+        country:
+          billing_address.country,
+      },
+
+      confirm_without_inventory:
+        confirm_without_inventory !== undefined
+          ? Number(confirm_without_inventory)
+          : 0,
+    };
+
+    // Optional company-level tax rate
+    if (
+      companyLevelTaxRate !== undefined &&
+      companyLevelTaxRate !== null &&
+      companyLevelTaxRate !== ""
+    ) {
+      requestBody.companyLevelTaxRate =
+        Number(companyLevelTaxRate);
+    }
+
+    const response = await axios.post(
+      `${BASE_URL}/company/V2/create`,
+      requestBody,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": X_API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Company created successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Create Company V2 Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message:
+          "EasyEcom Create Company V2 API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message:
+          "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create company",
+      error: error.message,
+    });
+  }
+});
+
+
+app.post("/api/createLocation", async (req, res) => {
+  try {
+    const {
+      phone,
+      company_name,
+      email,
+      client_id,
+      branding_user_id,
+      password,
+      companyLevelTaxRate,
+      confirm_without_inventory,
+      copyMaster,
+      manageInventory,
+      shipping_address,
+      billing_address,
+    } = req.body;
+
+    // Required fields
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        message: "phone is required",
+      });
+    }
+
+    if (!company_name) {
+      return res.status(400).json({
+        success: false,
+        message: "company_name is required",
+      });
+    }
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "email is required",
+      });
+    }
+
+    if (!client_id) {
+      return res.status(400).json({
+        success: false,
+        message: "client_id is required",
+      });
+    }
+
+    if (!branding_user_id) {
+      return res.status(400).json({
+        success: false,
+        message: "branding_user_id is required",
+      });
+    }
+
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        message: "password is required",
+      });
+    }
+
+    if (!shipping_address) {
+      return res.status(400).json({
+        success: false,
+        message: "shipping_address is required",
+      });
+    }
+
+    if (!billing_address) {
+      return res.status(400).json({
+        success: false,
+        message: "billing_address is required",
+      });
+    }
+
+    const requestBody = {
+      phone: Number(phone),
+      company_name,
+      email,
+      client_id,
+      branding_user_id,
+      password,
+
+      shipping_address: {
+        address_line_1:
+          shipping_address.address_line_1,
+        address_line_2:
+          shipping_address.address_line_2 || "",
+        state_code:
+          shipping_address.state_code,
+        pin_code:
+          Number(shipping_address.pin_code),
+        country:
+          shipping_address.country,
+      },
+
+      billing_address: {
+        address_line_1:
+          billing_address.address_line_1,
+        address_line_2:
+          billing_address.address_line_2 || "",
+        state_code:
+          billing_address.state_code,
+        pin_code:
+          Number(billing_address.pin_code),
+        country:
+          billing_address.country,
+      },
+
+      confirm_without_inventory:
+        confirm_without_inventory !== undefined
+          ? Number(confirm_without_inventory)
+          : 0,
+
+      copyMaster:
+        copyMaster !== undefined
+          ? Number(copyMaster)
+          : 1,
+
+      manageInventory:
+        manageInventory !== undefined
+          ? Number(manageInventory)
+          : 1,
+    };
+
+    // Optional company-level tax rate
+    if (
+      companyLevelTaxRate !== undefined &&
+      companyLevelTaxRate !== null &&
+      companyLevelTaxRate !== ""
+    ) {
+      requestBody.companyLevelTaxRate =
+        Number(companyLevelTaxRate);
+    }
+
+    const response = await axios.post(
+      `${BASE_URL}/createLocation`,
+      requestBody,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": X_API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Location created successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Create Location Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message:
+          "EasyEcom Create Location API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message:
+          "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create location",
+      error: error.message,
+    });
+  }
+});
+
+// GET Check Company
+app.get("/api/company/checkCompany", async (req, res) => {
+  try {
+    const { branding_user_id, client_id } = req.query;
+
+    if (!branding_user_id) {
+      return res.status(400).json({
+        success: false,
+        message: "branding_user_id is required",
+      });
+    }
+
+    if (!client_id) {
+      return res.status(400).json({
+        success: false,
+        message: "client_id is required",
+      });
+    }
+
+    const response = await axios.get(
+      `${BASE_URL}/company/checkCompany`,
+      {
+        params: {
+          branding_user_id,
+          client_id,
+        },
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": X_API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Company check completed successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Check Company Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message: "EasyEcom Check Company API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to check company",
+      error: error.message,
+    });
+  }
+});
+
+app.post("/api/Wholesale/CreateCustomer", async (req, res) => {
+  try {
+    const {
+      companyName,
+      email,
+      password,
+      taxIdentificationNumber,
+      contactNumber,
+      country,
+      billingStateId,
+      billingStreet,
+      billingCity,
+      billingPostalCode,
+      currency,
+      description,
+      dispatchStateId,
+      dispatchStreet,
+      dispatchCity,
+      dispatchPostalCode,
+      invoiceSeriesCode,
+      pricingGroupCode,
+      no_copy_master,
+      salesChannel,
+      salesmanUserId,
+      b2bDiscountScheme,
+      customerAttributes,
+    } = req.body;
+
+    if (!companyName) {
+      return res.status(400).json({
+        success: false,
+        message: "companyName is required",
+      });
+    }
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "email is required",
+      });
+    }
+
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        message: "password is required",
+      });
+    }
+
+    if (!contactNumber) {
+      return res.status(400).json({
+        success: false,
+        message: "contactNumber is required",
+      });
+    }
+
+    if (!country) {
+      return res.status(400).json({
+        success: false,
+        message: "country is required",
+      });
+    }
+
+    if (billingStateId === undefined || billingStateId === null) {
+      return res.status(400).json({
+        success: false,
+        message: "billingStateId is required",
+      });
+    }
+
+    if (!billingStreet) {
+      return res.status(400).json({
+        success: false,
+        message: "billingStreet is required",
+      });
+    }
+
+    if (!billingCity) {
+      return res.status(400).json({
+        success: false,
+        message: "billingCity is required",
+      });
+    }
+
+    if (!billingPostalCode) {
+      return res.status(400).json({
+        success: false,
+        message: "billingPostalCode is required",
+      });
+    }
+
+    if (dispatchStateId === undefined || dispatchStateId === null) {
+      return res.status(400).json({
+        success: false,
+        message: "dispatchStateId is required",
+      });
+    }
+
+    if (!dispatchStreet) {
+      return res.status(400).json({
+        success: false,
+        message: "dispatchStreet is required",
+      });
+    }
+
+    if (!dispatchCity) {
+      return res.status(400).json({
+        success: false,
+        message: "dispatchCity is required",
+      });
+    }
+
+    if (!dispatchPostalCode) {
+      return res.status(400).json({
+        success: false,
+        message: "dispatchPostalCode is required",
+      });
+    }
+
+    if (
+      invoiceSeriesCode === undefined ||
+      invoiceSeriesCode === null
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "invoiceSeriesCode is required",
+      });
+    }
+
+    if (
+      pricingGroupCode === undefined ||
+      pricingGroupCode === null
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "pricingGroupCode is required",
+      });
+    }
+
+    const requestBody = {
+      companyName,
+      email,
+      password,
+      taxIdentificationNumber:
+        taxIdentificationNumber || "",
+      contactNumber,
+      country,
+
+      billingStateId: Number(billingStateId),
+      billingStreet,
+      billingCity,
+      billingPostalCode,
+
+      currency: currency || "INR",
+      description: description || "",
+
+      dispatchStateId: Number(dispatchStateId),
+      dispatchStreet,
+      dispatchCity,
+      dispatchPostalCode,
+
+      invoiceSeriesCode: Number(invoiceSeriesCode),
+      pricingGroupCode: Number(pricingGroupCode),
+
+      no_copy_master:
+        no_copy_master !== undefined
+          ? Number(no_copy_master)
+          : 1,
+
+      salesChannel: salesChannel || "",
+
+      salesmanUserId:
+        salesmanUserId !== undefined &&
+        salesmanUserId !== null &&
+        salesmanUserId !== ""
+          ? Number(salesmanUserId)
+          : undefined,
+
+      b2bDiscountScheme: b2bDiscountScheme || {},
+
+      customerAttributes: customerAttributes || {},
+    };
+
+    const response = await axios.post(
+      `${BASE_URL}/Wholesale/CreateCustomer`,
+      requestBody,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": X_API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Customer created successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Create Customer Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message:
+          "EasyEcom Create Customer API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create customer",
+      error: error.message,
+    });
+  }
+});
+
+// POST Create Vendor Master
+app.post("/api/wms/CreateVendor", async (req, res) => {
+  try {
+    const {
+      emailId,
+      firstName,
+      lastName,
+      vendorCode,
+      companyName,
+      taxIdentificationNum,
+      street,
+      city,
+      state,
+      zip,
+      country,
+      contactNumber,
+      currency,
+    } = req.body;
+
+    if (!emailId) {
+      return res.status(400).json({
+        success: false,
+        message: "emailId is required",
+      });
+    }
+
+    if (!firstName) {
+      return res.status(400).json({
+        success: false,
+        message: "firstName is required",
+      });
+    }
+
+    if (!lastName) {
+      return res.status(400).json({
+        success: false,
+        message: "lastName is required",
+      });
+    }
+
+    if (!vendorCode) {
+      return res.status(400).json({
+        success: false,
+        message: "vendorCode is required",
+      });
+    }
+
+    if (!companyName) {
+      return res.status(400).json({
+        success: false,
+        message: "companyName is required",
+      });
+    }
+
+    if (!taxIdentificationNum) {
+      return res.status(400).json({
+        success: false,
+        message: "taxIdentificationNum is required",
+      });
+    }
+
+    if (!street) {
+      return res.status(400).json({
+        success: false,
+        message: "street is required",
+      });
+    }
+
+    if (!city) {
+      return res.status(400).json({
+        success: false,
+        message: "city is required",
+      });
+    }
+
+    if (!state) {
+      return res.status(400).json({
+        success: false,
+        message: "state is required",
+      });
+    }
+
+    if (zip === undefined || zip === null || zip === "") {
+      return res.status(400).json({
+        success: false,
+        message: "zip is required",
+      });
+    }
+
+    if (!country) {
+      return res.status(400).json({
+        success: false,
+        message: "country is required",
+      });
+    }
+
+    if (!contactNumber) {
+      return res.status(400).json({
+        success: false,
+        message: "contactNumber is required",
+      });
+    }
+
+    if (!currency) {
+      return res.status(400).json({
+        success: false,
+        message: "currency is required",
+      });
+    }
+
+    const requestBody = {
+      emailId,
+      firstName,
+      lastName,
+      vendorCode,
+      companyName,
+      taxIdentificationNum,
+      street,
+      city,
+      state,
+      zip: Number(zip),
+      country,
+      contactNumber,
+      currency,
+    };
+
+    const response = await axios.post(
+      `${BASE_URL}/wms/CreateVendor`,
+      requestBody,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": X_API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Vendor created successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Create Vendor Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message:
+          "EasyEcom Create Vendor API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create vendor",
+      error: error.message,
+    });
+  }
+});
+
+
+app.get("/api/wms/v2/getVendors", async (req, res) => {
+  try {
+    const response = await axios.get(
+      `${BASE_URL}/wms/V2/getVendors`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": X_API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Vendors retrieved successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Get Vendors Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message:
+          "EasyEcom Get Vendors API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve vendors",
+      error: error.message,
+    });
+  }
+});
+
+
+app.get("/api/getAllLocation", async (req, res) => {
+  try {
+    const response = await axios.get(
+      `${BASE_URL}/getAllLocation`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": X_API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Locations retrieved successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Get All Location Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message:
+          "EasyEcom Get All Location API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve locations",
+      error: error.message,
+    });
+  }
+});
+
+
+app.get("/api/Wholesale/v2/UserManagement", async (req, res) => {
+  try {
+    const { type } = req.query;
+
+    if (!type) {
+      return res.status(400).json({
+        success: false,
+        message: "type is required",
+      });
+    }
+
+    const response = await axios.get(
+      `${BASE_URL}/Wholesale/v2/UserManagement`,
+      {
+        params: {
+          type,
+        },
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": X_API_KEY,
+          Authorization: `Bearer ${JWT_TOKEN}`,
+        },
+        timeout: 30000,
+      }
+    );
+
+    return res.status(response.status).json({
+      success: true,
+      message: "Customers retrieved successfully",
+      data: response.data,
+    });
+  } catch (error) {
+    console.error(
+      "Get Customers Error:",
+      error.response?.data || error.message
+    );
+
+    if (error.response) {
+      return res.status(error.response.status).json({
+        success: false,
+        message:
+          "EasyEcom Get Customers API returned an error",
+        error: error.response.data,
+      });
+    }
+
+    if (error.request) {
+      return res.status(502).json({
+        success: false,
+        message: "No response received from EasyEcom",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve customers",
+      error: error.message,
+    });
+  }
+});
+
+
+
 // ================= SERVER START =================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
