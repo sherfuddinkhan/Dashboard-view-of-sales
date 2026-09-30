@@ -22757,24 +22757,9 @@ app.post("/api/easyecom/list-carriers", async (req, res) => {
 });
 
 
-const express = require("express");
-const cors = require("cors");
-const axios = require("axios");
-require("dotenv").config();
 
-const app = express();
 
-app.use(
-  cors({
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:3000",
-    ],
-    credentials: true,
-  })
-);
 
-app.use(express.json({ limit: "10mb" }));
 
 // ============================================================
 // CREATE ORDER V1
@@ -23373,24 +23358,6 @@ app.post(
   }
 );
 
-const express = require("express");
-const cors = require("cors");
-
-const app = express();
-
-const PORT = 5000;
-
-app.use(
-  cors({
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:3000"
-    ],
-    credentials: true
-  })
-);
-
-app.use(express.json({ limit: "10mb" }));
 
 
 // ============================================================
@@ -25632,7 +25599,7 @@ app.post(
       });
     }
   }
-);s
+);
 
 app.post(
   "/api/easyecom/webhook/batch-manifest-v1",

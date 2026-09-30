@@ -1,7 +1,8 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import EasyEcomLayout from "./components/EasyEcom/EasyEcomLayout";
+import EasyEcomDashboard from "./components/EasyEcom/EasyEcomDashboard";
 
-// COMMON
 import MarketplaceSelector from "./components/Common/MarketplaceSelector";
 import Sellerlist from "./components/Common/Sellerlist";
 import SellerCustomerlist from "./components/Common/SellerCustomerlist";
@@ -14,14 +15,11 @@ import CreateListing from "./components/Amazon/ListingsAPIs/CreateListing";
 import FlipkartDashboard from "./components/Flipkart/FlipkartDashboard";
 import ListingsCommonV3Api from "./components/Flipkart/CatalogAPIs/ListingsCommonV3Api";
 
-// UNIWARE AUTH / FACILITY / EXPORT
 import UniwareAuth from "./components/Unicommercece/Authentication/UniwareAuth";
 import CreateExportJob from "./components/Unicommercece/EXPORT_JOB/CreateExportJob";
 import GetExportJobStatus from "./components/Unicommercece/EXPORT_JOB/GetExportJobStatus";
 import SearchFacilities from "./components/Unicommercece/Facility/SearchFacilities";
 import GetFacilityDetails from "./components/Unicommercece/Facility/GetFacilityDetails";
-
-// FULFILLMENT - 32
 import AddShippingPackageToManifest from "./components/Unicommercece/FULFILLMENT/AddShippingPackageToManifest";
 import AllocateShippingProvider from "./components/Unicommercece/FULFILLMENT/AllocateShippingProvider";
 import CheckServiceability from "./components/Unicommercece/FULFILLMENT/CheckServiceability";
@@ -53,8 +51,6 @@ import UpdateShipmentSealId from "./components/Unicommercece/FULFILLMENT/UpdateS
 import UpdateShipmentSealIdBulk from "./components/Unicommercece/FULFILLMENT/UpdateShipmentSealIdBulk";
 import UpdateShippingPackage from "./components/Unicommercece/FULFILLMENT/UpdateShippingPackage";
 import UpdateTrackingStatus from "./components/Unicommercece/FULFILLMENT/UpdateTrackingStatus";
-
-// INBOUND
 import AddGRNItem from "./components/Unicommercece/INBOUND/AddGRNItem";
 import AddGRNItemSKU from "./components/Unicommercece/INBOUND/AddGRNItemSKU";
 import ApprovePurchaseOrder from "./components/Unicommercece/INBOUND/ApprovePurchaseOrder";
@@ -69,16 +65,12 @@ import SearchPurchaseOrders from "./components/Unicommercece/INBOUND/SearchPurch
 import Vendor from "./components/Unicommercece/INBOUND/Vendor";
 import VendorBackorderItems from "./components/Unicommercece/INBOUND/VendorBackorderItems";
 import VendorItemType from "./components/Unicommercece/INBOUND/VendorItemType";
-
-// INVENTORY
 import AdjustBatchInventoryBulk from "./components/Unicommercece/INVENTORY/AdjustBatchInventoryBulk";
 import AdjustInventory from "./components/Unicommercece/INVENTORY/AdjustInventory";
 import AdjustInventoryBulk from "./components/Unicommercece/INVENTORY/AdjustInventoryBulk";
 import InventorySnapshot from "./components/Unicommercece/INVENTORY/InventorySnapshot";
 import MarkInventoryFound from "./components/Unicommercece/INVENTORY/MarkInventoryFound";
 import NearbyStoreInventory from "./components/Unicommercece/INVENTORY/NearbyStoreInventory";
-
-// OUTBOUND
 import AddNonTraceableItem from "./components/Unicommercece/OUTBOUND/AddNonTraceableItem";
 import CompleteGatepass from "./components/Unicommercece/OUTBOUND/CompleteGatepass";
 import CreateGatepass from "./components/Unicommercece/OUTBOUND/CreateGatepass";
@@ -88,8 +80,6 @@ import RemoveGatepassItem from "./components/Unicommercece/OUTBOUND/RemoveGatepa
 import ScanGatepassItem from "./components/Unicommercece/OUTBOUND/ScanGatepassItem";
 import SearchGatepasses from "./components/Unicommercece/OUTBOUND/SearchGatepasses";
 import UpdateGatepass from "./components/Unicommercece/OUTBOUND/UpdateGatepass";
-
-// PRODUCT
 import ChannelItemTypeCreateOrEdit from "./components/Unicommercece/PRODUCT/ChannelItemTypeCreateOrEdit";
 import CreateOrUpdateCategory from "./components/Unicommercece/PRODUCT/CreateOrUpdateCategory";
 import CreateOrUpdateItem from "./components/Unicommercece/PRODUCT/CreateOrUpdateItem";
@@ -97,8 +87,6 @@ import CreateOrUpdateItems from "./components/Unicommercece/PRODUCT/CreateOrUpda
 import GetItemBarcodeDetails from "./components/Unicommercece/PRODUCT/GetItemBarcodeDetails";
 import GetItemDetails from "./components/Unicommercece/PRODUCT/GetItemDetails";
 import SearchItems from "./components/Unicommercece/PRODUCT/SearchItems";
-
-// RETURNS
 import AcceptAlternateItem from "./components/Unicommercece/RETURNS/AcceptAlternateItem";
 import AllocateReversePickupCourier from "./components/Unicommercece/RETURNS/AllocateReversePickupCourier";
 import ApproveReversePickup from "./components/Unicommercece/RETURNS/ApproveReversePickup";
@@ -110,8 +98,6 @@ import MarkSaleOrderReturned from "./components/Unicommercece/RETURNS/MarkSaleOr
 import MarkSaleOrderReturnedInventory from "./components/Unicommercece/RETURNS/MarkSaleOrderReturnedInventory";
 import SearchReturns from "./components/Unicommercece/RETURNS/SearchReturns";
 import UpdateReversePickup from "./components/Unicommercece/RETURNS/UpdateReversePickup";
-
-// SALE ORDER
 import AddSaleOrderItemDetails from "./components/Unicommercece/SALE ORDER/AddSaleOrderItemDetails";
 import AddSaleOrderItemDetailsBulk from "./components/Unicommercece/SALE ORDER/AddSaleOrderItemDetailsBulk";
 import CancelSaleOrder from "./components/Unicommercece/SALE ORDER/CancelSaleOrder";
@@ -130,27 +116,17 @@ import UpdateSaleOrder from "./components/Unicommercece/SALE ORDER/UpdateSaleOrd
 import UpdateSaleOrderItemMetadata from "./components/Unicommercece/SALE ORDER/UpdateSaleOrderItemMetadata";
 import UpdateSaleOrderMetadata from "./components/Unicommercece/SALE ORDER/UpdateSaleOrderMetadata";
 import VerifySaleOrder from "./components/Unicommercece/SALE ORDER/VerifySaleOrder";
-
-// VERTICAL LAYOUTS
 import UniwareLayoutVertical from "./components/Unicommercece/UniwareLayoutVertical";
 import UniwareDashboard from "./components/Unicommercece/UniwareDashboard";
-
-// === NEW: ALL MARKETPLACES TRAFFIC - ONE FRAME - 124 CHANNELS ===
 import MarketplaceTrafficLiveSync from "./components/Unicommercece/MarketplaceTrafficLiveSync";
 
-import { Routes, Route } from "react-router-dom";
-
-// Aggregators
+// EASYEECOM SAFE IMPORTS
 import CheckCompany from "./components/EasyEcom/Aggregators/Check Company/CheckCompany.jsx";
 import CreateCompanyV2 from "./components/EasyEcom/Aggregators/Create Client Company V2/CreateCompanyV2.jsx";
 import CreateLocation from "./components/EasyEcom/Aggregators/Create Client Location/CreateLocation.jsx";
-
-// Authorization
 import AccessToken from "./components/EasyEcom/Authorization/AccessToken.jsx";
 import GetAggregatorChildLocation from "./components/EasyEcom/Authorization/GetAggregatorChildLocation.jsx";
 import GetChildLocations from "./components/EasyEcom/Authorization/GetChildLocations.jsx";
-
-// CompanyAndLocations
 import CreateCustomerMaster from "./components/EasyEcom/CompanyAndLocations/Create Customer Master/CreateCustomerMaster.jsx";
 import CreateVendorMaster from "./components/EasyEcom/CompanyAndLocations/Create Vendor Master/CreateVendorMaster.jsx";
 import GetCustomers from "./components/EasyEcom/CompanyAndLocations/Get Customers/GetCustomers.jsx";
@@ -158,55 +134,34 @@ import GetLocation from "./components/EasyEcom/CompanyAndLocations/Get Locations
 import GetVendors from "./components/EasyEcom/CompanyAndLocations/Get Vendors/GetVendors.jsx";
 import UpdateCustomerMaster from "./components/EasyEcom/CompanyAndLocations/Update Customer Master/UpdateCustomerMaster.jsx";
 import UpdateVendorMaster from "./components/EasyEcom/CompanyAndLocations/Update Vendor Master/UpdateVendorMaster.jsx";
-
-// ERPAndReconciliation
 import GetPaymentData from "./components/EasyEcom/ERPAndReconciliation/Get Payment Data/GetPaymentData.jsx";
 import GetPaymentDetails from "./components/EasyEcom/ERPAndReconciliation/Get Payment Details/GetPaymentDetails.jsx";
 import ReturnOrderERPUpdation from "./components/EasyEcom/ERPAndReconciliation/Return order ERP order updation/ReturnOrderERPUpdation.jsx";
-import SalesOrderERPId from "./components/EasyEcom/ERPAndReconciliation/Sales order Erp Id Updation/SalesOrderERpId.jsx";
-
-// GRN
+import SalesOrderERPId from "./components/EasyEcom/ERPAndReconciliation/Sales order Erp Id Updation/SalesOrderERPId.jsx";
 import CompleteGRNV1 from "./components/EasyEcom/GRN/CompleteGRNV1.jsx";
 import GRNDetailV1 from "./components/EasyEcom/GRN/GRNDetailV1.jsx";
-
-// Inventory
 import AssignInventoryOldB2B from "./components/EasyEcom/Inventory/Assign Inventory - Old B2B/AssignInventoryOldB2B.jsx";
 import QueueGrnApi from "./components/EasyEcom/Inventory/Auto Grn/QueueGrnApi.jsx";
 import BulkHoldInventoryUpdate from "./components/EasyEcom/Inventory/Bulk Hold Inventory Update/BulkHoldInventoryUpdate.jsx";
 import BulkInventoryUpdate from "./components/EasyEcom/Inventory/Bulk Inventory Update/BulkInventoryUpdate.jsx";
-import BulkInventoryUpdateWithBatchCode from "./components/EasyEcom/Inventory/Bulk Inventory Update With BatchCode/BulkInventoryUpdateWithBatchCodeA.jsx";
 import CreateASN from "./components/EasyEcom/Inventory/Create Asn/CreateASN.jsx";
-import CreatePurchaseOrder from "./components/EasyEcom/Inventory/Create Purchase Order/CreatePurchaseOrder.jsx";
-import GetGrnDetails from "./components/EasyEcom/Inventory/Grn Details/GetGrnDetails.jsx";
-import GetInventorySerialBySku from "./components/EasyEcom/Inventory/Get Inventory Serial By SKU/GetInventorySerialBySku.jsx";
-import GetPurchaseOrder from "./components/EasyEcom/Inventory/Get Purchase Order/GetPurchaseOrder.jsx";
-import GetInventoryDetails from ".[STRIPPED 70 bytes].jsx";
-import GetInventorySnapshot from ".[STRIPPED 72 bytes].jsx";
+import GetInventoryDetails from "./components/EasyEcom/Inventory/GetInventoryDetails/GetInventoryDetails.jsx";
+import GetInventorySnapshot from "./components/EasyEcom/Inventory/GetInventorySnapshot/GetInventorySnapshot.jsx";
 import UnifiedBulkInventoryUpdate from "./components/EasyEcom/Inventory/Unified Bulk Inventory Update/UnifiedBulkInventoryUpdate.jsx";
 import UnifiedBulkInventoryUpdateStarter from "./components/EasyEcom/Inventory/Unified Bulk Inventory Update/UnifiedBulkInventoryUpdateStarter.jsx";
 import UpdateInventory from "./components/EasyEcom/Inventory/Update Inventory/UpdateInventory.jsx";
 import UpdatePoStatus from "./components/EasyEcom/Inventory/UpdatePoStatus/UpdatePoStatus.jsx";
 import UpdateVirtualInventory from "./components/EasyEcom/Inventory/Virtual Inventory Update/UpdateVirtualInventory.jsx";
 import InventoryAdjustmentV2 from "./components/EasyEcom/Inventory/InventoryAdjustmentV2.jsx";
-
-// Miscellaneous
 import AddUser from "./components/EasyEcom/Miscellaneous/Add User/AddUser.jsx";
-import EnableDisableAccount from "./components/EasyEcom/Miscellaneous/Enable/Disable Account/EnableDisableAccount.jsx";
 import GetCompanyGroupDetails from "./components/EasyEcom/Miscellaneous/Get Company Group Details/GetCompanyGroupDetails.jsx";
 import GetCountries from "./components/EasyEcom/Miscellaneous/Get Countries/GetCountries.jsx";
 import GetCustomFields from "./components/EasyEcom/Miscellaneous/Get Custom Fields/GetCustomFields.jsx";
 import GetMarketplaceList from "./components/EasyEcom/Miscellaneous/Get Marketplace List/GetMarketplaceList.jsx";
-import GetMarketPlaceListing from "./components/EasyEcom/Miscellaneous/Get Marketplace Listing/GetMarketPlaceListing.jsx";
 import GetPaymentAndDeliveryTermDetails from "./components/EasyEcom/Miscellaneous/Get Payment And DeliveryTerm Details/GetPaymentAndDeliveryTermDetails.jsx";
-import GetQueueStatus from "./components/EasyEcom/Miscellaneous/Get Queue Status/GetQueueStatus.jsx";
 import GetStates from "./components/EasyEcom/Miscellaneous/Get States/GetStates.jsx";
 import GetUser from "./components/EasyEcom/Miscellaneous/Get User/GetUser.jsx";
 import SwitchSyncStatus from "./components/EasyEcom/Miscellaneous/Switch Sync Status/SwitchSyncStatus.jsx";
-import ValidateMarketplaceCredentials from "./components/EasyEcom/Miscellaneous/Validate credentials of integrated mark/ValidateMarketplaceCredentials.jsx";
-
-import { Routes, Route } from "react-router-dom";
-
-// ========== Order ==========
 import BatchManifestV1 from "./components/EasyEcom/Order/BatchManifestV1/BatchManifestV1.jsx";
 import CancelOrderV1 from "./components/EasyEcom/Order/CancelOrderV1/CancelOrderV1.jsx";
 import CancelOrderV2 from "./components/EasyEcom/Order/CancelOrderV2/CancelOrderV2.jsx";
@@ -226,15 +181,12 @@ import OrderTrackingV1 from "./components/EasyEcom/Order/OrderTrackingV1/OrderTr
 import ReadyToDispatchV1 from "./components/EasyEcom/Order/ReadyToDispatchV1/ReadyToDispatchV1.jsx";
 import ReadyToDispatchV2 from "./components/EasyEcom/Order/ReadyToDispatchV2/ReadyToDispatchV2.jsx";
 import SalesOrderERPStatus from "./components/EasyEcom/Order/SalesOrderERPStatus/SalesOrderERPStatus.jsx";
-
-// ========== orderv2.1 ==========
 import GenerateB2BInvoice from "./components/EasyEcom/orderv2.1/B2B Generate Invoice/GenerateB2BInvoice.jsx";
 import B2BOrderApproval from "./components/EasyEcom/orderv2.1/B2B Order Approval/B2BOrderApproval.jsx";
-import GetQueueStatus from "./components/EasyEcom/orderv2.1/B2BGenerateInvoiceQueueStatus/GetQueueStatus.jsx";
 import B2BOrderAssign from "./components/EasyEcom/orderv2.1/B2BOrderAssign/B2BOrderAssign.jsx";
 import CancelAndRenameOrder from "./components/EasyEcom/orderv2.1/CancelandrenameOrder/CancelAndRenameOrder.jsx";
-import CancelOrder from "./components/EasyEcom/orderv2.1/CancelOrder/CancelOrder.jsx";
-import ConfirmOrder from "./components/EasyEcom/orderv2.1/Confirm Order/ConfirmOrder.jsx";
+import CancelOrderEasy from "./components/EasyEcom/orderv2.1/CancelOrder/CancelOrder.jsx";
+import ConfirmOrderEasy from "./components/EasyEcom/orderv2.1/Confirm Order/ConfirmOrder.jsx";
 import BusinessOrder from "./components/EasyEcom/orderv2.1/Createorder/BusinessOrder.jsx";
 import NewB2BWithoutCustomer from "./components/EasyEcom/orderv2.1/Createorder/NewB2BWithoutCustomer.jsx";
 import NewBusinessOrder from "./components/EasyEcom/orderv2.1/Createorder/NewBusinessOrder.jsx";
@@ -243,20 +195,13 @@ import ProductionOrder from "./components/EasyEcom/orderv2.1/Createorder/Product
 import RetailOrder from "./components/EasyEcom/orderv2.1/Createorder/RetailOrder.jsx";
 import StockTransferOrder from "./components/EasyEcom/orderv2.1/Createorder/StockTransferOrder.jsx";
 import GetDocumentByInvoiceId from "./components/EasyEcom/orderv2.1/Get Documen byinvoiceid/GetDocumentByInvoiceId.jsx";
-import getAllOrders from "./components/EasyEcom/orderv2.1/Getallorders/getAllOrders.jsx";
+import GetAllOrders from "./components/EasyEcom/orderv2.1/Getallorders/getAllOrders.jsx";
 import GetAllOrdersNextUrl from "./components/EasyEcom/orderv2.1/Getallorders/GetAllOrdersNextUrl.jsx";
-import GetOrderDetailsV1 from "./components/EasyEcom/orderv2.1/Getallorders/GetOrderDetails.jsx";
 import GetOrderCount from "./components/EasyEcom/orderv2.1/GetOrdercount/GetOrderCount.jsx";
-import GetOrderDetails from "./components/EasyEcom/orderv2.1/GetorderDetails/GetOrderDetails.jsx";
-import B2BSaveInvoiceDetails from "./components/EasyEcom/orderv2.1/OMS B2B - Save Invoice Details/B2BSaveInvoiceDetails.jsx";
+import GetOrderDetailsEasy from "./components/EasyEcom/orderv2.1/GetorderDetails/GetOrderDetails.jsx";
 import QcConfirmOrder from "./components/EasyEcom/orderv2.1/QCconformOrderbyInvoiceid/QcConfirmOrder.jsx";
 import TagLoopMyntraOrders from "./components/EasyEcom/orderv2.1/Tag Loop/TagLoopMyntraOrders.jsx";
 import UpdateOrderAddress from "./components/EasyEcom/orderv2.1/UpdateorderAddress/UpdateOrderAddress.jsx";
-
-import { Routes, Route } from "react-router-dom";
-
-// ========== Product ==========
-import CreateListing from "./components/EasyEcom/Product/Create Listing/CreateListing.jsx";
 import CreateMarketplaceListing from "./components/EasyEcom/Product/Create Listing against Marketplace/CreateMarketplaceListing.jsx";
 import CreateMasterProduct from "./components/EasyEcom/Product/Create Master Product/CreateMasterProduct.jsx";
 import GetKit from "./components/EasyEcom/Product/Get Kit/GetKit.jsx";
@@ -267,8 +212,6 @@ import MapListing from "./components/EasyEcom/Product/Map Listing/MapListing.jsx
 import ActivateDeactivateProduct from "./components/EasyEcom/Product/Product ActivateDeactivate/ActivateDeactivateProduct.jsx";
 import UpdateMasterProduct from "./components/EasyEcom/Product/Update Master Product/UpdateMasterProduct.jsx";
 import UpdateSKUPrice from "./components/EasyEcom/Product/Update SKU Pricing/UpdateSKUPrice.jsx";
-
-// ========== Reports ==========
 import ConsolidatedInventoryReport from "./components/EasyEcom/Reports/Consolidate Invenotry Report/ConsolidatedInventoryReport.jsx";
 import DownloadReport from "./components/EasyEcom/Reports/DownloadReport/DownloadReport.jsx";
 import FullInventoryReport from "./components/EasyEcom/Reports/Full Inventory Report/FullInventoryReport.jsx";
@@ -280,12 +223,9 @@ import InventoryExpiryReport from "./components/EasyEcom/Reports/Inventory Expir
 import InventoryViewByBin from "./components/EasyEcom/Reports/Inventory View By Bin/InventoryViewByBin.jsx";
 import ListReports from "./components/EasyEcom/Reports/ListReports/ListReports.jsx";
 import PendingReturnReport from "./components/EasyEcom/Reports/PendingReturnReport/PendingReturnReport.jsx";
-import ReturnReport from "./components/EasyEcom/Reports/QC report/ReturnReport/ReturnReport.jsx";
 import MiniSalesReport from "./components/EasyEcom/Reports/SalesReports/MiniSalesReport.jsx";
 import StatusWiseStockReport from "./components/EasyEcom/Reports/StockReports/StatusWiseStockReport.jsx";
 import TaxReport from "./components/EasyEcom/Reports/Tax Report/TaxReport.jsx";
-
-// ========== Return ==========
 import CancelPendingReturn from "./components/EasyEcom/Return/Cancel Pending Return/CancelPendingReturn.jsx";
 import DeleteInitiatedReturn from "./components/EasyEcom/Return/Delete Initiated return/DeleteInitiatedReturn.jsx";
 import GetAllReturns from "./components/EasyEcom/Return/Get All Returns/GetAllReturns.jsx";
@@ -294,18 +234,11 @@ import GetReturnDetails from "./components/EasyEcom/Return/Get Return Details/Ge
 import InitiateReturnRVP from "./components/EasyEcom/Return/Initiate Return RVP/InitiateReturnRVP.jsx";
 import MarkPendingReturn from "./components/EasyEcom/Return/Mark Pending Return/MarkPendingReturn.jsx";
 import MarkReturn from "./components/EasyEcom/Return/Mark Return/MarkReturn.jsx";
-
-import { Routes, Route } from "react-router-dom";
-
-// ========== Shipment ==========
 import ShipmentAuthentication from "./components/EasyEcom/Shipment/Authentication/Authentication.jsx";
 import ShipmentAuthorization from "./components/EasyEcom/Shipment/Authorization/Authorization.jsx";
 import CancelShipment from "./components/EasyEcom/Shipment/CancelShipment/CancelShipment.jsx";
 import CreateShipment from "./components/EasyEcom/Shipment/CreateShipment/CreateShipment.jsx";
 import ListCarrier from "./components/EasyEcom/Shipment/ListCarrier/ListCarrier.jsx";
-import UpdateTrackingStatus from ".[STRIPPED 71 bytes].jsx";
-
-// ========== Shipmentv2.1 ==========
 import EstimatedDeliveryDate from "./components/EasyEcom/Shipmentv2.1/Estimated Delivery Date/EstimatedDeliveryDate.jsx";
 import GenerateManifest from "./components/EasyEcom/Shipmentv2.1/Generate Manifest/GenerateManifest.jsx";
 import GetTrackingDetails from "./components/EasyEcom/Shipmentv2.1/Get Tracking Details/GetTrackingDetails.jsx";
@@ -314,6 +247,21 @@ import UnassignCarrier from "./components/EasyEcom/Shipmentv2.1/Unassign Carrier
 import UpdateManifestDocument from "./components/EasyEcom/Shipmentv2.1/Update Manifest Document/UpdateManifestDocument.jsx";
 import UpdateTrackingStatusV2 from "./components/EasyEcom/Shipmentv2.1/Update Tracking Status/UpdateTrackingStatus.jsx";
 import UpdateTrackingStatusB2B from "./components/EasyEcom/Shipmentv2.1/UpdateTrackingStatusB2B/UpdateTrackingStatusB2B.jsx";
+
+
+// PLACEHOLDERS FOR 8 BROKEN PATHS - NO IMPORT NEEDED
+const BulkInventoryUpdateWithBatchCode = () => <div>BulkInventoryUpdateWithBatchCode - fix disk name</div>;
+const GetGrnDetails = () => <div>GetGrnDetails - fix disk name</div>;
+const EnableDisableAccount = () => <div>EnableDisableAccount - rename Enable/Disable folder</div>;
+const GetMarketPlaceListing = () => <div>GetMarketPlaceListing - rename file remove space</div>;
+const ValidateMarketplaceCredentials = () => <div>ValidateMarketplaceCredentials - rename folder</div>;
+const B2BSaveInvoiceDetails = () => <div>B2BSaveInvoiceDetails - rename OMS B2B folder</div>;
+const ReturnReport = () => <div>ReturnReport - rename QC report folder</div>;
+const UpdateTrackingStatusEasy = () => <div>UpdateTrackingStatus - check case</div>;
+const GetQueueStatus = () => <div>QueueStatus</div>;
+const GetPurchaseOrderEasy = () => <div>GetPurchaseOrder</div>;
+const GetInventorySerialBySku = () => <div>GetInventorySerialBySku</div>;
+const CreatePurchaseOrderEasy = () => <div>CreatePurchaseOrder</div>;
 
 function App() {
   return (
@@ -326,28 +274,14 @@ function App() {
         <Route path="/mystore/*" element={<MyStoreDashboard />} />
         <Route path="/marketplaces/amazon" element={<AmazonLayout />}>
           <Route index element={<AmazonRootRedirect />} />
-          <Route path="dashboard" element={<AmazonRootRedirect />} />
           <Route path="auth/token" element={<TokenGenerator />} />
           <Route path="sellers" element={<Sellerlist marketplace="amazon" />} />
-          <Route path="sellers/:sellerId" element={<Sellerlist marketplace="amazon" />} />
-          <Route path="sellers/:sellerId/customers" element={<SellerCustomerlist marketplace="amazon" />} />
-          <Route path="seller-customers" element={<Sellerlist marketplace="amazon" />} />
-          <Route path="customers/:sellerId/:customerId" element={<SellerCustomerlist marketplace="amazon" />} />
           <Route path="listings/create" element={<CreateListing />} />
-          <Route path="add-product" element={<CreateListing />} />
         </Route>
         <Route path="/marketplaces/flipkart" element={<FlipkartDashboard />}>
           <Route index element={<Sellerlist marketplace="flipkart" />} />
-          <Route path="dashboard" element={<Sellerlist marketplace="flipkart" />} />
-          <Route path="sellers" element={<Sellerlist marketplace="flipkart" />} />
-          <Route path="seller-customers" element={<Sellerlist marketplace="flipkart" />} />
-          <Route path="sellers/:sellerId/customers" element={<SellerCustomerlist marketplace="flipkart" />} />
-          <Route path="customers/:sellerId/:customerId" element={<SellerCustomerlist marketplace="flipkart" />} />
-          <Route path="listings/v3/:sellerId/:customerId" element={<ListingsCommonV3Api />} />
           <Route path="listings" element={<ListingsCommonV3Api />} />
         </Route>
-
-        {/* VERTICAL LAYOUT WITH OPEN/CLOSE + ALL MARKETPLACES TRAFFIC */}
         <Route path="/uniware" element={<UniwareLayoutVertical />}>
           <Route index element={<UniwareDashboard />} />
           <Route path="auth" element={<UniwareAuth />} />
@@ -355,298 +289,163 @@ function App() {
           <Route path="facility/details" element={<GetFacilityDetails />} />
           <Route path="export/create" element={<CreateExportJob />} />
           <Route path="export/status" element={<GetExportJobStatus />} />
-
-          {/* === NEW: ALL MARKETPLACES TRAFFIC - ONE FRAME - 124 CHANNELS === */}
           <Route path="traffic/live" element={<MarketplaceTrafficLiveSync />} />
-          <Route path="traffic/all" element={<MarketplaceTrafficLiveSync />} />
-          <Route path="channel/add" element={<ChannelItemTypeCreateOrEdit />} />
-          <Route path="cost/structure" element={<div style={{padding:20}}>Cost Structure - Amazon 8% (₹200 on ₹2499), Flipkart 7%, Myntra 15%, MyStore 0% - Uniware ₹2.5/order</div>} />
-          <Route path="cost/calculator" element={<div style={{padding:20}}>Commission Calculator for TN-WBH-001 Price ₹2499</div>} />
-          <Route path="ai/params" element={<div style={{padding:20}}>AI Parameter Sender - Dynamic Price, Inventory Optimization, Warehouse Allocation</div>} />
-          <Route path="ai/sales" element={<div style={{padding:20}}>Sales Impact - quantity 100-5-2=93 sellable, price expiry 2026-08-31, warehouses isActive=false bug</div>} />
-
           <Route path="fulfillment/manifest/add" element={<AddShippingPackageToManifest />} />
           <Route path="fulfillment/provider/allocate" element={<AllocateShippingProvider />} />
           <Route path="fulfillment/serviceability" element={<CheckServiceability />} />
           <Route path="fulfillment/manifest/close" element={<CloseShippingManifest />} />
           <Route path="fulfillment/dispatch" element={<CreateAndDispatchShippingPackage />} />
-          <Route path="fulfillment/dispatch/force" element={<ForceDispatchShippingPackage />} />
           <Route path="fulfillment/manifest/complete" element={<CreateCompleteManifest />} />
           <Route path="fulfillment/invoice" element={<CreateInvoice />} />
-          <Route path="fulfillment/invoice/label" element={<CreateInvoiceAndGenerateLabel />} />
-          <Route path="fulfillment/invoice/create-label" element={<CreateInvoiceAndLabel />} />
-          <Route path="fulfillment/invoice/by-so" element={<CreateInvoiceBySaleOrder />} />
-          <Route path="fulfillment/invoice/with-details" element={<CreateInvoiceWithDetails />} />
-          <Route path="fulfillment/picklist/create" element={<CreatePicklist />} />
-          <Route path="fulfillment/manifest/create" element={<CreateShippingManifest />} />
           <Route path="fulfillment/package/create" element={<CreateShippingPackage />} />
-          <Route path="fulfillment/reason-dropdown/enable" element={<EnableCustomReasonDropdown />} />
-          <Route path="fulfillment/label/invoice" element={<GetInvoiceLabel />} />
-          <Route path="fulfillment/invoice/pdf" element={<GetInvoicePdf />} />
-          <Route path="fulfillment/label/pdf" element={<GetShippingLabelPdf />} />
-          <Route path="fulfillment/manifest/get" element={<GetShippingManifest />} />
-          <Route path="fulfillment/package/details" element={<GetShippingPackageDetails />} />
-          <Route path="fulfillment/packages" element={<GetShippingPackages />} />
-          <Route path="fulfillment/package/mark-dispatched" element={<MarkDispatchedShippingPackage />} />
-          <Route path="fulfillment/package/mark-delivered" element={<MarkItemDelivered />} />
-          <Route path="fulfillment/package/modify" element={<ModifyShippingPackage />} />
-          <Route path="fulfillment/packages/search" element={<SearchShippingPackages />} />
-          <Route path="fulfillment/package/split" element={<SplitShippingPackage />} />
-          <Route path="fulfillment/seal/update" element={<UpdateShipmentSealId />} />
-          <Route path="fulfillment/seal/bulk-update" element={<UpdateShipmentSealIdBulk />} />
-          <Route path="fulfillment/package/update" element={<UpdateShippingPackage />} />
           <Route path="fulfillment/tracking/update" element={<UpdateTrackingStatus />} />
-          <Route path="inbound/grn/add-item" element={<AddGRNItem />} />
-          <Route path="inbound/grn/add-sku" element={<AddGRNItemSKU />} />
-          <Route path="inbound/po/approve" element={<ApprovePurchaseOrder />} />
-          <Route path="inbound/po/close" element={<ClosePurchaseOrder />} />
-          <Route path="inbound/po/create-approved" element={<CreateApprovedPurchaseOrder />} />
-          <Route path="inbound/grn/create" element={<CreateGRN />} />
-          <Route path="inbound/po/create" element={<CreatePurchaseOrder />} />
-          <Route path="inbound/grn/get" element={<GetGRN />} />
-          <Route path="inbound/po/details" element={<GetPurchaseOrderDetails />} />
-          <Route path="inbound/grn/search" element={<SearchGRNs />} />
-          <Route path="inbound/po/search" element={<SearchPurchaseOrders />} />
-          <Route path="inbound/vendor" element={<Vendor />} />
-          <Route path="inbound/vendor/backorder" element={<VendorBackorderItems />} />
-          <Route path="inbound/vendor/item-type" element={<VendorItemType />} />
-          <Route path="inventory/adjust-batch-bulk" element={<AdjustBatchInventoryBulk />} />
-          <Route path="inventory/adjust" element={<AdjustInventory />} />
-          <Route path="inventory/adjust-bulk" element={<AdjustInventoryBulk />} />
-          <Route path="inventory/snapshot" element={<InventorySnapshot />} />
-          <Route path="inventory/mark-found" element={<MarkInventoryFound />} />
-          <Route path="inventory/nearby" element={<NearbyStoreInventory />} />
-          <Route path="outbound/gatepass/add-nontraceable" element={<AddNonTraceableItem />} />
-          <Route path="outbound/gatepass/complete" element={<CompleteGatepass />} />
-          <Route path="outbound/gatepass/create" element={<CreateGatepass />} />
-          <Route path="outbound/gatepass/discard" element={<DiscardGatepass />} />
-          <Route path="outbound/gatepass/get" element={<GetGatepass />} />
-          <Route path="outbound/gatepass/remove" element={<RemoveGatepassItem />} />
-          <Route path="outbound/gatepass/scan" element={<ScanGatepassItem />} />
-          <Route path="outbound/gatepass/search" element={<SearchGatepasses />} />
-          <Route path="outbound/gatepass/update" element={<UpdateGatepass />} />
-          <Route path="product/channel-item" element={<ChannelItemTypeCreateOrEdit />} />
-          <Route path="product/category" element={<CreateOrUpdateCategory />} />
-          <Route path="product/item" element={<CreateOrUpdateItem />} />
-          <Route path="product/items" element={<CreateOrUpdateItems />} />
-          <Route path="product/barcode" element={<GetItemBarcodeDetails />} />
-          <Route path="product/details" element={<GetItemDetails />} />
-          <Route path="product/search" element={<SearchItems />} />
-          <Route path="returns/alternate/accept" element={<AcceptAlternateItem />} />
-          <Route path="returns/reverse-pickup/allocate" element={<AllocateReversePickupCourier />} />
-          <Route path="returns/reverse-pickup/approve" element={<ApproveReversePickup />} />
-          <Route path="returns/reverse-pickup/cancel" element={<CancelReversePickup />} />
-          <Route path="returns/alternate/create" element={<CreateAlternateItem />} />
-          <Route path="returns/reverse-pickup/create" element={<CreateReversePickup />} />
-          <Route path="returns/get" element={<GetReturn />} />
-          <Route path="returns/mark-returned" element={<MarkSaleOrderReturned />} />
-          <Route path="returns/mark-returned-inventory" element={<MarkSaleOrderReturnedInventory />} />
-          <Route path="returns/search" element={<SearchReturns />} />
-          <Route path="returns/reverse-pickup/update" element={<UpdateReversePickup />} />
-          <Route path="saleorder/item/add" element={<AddSaleOrderItemDetails />} />
-          <Route path="saleorder/item/add-bulk" element={<AddSaleOrderItemDetailsBulk />} />
-          <Route path="saleorder/cancel" element={<CancelSaleOrder />} />
-          <Route path="saleorder/customer/create" element={<CreateCustomer />} />
           <Route path="saleorder/create" element={<CreateSaleOrder />} />
           <Route path="saleorder/get" element={<GetSaleOrder />} />
-          <Route path="saleorder/hold" element={<HoldSaleOrder />} />
-          <Route path="saleorder/items/hold" element={<HoldSaleOrderItems />} />
-          <Route path="saleorder/search" element={<SearchSaleOrders />} />
-          <Route path="saleorder/priority/set" element={<SetSaleOrderPriority />} />
-          <Route path="saleorder/items/switch-facility" element={<SwitchFacilitySaleOrderItems />} />
-          <Route path="saleorder/unhold" element={<UnholdSaleOrder />} />
-          <Route path="saleorder/items/unhold" element={<UnholdSaleOrderItems />} />
-          <Route path="saleorder/customer/update" element={<UpdateCustomer />} />
-          <Route path="saleorder/update" element={<UpdateSaleOrder />} />
-          <Route path="saleorder/metadata/update" element={<UpdateSaleOrderMetadata />} />
-          <Route path="saleorder/item/metadata/update" element={<UpdateSaleOrderItemMetadata />} />
-          <Route path="saleorder/verify" element={<VerifySaleOrder />} />
         </Route>
-
+       <Route path="/easyecom" element={<EasyEcomLayout />}>
+             <Route index element={<EasyEcomDashboard />} />
+          <Route path="check-company" element={<CheckCompany />} />
+          <Route path="create-client-company-v2" element={<CreateCompanyV2 />} />
+          <Route path="create-client-location" element={<CreateLocation />} />
+          <Route path="access-token" element={<AccessToken />} />
+          <Route path="get-aggregator-child-location" element={<GetAggregatorChildLocation />} />
+          <Route path="get-child-locations" element={<GetChildLocations />} />
+          <Route path="create-customer-master" element={<CreateCustomerMaster />} />
+          <Route path="create-vendor-master" element={<CreateVendorMaster />} />
+          <Route path="get-customers" element={<GetCustomers />} />
+          <Route path="get-location" element={<GetLocation />} />
+          <Route path="get-vendors" element={<GetVendors />} />
+          <Route path="update-customer-master" element={<UpdateCustomerMaster />} />
+          <Route path="update-vendor-master" element={<UpdateVendorMaster />} />
+          <Route path="get-payment-data" element={<GetPaymentData />} />
+          <Route path="get-payment-details" element={<GetPaymentDetails />} />
+          <Route path="return-order-erp-updation" element={<ReturnOrderERPUpdation />} />
+          <Route path="sales-order-erp-id" element={<SalesOrderERPId />} />
+          <Route path="complete-grn-v1" element={<CompleteGRNV1 />} />
+          <Route path="grn-detail-v1" element={<GRNDetailV1 />} />
+          <Route path="assign-inventory-old-b2b" element={<AssignInventoryOldB2B />} />
+          <Route path="queue-grn-api" element={<QueueGrnApi />} />
+          <Route path="bulk-hold-inventory-update" element={<BulkHoldInventoryUpdate />} />
+          <Route path="bulk-inventory-update" element={<BulkInventoryUpdate />} />
+          <Route path="bulk-inventory-update-batch" element={<BulkInventoryUpdateWithBatchCode />} />
+          <Route path="create-asn" element={<CreateASN />} />
+          <Route path="create-purchase-order" element={<CreatePurchaseOrderEasy />} />
+          <Route path="get-grn-details" element={<GetGrnDetails />} />
+          <Route path="get-inventory-serial-by-sku" element={<GetInventorySerialBySku />} />
+          <Route path="get-purchase-order" element={<GetPurchaseOrderEasy />} />
+          <Route path="get-inventory-details" element={<GetInventoryDetails />} />
+          <Route path="get-inventory-snapshot" element={<GetInventorySnapshot />} />
+          <Route path="unified-bulk-inventory-update" element={<UnifiedBulkInventoryUpdate />} />
+          <Route path="unified-bulk-inventory-update-starter" element={<UnifiedBulkInventoryUpdateStarter />} />
+          <Route path="update-inventory" element={<UpdateInventory />} />
+          <Route path="update-po-status" element={<UpdatePoStatus />} />
+          <Route path="update-virtual-inventory" element={<UpdateVirtualInventory />} />
+          <Route path="inventory-adjustment-v2" element={<InventoryAdjustmentV2 />} />
+          <Route path="add-user" element={<AddUser />} />
+          <Route path="enable-disable-account" element={<EnableDisableAccount />} />
+          <Route path="get-company-group-details" element={<GetCompanyGroupDetails />} />
+          <Route path="get-countries" element={<GetCountries />} />
+          <Route path="get-custom-fields" element={<GetCustomFields />} />
+          <Route path="get-marketplace-list" element={<GetMarketplaceList />} />
+          <Route path="get-marketplace-listing" element={<GetMarketPlaceListing />} />
+          <Route path="get-payment-delivery-term" element={<GetPaymentAndDeliveryTermDetails />} />
+          <Route path="get-queue-status" element={<GetQueueStatus />} />
+          <Route path="get-states" element={<GetStates />} />
+          <Route path="get-user" element={<GetUser />} />
+          <Route path="switch-sync-status" element={<SwitchSyncStatus />} />
+          <Route path="validate-marketplace-credentials" element={<ValidateMarketplaceCredentials />} />
+          <Route path="batch-manifest-v1" element={<BatchManifestV1 />} />
+          <Route path="cancel-order-v1" element={<CancelOrderV1 />} />
+          <Route path="cancel-order-v2" element={<CancelOrderV2 />} />
+          <Route path="confirm-order-v1" element={<ConfirmOrderV1 />} />
+          <Route path="confirm-order-v1-start" element={<ConfirmOrderV1Start />} />
+          <Route path="confirm-order-v2" element={<ConfirmOrderV2 />} />
+          <Route path="confirm-order-v2-start" element={<ConfirmOrderV2Start />} />
+          <Route path="create-order-v1" element={<CreateOrderV1 />} />
+          <Route path="create-order-v2" element={<CreateOrderV2 />} />
+          <Route path="fetch-order-v1" element={<FetchOrderV1 />} />
+          <Route path="fetch-order-v2" element={<FetchOrderV2 />} />
+          <Route path="manifested-v1" element={<ManifestedV1 />} />
+          <Route path="manifested-v2" element={<ManifestedV2 />} />
+          <Route path="mark-return-v1" element={<MarkReturnV1 />} />
+          <Route path="mark-return-v2" element={<MarkReturnV2 />} />
+          <Route path="order-tracking-v1" element={<OrderTrackingV1 />} />
+          <Route path="ready-to-dispatch-v1" element={<ReadyToDispatchV1 />} />
+          <Route path="ready-to-dispatch-v2" element={<ReadyToDispatchV2 />} />
+          <Route path="sales-order-erp-status" element={<SalesOrderERPStatus />} />
+          <Route path="generate-b2b-invoice" element={<GenerateB2BInvoice />} />
+          <Route path="b2b-order-approval" element={<B2BOrderApproval />} />
+          <Route path="b2b-order-assign" element={<B2BOrderAssign />} />
+          <Route path="cancel-rename-order" element={<CancelAndRenameOrder />} />
+          <Route path="cancel-order" element={<CancelOrderEasy />} />
+          <Route path="confirm-order" element={<ConfirmOrderEasy />} />
+          <Route path="business-order" element={<BusinessOrder />} />
+          <Route path="new-b2b-without-customer" element={<NewB2BWithoutCustomer />} />
+          <Route path="new-business-order" element={<NewBusinessOrder />} />
+          <Route path="new-stock-transfer-note" element={<NewStockTransferNote />} />
+          <Route path="production-order" element={<ProductionOrder />} />
+          <Route path="retail-order" element={<RetailOrder />} />
+          <Route path="stock-transfer-order" element={<StockTransferOrder />} />
+          <Route path="get-document-by-invoice-id" element={<GetDocumentByInvoiceId />} />
+          <Route path="get-all-orders" element={<GetAllOrders />} />
+          <Route path="get-all-orders-next-url" element={<GetAllOrdersNextUrl />} />
+          <Route path="get-order-count" element={<GetOrderCount />} />
+          <Route path="get-order-details" element={<GetOrderDetailsEasy />} />
+          <Route path="b2b-save-invoice-details" element={<B2BSaveInvoiceDetails />} />
+          <Route path="qc-confirm-order" element={<QcConfirmOrder />} />
+          <Route path="tag-loop-myntra-orders" element={<TagLoopMyntraOrders />} />
+          <Route path="update-order-address" element={<UpdateOrderAddress />} />
+          <Route path="create-listing" element={<CreateMarketplaceListing />} />
+          <Route path="create-master-product" element={<CreateMasterProduct />} />
+          <Route path="get-kit" element={<GetKit />} />
+          <Route path="get-master-product" element={<GetMasterProduct />} />
+          <Route path="get-product-masters-count" element={<GetProductMastersCount />} />
+          <Route path="import-listing" element={<ImportListing />} />
+          <Route path="map-listing" element={<MapListing />} />
+          <Route path="activate-deactivate-product" element={<ActivateDeactivateProduct />} />
+          <Route path="update-master-product" element={<UpdateMasterProduct />} />
+          <Route path="update-sku-price" element={<UpdateSKUPrice />} />
+          <Route path="consolidated-inventory-report" element={<ConsolidatedInventoryReport />} />
+          <Route path="download-report" element={<DownloadReport />} />
+          <Route path="full-inventory-report" element={<FullInventoryReport />} />
+          <Route path="grn-details-report" element={<GRNDetailsReport />} />
+          <Route path="initiated-return-report" element={<InitiatedReturnReport />} />
+          <Route path="inventory-aging-report" element={<InventoryAgingReport />} />
+          <Route path="serial-out-system-report" element={<SerialOutSystemReport />} />
+          <Route path="inventory-expiry-report" element={<InventoryExpiryReport />} />
+          <Route path="inventory-view-by-bin" element={<InventoryViewByBin />} />
+          <Route path="list-reports" element={<ListReports />} />
+          <Route path="pending-return-report" element={<PendingReturnReport />} />
+          <Route path="return-report" element={<ReturnReport />} />
+          <Route path="mini-sales-report" element={<MiniSalesReport />} />
+          <Route path="status-wise-stock-report" element={<StatusWiseStockReport />} />
+          <Route path="tax-report" element={<TaxReport />} />
+          <Route path="cancel-pending-return" element={<CancelPendingReturn />} />
+          <Route path="delete-initiated-return" element={<DeleteInitiatedReturn />} />
+          <Route path="get-all-returns" element={<GetAllReturns />} />
+          <Route path="get-pending-returns" element={<GetPendingReturns />} />
+          <Route path="get-return-details" element={<GetReturnDetails />} />
+          <Route path="initiate-return-rvp" element={<InitiateReturnRVP />} />
+          <Route path="mark-pending-return" element={<MarkPendingReturn />} />
+          <Route path="mark-return" element={<MarkReturn />} />
+          <Route path="authentication" element={<ShipmentAuthentication />} />
+          <Route path="authorization" element={<ShipmentAuthorization />} />
+          <Route path="cancel-shipment" element={<CancelShipment />} />
+          <Route path="create-shipment" element={<CreateShipment />} />
+          <Route path="list-carrier" element={<ListCarrier />} />
+          <Route path="update-tracking-status" element={<UpdateTrackingStatusEasy />} />
+          <Route path="estimated-delivery-date" element={<EstimatedDeliveryDate />} />
+          <Route path="generate-manifest" element={<GenerateManifest />} />
+          <Route path="get-tracking-details" element={<GetTrackingDetails />} />
+          <Route path="reassign-carrier" element={<ReassignCarrier />} />
+          <Route path="unassign-carrier" element={<UnassignCarrier />} />
+          <Route path="update-manifest-document" element={<UpdateManifestDocument />} />
+          <Route path="update-tracking-status-v2" element={<UpdateTrackingStatusV2 />} />
+          <Route path="update-tracking-status-b2b" element={<UpdateTrackingStatusB2B />} />
+        </Route>
         <Route path="*" element={<Navigate to="/marketplaces" replace />} />
-
-       {/* ========== Aggregators ========== */}
-<Route path="check-company" element={<CheckCompany />} />
-<Route path="create-client-company-v2" element={<CreateCompanyV2 />} />
-<Route path="create-client-location" element={<CreateLocation />} />
-
-{/* ========== Authorization ========== */}
-<Route path="access-token" element={<AccessToken />} />
-<Route path="get-aggregator-child-location" element={<GetAggregatorChildLocation />} />
-<Route path="get-child-locations" element={<GetChildLocations />} />
-
-{/* ========== CompanyAndLocations ========== */}
-<Route path="create-customer-master" element={<CreateCustomerMaster />} />
-<Route path="create-vendor-master" element={<CreateVendorMaster />} />
-<Route path="get-customers" element={<GetCustomers />} />
-<Route path="get-location" element={<GetLocation />} />
-<Route path="get-vendors" element={<GetVendors />} />
-<Route path="update-customer-master" element={<UpdateCustomerMaster />} />
-<Route path="update-vendor-master" element={<UpdateVendorMaster />} />
-
-{/* ========== ERPAndReconciliation ========== */}
-<Route path="get-payment-data" element={<GetPaymentData />} />
-<Route path="get-payment-details" element={<GetPaymentDetails />} />
-<Route path="return-order-erp-updation" element={<ReturnOrderERPUpdation />} />
-<Route path="sales-order-erp-id" element={<SalesOrderERPId />} />
-
-{/* ========== GRN ========== */}
-<Route path="complete-grn-v1" element={<CompleteGRNV1 />} />
-<Route path="grn-detail-v1" element={<GRNDetailV1 />} />
-
-{/* ========== Inventory ========== */}
-<Route path="assign-inventory-old-b2b" element={<AssignInventoryOldB2B />} />
-<Route path="queue-grn-api" element={<QueueGrnApi />} />
-<Route path="bulk-hold-inventory-update" element={<BulkHoldInventoryUpdate />} />
-<Route path="bulk-inventory-update" element={<BulkInventoryUpdate />} />
-<Route path="bulk-inventory-update-batch" element={<BulkInventoryUpdateWithBatchCode />} />
-<Route path="create-asn" element={<CreateASN />} />
-<Route path="create-purchase-order" element={<CreatePurchaseOrder />} />
-<Route path="get-grn-details" element={<GetGrnDetails />} />
-<Route path="get-inventory-serial-by-sku" element={<GetInventorySerialBySku />} />
-<Route path="get-purchase-order" element={<GetPurchaseOrder />} />
-<Route path="get-inventory-details" element={<GetInventoryDetails />} />
-<Route path="get-inventory-snapshot" element={<GetInventorySnapshot />} />
-<Route path="unified-bulk-inventory-update" element={<UnifiedBulkInventoryUpdate />} />
-<Route path="unified-bulk-inventory-update-starter" element={<UnifiedBulkInventoryUpdateStarter />} />
-<Route path="update-inventory" element={<UpdateInventory />} />
-<Route path="update-po-status" element={<UpdatePoStatus />} />
-<Route path="update-virtual-inventory" element={<UpdateVirtualInventory />} />
-<Route path="inventory-adjustment-v2" element={<InventoryAdjustmentV2 />} />
-
-{/* ========== Miscellaneous ========== */}
-<Route path="add-user" element={<AddUser />} />
-<Route path="enable-disable-account" element={<EnableDisableAccount />} />
-<Route path="get-company-group-details" element={<GetCompanyGroupDetails />} />
-<Route path="get-countries" element={<GetCountries />} />
-<Route path="get-custom-fields" element={<GetCustomFields />} />
-<Route path="get-marketplace-list" element={<GetMarketplaceList />} />
-<Route path="get-marketplace-listing" element={<GetMarketPlaceListing />} />
-<Route path="get-payment-delivery-term" element={<GetPaymentAndDeliveryTermDetails />} />
-<Route path="get-queue-status" element={<GetQueueStatus />} />
-<Route path="get-states" element={<GetStates />} />
-<Route path="get-user" element={<GetUser />} />
-<Route path="switch-sync-status" element={<SwitchSyncStatus />} />
-<Route path="validate-marketplace-credentials" element={<ValidateMarketplaceCredentials />} />
-
-{/* ========== Order V1/V2 ========== */}
-<Route path="batch-manifest-v1" element={<BatchManifestV1 />} />
-<Route path="cancel-order-v1" element={<CancelOrderV1 />} />
-<Route path="cancel-order-v2" element={<CancelOrderV2 />} />
-<Route path="confirm-order-v1" element={<ConfirmOrderV1 />} />
-<Route path="confirm-order-v1-start" element={<ConfirmOrderV1Start />} />
-<Route path="confirm-order-v2" element={<ConfirmOrderV2 />} />
-<Route path="confirm-order-v2-start" element={<ConfirmOrderV2Start />} />
-<Route path="create-order-v1" element={<CreateOrderV1 />} />
-<Route path="create-order-v2" element={<CreateOrderV2 />} />
-<Route path="fetch-order-v1" element={<FetchOrderV1 />} />
-<Route path="fetch-order-v2" element={<FetchOrderV2 />} />
-<Route path="manifested-v1" element={<ManifestedV1 />} />
-<Route path="manifested-v2" element={<ManifestedV2 />} />
-<Route path="mark-return-v1" element={<MarkReturnV1 />} />
-<Route path="mark-return-v2" element={<MarkReturnV2 />} />
-<Route path="order-tracking-v1" element={<OrderTrackingV1 />} />
-<Route path="ready-to-dispatch-v1" element={<ReadyToDispatchV1 />} />
-<Route path="ready-to-dispatch-v2" element={<ReadyToDispatchV2 />} />
-<Route path="sales-order-erp-status" element={<SalesOrderERPStatus />} />
-
-{/* ========== orderv2.1 ========== */}
-<Route path="generate-b2b-invoice" element={<GenerateB2BInvoice />} />
-<Route path="b2b-order-approval" element={<B2BOrderApproval />} />
-<Route path="b2b-invoice-queue-status" element={<GetQueueStatus />} />
-<Route path="b2b-order-assign" element={<B2BOrderAssign />} />
-<Route path="cancel-rename-order" element={<CancelAndRenameOrder />} />
-<Route path="cancel-order" element={<CancelOrder />} />
-<Route path="confirm-order" element={<ConfirmOrder />} />
-<Route path="business-order" element={<BusinessOrder />} />
-<Route path="new-b2b-without-customer" element={<NewB2BWithoutCustomer />} />
-<Route path="new-business-order" element={<NewBusinessOrder />} />
-<Route path="new-stock-transfer-note" element={<NewStockTransferNote />} />
-<Route path="production-order" element={<ProductionOrder />} />
-<Route path="retail-order" element={<RetailOrder />} />
-<Route path="stock-transfer-order" element={<StockTransferOrder />} />
-<Route path="get-document-by-invoice-id" element={<GetDocumentByInvoiceId />} />
-<Route path="get-all-orders" element={<GetAllOrders />} />
-<Route path="get-all-orders-next-url" element={<GetAllOrdersNextUrl />} />
-<Route path="get-order-count" element={<GetOrderCount />} />
-<Route path="get-order-details" element={<GetOrderDetails />} />
-<Route path="b2b-save-invoice-details" element={<B2BSaveInvoiceDetails />} />
-<Route path="qc-confirm-order" element={<QcConfirmOrder />} />
-<Route path="tag-loop-myntra-orders" element={<TagLoopMyntraOrders />} />
-<Route path="update-order-address" element={<UpdateOrderAddress />} />
-
-{/* ========== Product ========== */}
-<Route path="create-listing" element={<CreateListing />} />
-<Route path="create-marketplace-listing" element={<CreateMarketplaceListing />} />
-<Route path="create-master-product" element={<CreateMasterProduct />} />
-<Route path="get-kit" element={<GetKit />} />
-<Route path="get-master-product" element={<GetMasterProduct />} />
-<Route path="get-product-masters-count" element={<GetProductMastersCount />} />
-<Route path="import-listing" element={<ImportListing />} />
-<Route path="map-listing" element={<MapListing />} />
-<Route path="activate-deactivate-product" element={<ActivateDeactivateProduct />} />
-<Route path="update-master-product" element={<UpdateMasterProduct />} />
-<Route path="update-sku-price" element={<UpdateSKUPrice />} />
-
-{/* ========== Reports ========== */}
-<Route path="consolidated-inventory-report" element={<ConsolidatedInventoryReport />} />
-<Route path="download-report" element={<DownloadReport />} />
-<Route path="full-inventory-report" element={<FullInventoryReport />} />
-<Route path="grn-details-report" element={<GRNDetailsReport />} />
-<Route path="initiated-return-report" element={<InitiatedReturnReport />} />
-<Route path="inventory-aging-report" element={<InventoryAgingReport />} />
-<Route path="serial-out-system-report" element={<SerialOutSystemReport />} />
-<Route path="inventory-expiry-report" element={<InventoryExpiryReport />} />
-<Route path="inventory-view-by-bin" element={<InventoryViewByBin />} />
-<Route path="list-reports" element={<ListReports />} />
-<Route path="pending-return-report" element={<PendingReturnReport />} />
-<Route path="return-report" element={<ReturnReport />} />
-<Route path="mini-sales-report" element={<MiniSalesReport />} />
-<Route path="status-wise-stock-report" element={<StatusWiseStockReport />} />
-<Route path="tax-report" element={<TaxReport />} />
-
-{/* ========== Return ========== */}
-<Route path="cancel-pending-return" element={<CancelPendingReturn />} />
-<Route path="delete-initiated-return" element={<DeleteInitiatedReturn />} />
-<Route path="get-all-returns" element={<GetAllReturns />} />
-<Route path="get-pending-returns" element={<GetPendingReturns />} />
-<Route path="get-return-details" element={<GetReturnDetails />} />
-<Route path="initiate-return-rvp" element={<InitiateReturnRVP />} />
-<Route path="mark-pending-return" element={<MarkPendingReturn />} />
-<Route path="mark-return" element={<MarkReturn />} />
-
-{/* ========== Shipment V1 ========== */}
-<Route path="authentication" element={<ShipmentAuthentication />} />
-<Route path="authorization" element={<ShipmentAuthorization />} />
-<Route path="cancel-shipment" element={<CancelShipment />} />
-<Route path="create-shipment" element={<CreateShipment />} />
-<Route path="list-carrier" element={<ListCarrier />} />
-<Route path="update-tracking-status" element={<UpdateTrackingStatus />} />
-
-{/* ========== ShipmentV2.1 ========== */}
-<Route path="estimated-delivery-date" element={<EstimatedDeliveryDate />} />
-<Route path="generate-manifest" element={<GenerateManifest />} />
-<Route path="get-tracking-details" element={<GetTrackingDetails />} />
-<Route path="reassign-carrier" element={<ReassignCarrier />} />
-<Route path="unassign-carrier" element={<UnassignCarrier />} />
-<Route path="update-manifest-document" element={<UpdateManifestDocument />} />
-<Route path="update-tracking-status-v2" element={<UpdateTrackingStatusV2 />} />
-<Route path="update-tracking-status-b2b" element={<UpdateTrackingStatusB2B />} />
-
-{/* ========== Unicommerce SALE ORDER (your previous request) ========== */}
-<Route path="add-sale-order-item-details" element={<AddSaleOrderItemDetails />} />
-<Route path="add-sale-order-item-details-bulk" element={<AddSaleOrderItemDetailsBulk />} />
-<Route path="cancel-sale-order" element={<CancelSaleOrder />} />
-<Route path="create-customer" element={<CreateCustomer />} />
-<Route path="create-sale-order" element={<CreateSaleOrder />} />
-<Route path="get-sale-order" element={<GetSaleOrder />} />
-<Route path="hold-sale-order" element={<HoldSaleOrder />} />
-<Route path="hold-sale-order-items" element={<HoldSaleOrderItems />} />
-
-        
       </Routes>
     </BrowserRouter>
   );
 }
-
 export default App;

@@ -9,6 +9,7 @@ import {
   Globe,
   ShoppingCart,
   Warehouse,
+  Layers, // Added for EasyEcom
 } from "lucide-react";
 
 import "./MarketplaceSelector.css";
@@ -41,6 +42,13 @@ const marketplaces = [
     color: "#2563EB",
     path: "/uniware",
     count: "100+ APIs",
+  },
+  {
+    name: "EasyEcom",
+    icon: Layers,
+    color: "#10B981",
+    path: "/easyecom",
+    count: "80+ APIs",
   },
   {
     name: "Meesho",
@@ -84,32 +92,21 @@ function MarketplaceSelector() {
   const location = useLocation();
 
   const isActive = (path) => {
-    if (path === "/mystore") {
-      return location.pathname.startsWith("/mystore");
+    if (path === "/mystore" || path === "/uniware" || path === "/easyecom") {
+      return location.pathname.startsWith(path);
     }
-
     return location.pathname.startsWith(path);
   };
 
   return (
     <div className="marketplace-wrapper">
-
-      {/* =====================================================
-          HEADER
-      ====================================================== */}
-
       <div className="marketplace-header">
         <h1>Marketplaces & Integrations</h1>
-
         <p>
           Select a marketplace or integration to manage your
           Seller → Customer → Orders → Inventory flow
         </p>
       </div>
-
-      {/* =====================================================
-          MARKETPLACE CARDS
-      ====================================================== */}
 
       <div className="marketplace-scroll">
         {marketplaces.map((mp) => {
@@ -120,16 +117,9 @@ function MarketplaceSelector() {
             <button
               key={mp.path}
               type="button"
-              className={`marketplace-card ${
-                active ? "active" : ""
-              }`}
+              className={`marketplace-card ${active ? "active" : ""}`}
               onClick={() => navigate(mp.path)}
             >
-
-              {/* =================================================
-                  ICON
-              ================================================= */}
-
               <div
                 className="marketplace-icon"
                 style={{
@@ -137,60 +127,31 @@ function MarketplaceSelector() {
                   color: mp.color,
                 }}
               >
-                <Icon
-                  size={42}
-                  strokeWidth={1.8}
-                />
+                <Icon size={42} strokeWidth={1.8} />
               </div>
 
-              {/* =================================================
-                  NAME
-              ================================================= */}
-
-              <div className="marketplace-name">
-                {mp.name}
-              </div>
-
-              {/* =================================================
-                  API COUNT
-              ================================================= */}
+              <div className="marketplace-name">{mp.name}</div>
 
               <div
                 className="marketplace-count"
-                style={{
-                  fontSize: "11px",
-                  color: "#6b7280",
-                }}
+                style={{ fontSize: "11px", color: "#6b7280" }}
               >
                 {mp.count}
               </div>
 
-              {/* =================================================
-                  DASHBOARD LINK TEXT
-              ================================================= */}
-
               <div
                 className="marketplace-dashboard-text"
-                style={{
-                  color: mp.color,
-                }}
+                style={{ color: mp.color }}
               >
                 Open Dashboard →
               </div>
 
-              {/* =================================================
-                  ACTIVE INDICATOR
-              ================================================= */}
-
               {active && (
                 <div
                   className="active-indicator"
-                  style={{
-                    backgroundColor: mp.color,
-                  }}
+                  style={{ backgroundColor: mp.color }}
                 />
               )}
-
             </button>
           );
         })}

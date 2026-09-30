@@ -534,4 +534,4 @@ const buttonStyle = {
   padding: "10px 20px",
 };
 
-export default UnifiedBulkInventoryUpdate;s
+export default UnifiedBulkInventoryUpdate;
